@@ -67,6 +67,8 @@ Rtl Terminal uses the Windows ConPTY API and works with command-line environment
 
 ![Rtl Terminal Windows terminal emulator with Persian and Arabic RTL support](screenshots/rtl-terminal-main-window.png)
 
+![Rtl Terminal displaying Persian RTL interactive CLI output](screenshots/rtl-terminal-persian-rtl-cli.png)
+
 ### System Requirements
 
 - Windows 10 version 1809 or newer
