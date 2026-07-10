@@ -24,6 +24,14 @@
   ### [⬇️ Download Rtl Terminal Setup v1.0.1](https://github.com/mirbehnam/RtlTerminal/releases/download/v1.0.1/RtlTerminal-Setup-1.0.1-x64.exe)
 
   [مشاهده همه نسخه‌ها · View all releases](https://github.com/mirbehnam/RtlTerminal/releases)
+
+  <br>
+
+  <img src="screenshots/rtl-terminal-main-window.png"
+       width="900"
+       alt="Rtl Terminal main window on Windows with Persian RTL text, ANSI colors, GitHub link and Command Prompt">
+
+  **نمای اصلی Rtl Terminal در ویندوز · Rtl Terminal main window on Windows**
 </div>
 
 ---
@@ -57,13 +65,7 @@ Rtl Terminal uses the Windows ConPTY API and works with command-line environment
 
 ### Screenshots
 
-Screenshots can be added to a `docs/screenshots` directory and referenced here:
-
-```markdown
-![Rtl Terminal Persian RTL mode](docs/screenshots/rtl-terminal-persian.png)
-```
-
-Using descriptive screenshot filenames and alternative text helps users and search engines understand the project.
+![Rtl Terminal Windows terminal emulator with Persian and Arabic RTL support](screenshots/rtl-terminal-main-window.png)
 
 ### System Requirements
 
