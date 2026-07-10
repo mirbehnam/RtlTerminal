@@ -10,6 +10,20 @@
   **محاكي طرفية لويندوز يدعم العربية والفارسية واتجاه الكتابة من اليمين إلى اليسار**
 
   [English](#english) · [فارسی](#فارسی) · [العربية](#العربية)
+
+  <br>
+
+  ## دانلود مستقیم فایل نصب · Direct Setup Download
+
+  **آخرین نسخه مخصوص ویندوز ۱۰ و ۱۱ — بدون نیاز به نصب جداگانه .NET**
+
+  **Latest Windows 10/11 installer — no separate .NET installation required**
+
+  ### [⬇️ دانلود Rtl Terminal Setup v1.0.1](https://github.com/mirbehnam/RtlTerminal/releases/download/v1.0.1/RtlTerminal-Setup-1.0.1-x64.exe)
+
+  ### [⬇️ Download Rtl Terminal Setup v1.0.1](https://github.com/mirbehnam/RtlTerminal/releases/download/v1.0.1/RtlTerminal-Setup-1.0.1-x64.exe)
+
+  [مشاهده همه نسخه‌ها · View all releases](https://github.com/mirbehnam/RtlTerminal/releases)
 </div>
 
 ---
