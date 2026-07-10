@@ -1,0 +1,47 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+
+
+  <PropertyGroup>
+
+    <OutputType>WinExe</OutputType>
+
+    <TargetFramework>net8.0-windows</TargetFramework>
+
+    <AssemblyName>RtlTerminal</AssemblyName>
+
+    <RootNamespace>RtlTerminal</RootNamespace>
+
+    <ApplicationIcon>RtlTerminal.ico</ApplicationIcon>
+
+    <Company>behnamapps</Company>
+
+    <Authors>behnam tajadini</Authors>
+
+    <Product>Rtl Terminal</Product>
+
+    <Description>RTL-enabled terminal for Persian language users.</Description>
+
+    <Version>1.0.0</Version>
+
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+
+    <FileVersion>1.0.0.0</FileVersion>
+
+    <Nullable>enable</Nullable>
+
+    <ImplicitUsings>enable</ImplicitUsings>
+
+    <UseWPF>true</UseWPF>
+
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Resource Include="RtlTerminal.ico" />
+  </ItemGroup>
+
+
+
+</Project>

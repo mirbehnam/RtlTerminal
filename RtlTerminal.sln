@@ -1,0 +1,25 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.14.36109.1 d17.14
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RtlTerminal", "RtlTerminal.csproj", "{0A682D41-173D-40AA-B05A-C46DD4289D1F}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{0A682D41-173D-40AA-B05A-C46DD4289D1F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0A682D41-173D-40AA-B05A-C46DD4289D1F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0A682D41-173D-40AA-B05A-C46DD4289D1F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0A682D41-173D-40AA-B05A-C46DD4289D1F}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {97058E3A-5E80-47F7-B524-FC71C98D98DD}
+	EndGlobalSection
+EndGlobal

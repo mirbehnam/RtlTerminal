@@ -1,0 +1,67 @@
+<Window x:Class="RtlTerminal.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="RtlTerminal"
+        Icon="RtlTerminal.ico"
+        Width="980"
+        Height="620"
+        Background="#0c0c0c"
+        Loaded="Window_Loaded"
+        Closed="Window_Closed"
+        SizeChanged="Window_SizeChanged">
+    <DockPanel Background="#0c0c0c">
+        <Menu DockPanel.Dock="Top"
+              Background="#f0f0f0"
+              Foreground="#202020">
+            <MenuItem Header="_Edit">
+                <MenuItem Header="_Font settings..."
+                          Click="FontSettingsMenuItem_Click" />
+            </MenuItem>
+            <MenuItem Header="_View">
+                <MenuItem x:Name="RtlMenuItem"
+                          Header="_Right-to-left"
+                          IsCheckable="True"
+                          ToolTip="نمایش کل ترمینال از راست به چپ"
+                          Checked="RtlMenuItem_Changed"
+                          Unchecked="RtlMenuItem_Changed" />
+            </MenuItem>
+            <MenuItem Header="_Tools">
+                <MenuItem x:Name="ContextMenuIntegrationMenuItem"
+                          Header="Add _Open in RtlTerminal"
+                          IsCheckable="True"
+                          Click="ContextMenuIntegrationMenuItem_Click" />
+            </MenuItem>
+            <MenuItem Header="_Help">
+                <MenuItem Header="_Guide"
+                          Click="GuideMenuItem_Click" />
+                <MenuItem Header="_About Rtl Terminal"
+                          Click="AboutMenuItem_Click" />
+            </MenuItem>
+        </Menu>
+
+        <RichTextBox x:Name="TerminalTextBox"
+                     Background="#0c0c0c"
+                     Foreground="#e6e6e6"
+                     BorderThickness="0"
+                     Padding="10"
+                     FontFamily="Cascadia Mono, Consolas"
+                     FontSize="15"
+                     HorizontalScrollBarVisibility="Disabled"
+                     VerticalScrollBarVisibility="Auto"
+                     IsReadOnly="True"
+                     IsReadOnlyCaretVisible="True"
+                     Cursor="IBeam"
+                     IsUndoEnabled="False"
+                     SpellCheck.IsEnabled="False"
+                     FlowDirection="LeftToRight"
+                     CaretBrush="#e6e6e6"
+                     PreviewKeyDown="TerminalTextBox_PreviewKeyDown"
+                     PreviewMouseRightButtonDown="TerminalTextBox_PreviewMouseRightButtonDown"
+                     PreviewTextInput="TerminalTextBox_PreviewTextInput">
+            <FlowDocument PagePadding="0"
+                          ColumnWidth="Infinity"
+                          LineHeight="18"
+                          TextAlignment="Left" />
+        </RichTextBox>
+    </DockPanel>
+</Window>

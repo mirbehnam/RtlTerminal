@@ -1,0 +1,117 @@
+<Window x:Class="RtlTerminal.GuideWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="راهنمای Rtl Terminal"
+        Icon="RtlTerminal.ico"
+        Width="720"
+        Height="580"
+        MinWidth="560"
+        MinHeight="440"
+        WindowStartupLocation="CenterOwner"
+        Background="#10151f"
+        FlowDirection="RightToLeft">
+    <Window.Resources>
+        <Style x:Key="GuideCardStyle"
+               TargetType="Border">
+            <Setter Property="Background" Value="#172234" />
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="Padding" Value="18" />
+            <Setter Property="Margin" Value="0,0,0,14" />
+        </Style>
+        <Style x:Key="GuideTitleStyle"
+               TargetType="TextBlock">
+            <Setter Property="Foreground" Value="#56b4ff" />
+            <Setter Property="FontSize" Value="17" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Margin" Value="0,0,0,9" />
+        </Style>
+        <Style x:Key="GuideTextStyle"
+               TargetType="TextBlock">
+            <Setter Property="Foreground" Value="#e4eaf4" />
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="LineHeight" Value="25" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+        </Style>
+        <Style x:Key="GuideNoteStyle"
+               TargetType="TextBlock"
+               BasedOn="{StaticResource GuideTextStyle}">
+            <Setter Property="Foreground" Value="#ffcf70" />
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <Border Background="#172234"
+                Padding="24,20">
+            <StackPanel>
+                <TextBlock Text="راهنمای Rtl Terminal"
+                           Foreground="White"
+                           FontSize="25"
+                           FontWeight="SemiBold" />
+                <TextBlock Margin="0,7,0,0"
+                           Text="راهنمای سریع امکانات و میان‌برهای ترمینال"
+                           Foreground="#aebbd0"
+                           FontSize="14" />
+            </StackPanel>
+        </Border>
+
+        <ScrollViewer Grid.Row="1"
+                      Padding="24"
+                      VerticalScrollBarVisibility="Auto">
+            <StackPanel>
+                <Border Style="{StaticResource GuideCardStyle}">
+                    <StackPanel>
+                        <TextBlock Style="{StaticResource GuideTitleStyle}"
+                                   Text="جهت نمایش" />
+                        <TextBlock Style="{StaticResource GuideTextStyle}"
+                                   Text="از منوی View گزینه Right-to-left را فعال کنید تا کل صفحه راست‌به‌چپ شود. با غیرفعال‌کردن آن نمایش دوباره چپ‌به‌راست خواهد شد." />
+                    </StackPanel>
+                </Border>
+
+                <Border Style="{StaticResource GuideCardStyle}">
+                    <StackPanel>
+                        <TextBlock Style="{StaticResource GuideTitleStyle}"
+                                   Text="کپی و چسباندن" />
+                        <TextBlock Style="{StaticResource GuideTextStyle}"
+                                   Text="برای کپی، متن را انتخاب کرده و Ctrl+C یا Ctrl+Shift+C را بزنید. برای چسباندن از Ctrl+V یا Ctrl+Shift+V استفاده کنید." />
+                        <TextBlock Margin="0,8,0,0"
+                                   Style="{StaticResource GuideNoteStyle}"
+                                   Text="وقتی متنی انتخاب نشده باشد، Ctrl+C برای توقف فرمان جاری به ترمینال ارسال می‌شود." />
+                    </StackPanel>
+                </Border>
+
+                <Border Style="{StaticResource GuideCardStyle}">
+                    <StackPanel>
+                        <TextBlock Style="{StaticResource GuideTitleStyle}"
+                                   Text="بازکردن لینک‌ها" />
+                        <TextBlock Style="{StaticResource GuideTextStyle}"
+                                   Text="لینک‌ها با رنگ آبی نمایش داده می‌شوند. برای جلوگیری از بازشدن تصادفی، کلید Ctrl را نگه دارید و روی لینک کلیک کنید." />
+                    </StackPanel>
+                </Border>
+
+                <Border Style="{StaticResource GuideCardStyle}">
+                    <StackPanel>
+                        <TextBlock Style="{StaticResource GuideTitleStyle}"
+                                   Text="منوی راست‌کلیک ویندوز" />
+                        <TextBlock Style="{StaticResource GuideTextStyle}"
+                                   Text="از منوی Tools می‌توانید گزینه Open in RtlTerminal را برای پوشه‌ها نصب یا حذف کنید. ترمینال در همان مسیر انتخاب‌شده باز می‌شود." />
+                    </StackPanel>
+                </Border>
+
+                <Border Style="{StaticResource GuideCardStyle}">
+                    <StackPanel>
+                        <TextBlock Style="{StaticResource GuideTitleStyle}"
+                                   Text="کلیدهای ترمینال" />
+                        <TextBlock Style="{StaticResource GuideTextStyle}"
+                                   Text="کلیدهای جهت، Home، End، Insert، Delete، Page Up، Page Down، Tab و Escape به برنامه در حال اجرای ترمینال ارسال می‌شوند." />
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+
+</Window>
