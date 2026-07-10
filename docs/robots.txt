@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://mirbehnam.github.io/RtlTerminal/sitemap.xml
