@@ -206,7 +206,7 @@ On Windows 11, the current registry integration may appear under **Show more opt
 - Product: **Rtl Terminal**
 - Brand: **behnamapps**
 - Developer: **behnam tajadini**
-- YouTube: **akatechno**
+- YouTube: **aka_techno**
 - Technology: **C# · .NET 8 · WPF · Windows ConPTY**
 
 ### Contributing
