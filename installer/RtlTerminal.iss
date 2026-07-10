@@ -1,5 +1,7 @@
 #define AppName "Rtl Terminal"
-#define AppVersion "1.0.0"
+#ifndef AppVersion
+  #define AppVersion "1.0.1"
+#endif
 #define AppPublisher "behnamapps"
 #define AppExeName "RtlTerminal.exe"
 #define PublishDirectory "..\publish\win-x64"

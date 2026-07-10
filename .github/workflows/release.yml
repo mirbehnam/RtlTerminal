@@ -58,6 +58,27 @@ jobs:
             -Path publish/win-x64/RtlTerminal.exe `
             -DestinationPath "RtlTerminal-${{ steps.version.outputs.version }}-win-x64.zip"
 
+      - name: Install Inno Setup
+        shell: pwsh
+        run: choco install innosetup --yes --no-progress
+
+      - name: Build Windows installer
+        shell: pwsh
+        run: |
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+
+          if (-not (Test-Path $iscc)) {
+            throw "Inno Setup compiler was not found at $iscc"
+          }
+
+          & $iscc `
+            "/DAppVersion=${{ steps.version.outputs.version }}" `
+            "installer\RtlTerminal.iss"
+
+          if ($LASTEXITCODE -ne 0) {
+            exit $LASTEXITCODE
+          }
+
       - name: Upload workflow artifact
         uses: actions/upload-artifact@v4
         with:
@@ -65,6 +86,7 @@ jobs:
           path: |
             RtlTerminal-${{ steps.version.outputs.version }}-win-x64.exe
             RtlTerminal-${{ steps.version.outputs.version }}-win-x64.zip
+            release/RtlTerminal-Setup-${{ steps.version.outputs.version }}-x64.exe
           if-no-files-found: error
 
       - name: Publish GitHub Release
@@ -73,6 +95,20 @@ jobs:
         with:
           name: Rtl Terminal ${{ github.ref_name }}
           generate_release_notes: true
+          body: |
+            ## Rtl Terminal ${{ github.ref_name }}
+
+            ### Changes
+            - Added the official GitHub repository link to the terminal welcome message.
+            - Fixed opening blue links with Ctrl + Click.
+            - Added an automatic standalone Windows x64 build.
+            - Added an automatic Windows Setup installer with uninstall support.
+
+            ### Downloads
+            - `RtlTerminal-${{ steps.version.outputs.version }}-win-x64.exe`: standalone portable executable
+            - `RtlTerminal-${{ steps.version.outputs.version }}-win-x64.zip`: compressed portable executable
+            - `RtlTerminal-Setup-${{ steps.version.outputs.version }}-x64.exe`: Windows installer
           files: |
             RtlTerminal-${{ steps.version.outputs.version }}-win-x64.exe
             RtlTerminal-${{ steps.version.outputs.version }}-win-x64.zip
+            release/RtlTerminal-Setup-${{ steps.version.outputs.version }}-x64.exe

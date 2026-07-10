@@ -136,9 +136,10 @@ The workflow publishes these downloadable release assets:
 ```text
 RtlTerminal-1.0.0-win-x64.exe
 RtlTerminal-1.0.0-win-x64.zip
+RtlTerminal-Setup-1.0.0-x64.exe
 ```
 
-The executable is standalone and does not require a separate .NET installation. The workflow can also be started manually from the GitHub **Actions** page; manual runs create downloadable workflow artifacts without creating a GitHub Release.
+The portable executable and installer include the self-contained .NET runtime and do not require a separate .NET installation. The Setup file provides installation shortcuts and standard Windows uninstall support. The workflow can also be started manually from the GitHub **Actions** page; manual runs create downloadable workflow artifacts without creating a GitHub Release.
 
 ### Keyboard and Mouse Shortcuts
 
@@ -290,7 +291,7 @@ git tag v1.0.0
 git push origin v1.0.0
 ```
 
-پس از پایان Workflow، فایل‌های مستقل `EXE` و `ZIP` در بخش Releases قرار می‌گیرند و برای اجرا به نصب جداگانه .NET نیاز ندارند. اجرای دستی Workflow از بخش Actions فقط Artifact قابل دانلود می‌سازد.
+پس از پایان Workflow، فایل‌های Portable، فایل `ZIP` و فایل Setup دارای Uninstall در بخش Releases قرار می‌گیرند و برای اجرا به نصب جداگانه .NET نیاز ندارند. اجرای دستی Workflow از بخش Actions فقط Artifact قابل دانلود می‌سازد.
 
 ### میان‌برها
 
@@ -394,7 +395,7 @@ git tag v1.0.0
 git push origin v1.0.0
 ```
 
-بعد اكتمال Workflow ستظهر ملفات `EXE` و`ZIP` المستقلة في صفحة Releases، ولا تحتاج النسخة التنفيذية إلى تثبيت .NET بشكل منفصل. التشغيل اليدوي من صفحة Actions ينشئ Artifact قابلاً للتنزيل فقط.
+بعد اكتمال Workflow ستظهر ملفات `EXE` و`ZIP` المحمولة وملف Setup الذي يدعم إزالة التثبيت في صفحة Releases. لا تحتاج هذه الملفات إلى تثبيت .NET بشكل منفصل. التشغيل اليدوي من صفحة Actions ينشئ Artifact قابلاً للتنزيل فقط.
 
 ### الاختصارات
 

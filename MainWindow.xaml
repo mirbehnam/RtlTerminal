@@ -49,6 +49,7 @@
                      HorizontalScrollBarVisibility="Disabled"
                      VerticalScrollBarVisibility="Auto"
                      IsReadOnly="True"
+                     IsDocumentEnabled="True"
                      IsReadOnlyCaretVisible="True"
                      Cursor="IBeam"
                      IsUndoEnabled="False"

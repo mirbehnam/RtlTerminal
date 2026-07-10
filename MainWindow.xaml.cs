@@ -71,7 +71,7 @@ public partial class MainWindow : Window
             _cancellationTokenSource = new CancellationTokenSource();
             _session = new ConPtySession(columns, rows);
             _session.Start(
-                @"C:\Windows\System32\cmd.exe /D /K ""chcp 65001>nul & echo RtlTerminal by behnam tajadini & echo YouTube: akatechno & echo تقدیم به همه فارسی زبانان & echo.""",
+                @"C:\Windows\System32\cmd.exe /D /K ""chcp 65001>nul & echo RtlTerminal by behnam tajadini & echo GitHub: https://github.com/mirbehnam/RtlTerminal & echo YouTube: akatechno & echo تقدیم به همه فارسی زبانان & echo.""",
                 GetStartupDirectory());
             _ = Task.Run(() => ReadOutputLoop(_cancellationTokenSource.Token));
         }
@@ -538,6 +538,7 @@ public partial class MainWindow : Window
                         {
                             Foreground = ToBrush(LinkForeground),
                             TextDecorations = TextDecorations.Underline,
+                            Cursor = Cursors.Hand,
                             ToolTip = "Ctrl را نگه دارید و کلیک کنید"
                         };
                         hyperlink.Click += Link_Click;
