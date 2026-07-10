@@ -122,6 +122,24 @@ The installer is created in:
 release\RtlTerminal-Setup-1.0.0-x64.exe
 ```
 
+### Automatic GitHub Releases
+
+The repository includes a GitHub Actions workflow that creates a self-contained, single-file Windows x64 build. Push a version tag to create a GitHub Release automatically:
+
+```powershell
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+The workflow publishes these downloadable release assets:
+
+```text
+RtlTerminal-1.0.0-win-x64.exe
+RtlTerminal-1.0.0-win-x64.zip
+```
+
+The executable is standalone and does not require a separate .NET installation. The workflow can also be started manually from the GitHub **Actions** page; manual runs create downloadable workflow artifacts without creating a GitHub Release.
+
 ### Keyboard and Mouse Shortcuts
 
 | Action | Shortcut |
@@ -263,6 +281,17 @@ dotnet publish RtlTerminal.csproj `
 .\build-release.ps1
 ```
 
+### ساخت خودکار Release در گیت‌هاب
+
+این مخزن دارای GitHub Actions است که نسخه مستقل و تک‌فایلی ویندوز ۶۴ بیتی را می‌سازد. برای ایجاد Release خودکار، یک تگ نسخه ایجاد و Push کنید:
+
+```powershell
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+پس از پایان Workflow، فایل‌های مستقل `EXE` و `ZIP` در بخش Releases قرار می‌گیرند و برای اجرا به نصب جداگانه .NET نیاز ندارند. اجرای دستی Workflow از بخش Actions فقط Artifact قابل دانلود می‌سازد.
+
 ### میان‌برها
 
 | عملیات | میان‌بر |
@@ -355,6 +384,17 @@ dotnet publish RtlTerminal.csproj `
 ```powershell
 .\build-release.ps1
 ```
+
+### إنشاء Release تلقائياً على GitHub
+
+يتضمن المستودع GitHub Actions لبناء إصدار Windows x64 مستقل وذي ملف واحد. أنشئ وادفع وسم إصدار لإنشاء GitHub Release تلقائياً:
+
+```powershell
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+بعد اكتمال Workflow ستظهر ملفات `EXE` و`ZIP` المستقلة في صفحة Releases، ولا تحتاج النسخة التنفيذية إلى تثبيت .NET بشكل منفصل. التشغيل اليدوي من صفحة Actions ينشئ Artifact قابلاً للتنزيل فقط.
 
 ### الاختصارات
 

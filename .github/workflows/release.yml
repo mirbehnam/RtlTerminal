@@ -1,0 +1,78 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows:
+    name: Build Windows x64
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Set release version
+        id: version
+        shell: pwsh
+        run: |
+          if ("${{ github.ref_type }}" -eq "tag") {
+            $version = "${{ github.ref_name }}".TrimStart("v")
+          } else {
+            $version = "1.0.${{ github.run_number }}"
+          }
+
+          "version=$version" >> $env:GITHUB_OUTPUT
+
+      - name: Publish standalone executable
+        shell: pwsh
+        run: |
+          dotnet publish RtlTerminal.csproj `
+            --configuration Release `
+            --runtime win-x64 `
+            --self-contained true `
+            -p:Version=${{ steps.version.outputs.version }} `
+            -p:PublishSingleFile=true `
+            -p:IncludeNativeLibrariesForSelfExtract=true `
+            -p:PublishTrimmed=false `
+            --output publish/win-x64
+
+      - name: Create release package
+        shell: pwsh
+        run: |
+          Copy-Item publish/win-x64/RtlTerminal.exe `
+            "RtlTerminal-${{ steps.version.outputs.version }}-win-x64.exe"
+
+          Compress-Archive `
+            -Path publish/win-x64/RtlTerminal.exe `
+            -DestinationPath "RtlTerminal-${{ steps.version.outputs.version }}-win-x64.zip"
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: RtlTerminal-${{ steps.version.outputs.version }}-win-x64
+          path: |
+            RtlTerminal-${{ steps.version.outputs.version }}-win-x64.exe
+            RtlTerminal-${{ steps.version.outputs.version }}-win-x64.zip
+          if-no-files-found: error
+
+      - name: Publish GitHub Release
+        if: github.ref_type == 'tag'
+        uses: softprops/action-gh-release@v3
+        with:
+          name: Rtl Terminal ${{ github.ref_name }}
+          generate_release_notes: true
+          files: |
+            RtlTerminal-${{ steps.version.outputs.version }}-win-x64.exe
+            RtlTerminal-${{ steps.version.outputs.version }}-win-x64.zip
