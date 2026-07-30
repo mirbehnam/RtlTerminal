@@ -132,6 +132,18 @@ h3 {
   font-size: 1.12rem;
 }
 
+.release-badge {
+  display: inline-flex;
+  margin-bottom: 20px;
+  padding: 7px 12px;
+  border: 1px solid rgba(67, 213, 206, 0.35);
+  border-radius: 999px;
+  background: rgba(67, 213, 206, 0.08);
+  color: #9af1dc;
+  font-size: 0.84rem;
+  font-weight: 750;
+}
+
 .actions {
   display: flex;
   flex-wrap: wrap;
@@ -210,6 +222,10 @@ h3 {
 .content-section p,
 .download p {
   color: var(--muted);
+}
+
+.feature-grid code {
+  color: #9af1dc;
 }
 
 .content-section {
