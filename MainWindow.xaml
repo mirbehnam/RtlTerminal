@@ -9,10 +9,36 @@
         Loaded="Window_Loaded"
         Closed="Window_Closed"
         SizeChanged="Window_SizeChanged">
+    <Window.Resources>
+        <SolidColorBrush x:Key="{x:Static SystemColors.MenuBrushKey}"
+                         Color="#202020" />
+        <SolidColorBrush x:Key="{x:Static SystemColors.MenuTextBrushKey}"
+                         Color="#f0f0f0" />
+        <SolidColorBrush x:Key="{x:Static SystemColors.HighlightBrushKey}"
+                         Color="#3a3a3a" />
+        <SolidColorBrush x:Key="{x:Static SystemColors.HighlightTextBrushKey}"
+                         Color="#ffffff" />
+        <SolidColorBrush x:Key="{x:Static SystemColors.ControlBrushKey}"
+                         Color="#202020" />
+        <SolidColorBrush x:Key="{x:Static SystemColors.ControlTextBrushKey}"
+                         Color="#f0f0f0" />
+
+        <Style x:Key="{x:Type MenuItem}"
+               TargetType="MenuItem">
+            <Setter Property="Background"
+                    Value="#202020" />
+            <Setter Property="Foreground"
+                    Value="#f0f0f0" />
+            <Setter Property="BorderBrush"
+                    Value="#484848" />
+        </Style>
+    </Window.Resources>
+
     <DockPanel Background="#0c0c0c">
         <Menu DockPanel.Dock="Top"
-              Background="#f0f0f0"
-              Foreground="#202020">
+              Background="#202020"
+              Foreground="#f0f0f0"
+              ItemContainerStyle="{StaticResource {x:Type MenuItem}}">
             <MenuItem Header="_Edit">
                 <MenuItem Header="_Font settings..."
                           Click="FontSettingsMenuItem_Click" />

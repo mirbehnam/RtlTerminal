@@ -43,7 +43,7 @@ public partial class MainWindow : Window
         InitializeComponent();
         _renderTimer = new DispatcherTimer(DispatcherPriority.Render)
         {
-            Interval = TimeSpan.FromMilliseconds(33)
+            Interval = TimeSpan.FromMilliseconds(50)
         };
         _renderTimer.Tick += RenderTimer_Tick;
         ApplySavedFontSettings();
@@ -502,6 +502,14 @@ public partial class MainWindow : Window
         for (var row = 0; row < snapshot.Lines.Count; row++)
         {
             var line = snapshot.Lines[row];
+
+            if (row < _renderedLines.Count &&
+                ReferenceEquals(_renderedLines[row].Source, line) &&
+                _renderedLines[row].IsRightToLeft == isRightToLeft)
+            {
+                continue;
+            }
+
             var key = CreateLineKey(line, isRightToLeft);
 
             if (row < _renderedLines.Count &&
@@ -559,7 +567,9 @@ public partial class MainWindow : Window
             var renderedLine = new RenderedLine(
                 paragraph,
                 key,
-                runPositions);
+                runPositions,
+                line,
+                isRightToLeft);
 
             if (row < _renderedLines.Count)
             {
@@ -579,7 +589,13 @@ public partial class MainWindow : Window
         {
             var paragraph = new Paragraph();
             _terminalDocument.Blocks.Add(paragraph);
-            _renderedLines.Add(new RenderedLine(paragraph, string.Empty, []));
+            _renderedLines.Add(
+                new RenderedLine(
+                    paragraph,
+                    string.Empty,
+                    [],
+                    null,
+                    isRightToLeft));
         }
 
         var cursorRow = Math.Clamp(
@@ -853,7 +869,9 @@ public partial class MainWindow : Window
     private sealed record RenderedLine(
         Paragraph Paragraph,
         string Key,
-        IReadOnlyList<RunPosition> Runs);
+        IReadOnlyList<RunPosition> Runs,
+        TerminalLine? Source,
+        bool IsRightToLeft);
 
     private readonly record struct RunPosition(
         Run Run,

@@ -50,7 +50,7 @@ public sealed class TerminalBuffer
 
     private readonly object _syncRoot = new();
     private readonly StringBuilder _csi = new();
-    private readonly List<Cell[]> _scrollback = [];
+    private readonly List<TerminalLine> _scrollback = [];
     private Cell[,] _cells;
     private bool[] _wrappedFromPrevious;
     private int _columns;
@@ -916,8 +916,7 @@ public sealed class TerminalBuffer
         var lines = new List<TerminalLine>(
             _scrollback.Count + lastVisibleRow + 1);
 
-        foreach (var row in _scrollback)
-            lines.Add(CreateLine(row, row.Length));
+        lines.AddRange(_scrollback);
 
         for (var row = 0; row <= lastVisibleRow; row++)
         {
@@ -1045,7 +1044,7 @@ public sealed class TerminalBuffer
         for (var column = 0; column < _columns; column++)
             copy[column] = _cells[row, column];
 
-        _scrollback.Add(copy);
+        _scrollback.Add(CreateLine(copy, copy.Length));
 
         if (_scrollback.Count >
             MaximumScrollbackRows + 256)
