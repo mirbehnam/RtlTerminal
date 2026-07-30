@@ -19,9 +19,9 @@
 
   **Latest Windows 10/11 installer — no separate .NET installation required**
 
-  ### [⬇️ دانلود Rtl Terminal Setup v1.0.1](https://github.com/mirbehnam/RtlTerminal/releases/download/v1.0.1/RtlTerminal-Setup-1.0.1-x64.exe)
+  ### [⬇️ دانلود Rtl Terminal Setup v1.0.2](https://github.com/mirbehnam/RtlTerminal/releases/download/v1.0.2/RtlTerminal-Setup-1.0.2-x64.exe)
 
-  ### [⬇️ Download Rtl Terminal Setup v1.0.1](https://github.com/mirbehnam/RtlTerminal/releases/download/v1.0.1/RtlTerminal-Setup-1.0.1-x64.exe)
+  ### [⬇️ Download Rtl Terminal Setup v1.0.2](https://github.com/mirbehnam/RtlTerminal/releases/download/v1.0.2/RtlTerminal-Setup-1.0.2-x64.exe)
 
   [مشاهده همه نسخه‌ها · View all releases](https://github.com/mirbehnam/RtlTerminal/releases)
 
@@ -50,17 +50,22 @@ Rtl Terminal uses the Windows ConPTY API and works with command-line environment
 - Display Persian, Arabic, English and mixed Unicode terminal output.
 - Support ANSI standard colors, bright colors, dim text, 256 colors and RGB colors.
 - Run interactive CLI and TUI applications through Windows ConPTY.
+- Open multiple Command Prompt, PowerShell and WSL sessions in independent tabs.
+- Switch tabs with `Ctrl+Tab`, create a tab with `Ctrl+Shift+T` and close it with `Ctrl+W`.
 - Render animated progress bars and in-place terminal line updates.
+- Keep long-running AI agent output responsive with incremental scrollback rendering.
 - Keep up to 5,000 lines of scrollback history.
 - Detect `http://`, `https://` and `www.` links and open them with `Ctrl + Click`.
 - Copy selected text with `Ctrl+C` or `Ctrl+Shift+C`.
-- Paste with `Ctrl+V`, `Ctrl+Shift+V` or right-click when no text is selected.
+- Paste text, copied file paths and clipboard images with `Ctrl+V`, `Ctrl+Shift+V` or right-click.
+- Convert copied Windows paths to `/mnt/<drive>/...` automatically inside WSL tabs.
 - Send `Ctrl+C` as an interrupt when no text is selected.
 - Select any installed Windows font, font size, weight and italic style.
 - Show recommended terminal and programming fonts when installed.
 - Optionally add **Open in RtlTerminal** to the Windows folder context menu.
 - Open a terminal directly in the selected folder.
 - Provide a built-in RTL help window.
+- Use a consistent dark interface for menus, tabs and window controls.
 - Support self-contained, single-file Windows releases.
 
 ### Screenshots
@@ -137,7 +142,7 @@ To publish the application and build the installer with Inno Setup:
 The installer is created in:
 
 ```text
-release\RtlTerminal-Setup-1.0.0-x64.exe
+release\RtlTerminal-Setup-1.0.2-x64.exe
 ```
 
 ### Automatic GitHub Releases
@@ -145,16 +150,16 @@ release\RtlTerminal-Setup-1.0.0-x64.exe
 The repository includes a GitHub Actions workflow that creates a self-contained, single-file Windows x64 build. Push a version tag to create a GitHub Release automatically:
 
 ```powershell
-git tag v1.0.0
-git push origin v1.0.0
+git tag v1.0.2
+git push origin v1.0.2
 ```
 
 The workflow publishes these downloadable release assets:
 
 ```text
-RtlTerminal-1.0.0-win-x64.exe
-RtlTerminal-1.0.0-win-x64.zip
-RtlTerminal-Setup-1.0.0-x64.exe
+RtlTerminal-1.0.2-win-x64.exe
+RtlTerminal-1.0.2-win-x64.zip
+RtlTerminal-Setup-1.0.2-x64.exe
 ```
 
 The portable executable and installer include the self-contained .NET runtime and do not require a separate .NET installation. The Setup file provides installation shortcuts and standard Windows uninstall support. The workflow can also be started manually from the GitHub **Actions** page; manual runs create downloadable workflow artifacts without creating a GitHub Release.
@@ -165,7 +170,11 @@ The portable executable and installer include the self-contained .NET runtime an
 |---|---|
 | Copy selected text | `Ctrl+C` or `Ctrl+Shift+C` |
 | Paste clipboard text | `Ctrl+V` or `Ctrl+Shift+V` |
+| Paste copied files or images as paths | `Ctrl+V` or `Ctrl+Shift+V` |
 | Paste with mouse | Right-click when no text is selected |
+| Create a Command Prompt tab | `Ctrl+Shift+T` |
+| Switch to the next or previous tab | `Ctrl+Tab` or `Ctrl+Shift+Tab` |
+| Close the active tab | `Ctrl+W` |
 | Interrupt the active command | `Ctrl+C` when no text is selected |
 | Open a detected link | Hold `Ctrl` and click the blue link |
 | Toggle RTL display | `View` → `Right-to-left` |
@@ -244,11 +253,15 @@ No license file is currently included. Add a `LICENSE` file before accepting ext
 - نمایش متن فارسی، عربی، انگلیسی و متن‌های ترکیبی
 - پشتیبانی از رنگ‌های ANSI، رنگ‌های روشن، متن کم‌رنگ، ۲۵۶ رنگ و RGB
 - اجرای برنامه‌های CLI و TUI تعاملی
+- اجرای هم‌زمان Command Prompt، PowerShell و WSL در تب‌های مستقل
+- ساخت، جابه‌جایی و بستن تب‌ها با میان‌برهای صفحه‌کلید
 - پشتیبانی از progress bar و بازنویسی خروجی روی همان خط
+- رندر بهینه برای خروجی‌های طولانی agent‌های هوش مصنوعی
 - نگهداری تا ۵۰۰۰ خط سابقه برای اسکرول عمودی
 - تشخیص لینک و بازکردن آن با `Ctrl + Click`
 - کپی متن با `Ctrl+C` یا `Ctrl+Shift+C`
-- Paste با `Ctrl+V`، `Ctrl+Shift+V` یا راست‌کلیک
+- Paste متن، مسیر فایل‌های کپی‌شده و تصویر Clipboard با `Ctrl+V`، `Ctrl+Shift+V` یا راست‌کلیک
+- تبدیل خودکار مسیرهای ویندوز به فرمت `/mnt/<drive>/...` در تب‌های WSL
 - ارسال Interrupt با `Ctrl+C` در صورتی که متنی انتخاب نشده باشد
 - انتخاب همه فونت‌های نصب‌شده ویندوز
 - تنظیم اندازه، ضخامت و حالت ایتالیک فونت
@@ -256,6 +269,7 @@ No license file is currently included. Add a `LICENSE` file before accepting ext
 - افزودن اختیاری گزینه **Open in RtlTerminal** به منوی راست‌کلیک پوشه‌ها
 - بازکردن ترمینال مستقیماً در مسیر پوشه انتخاب‌شده
 - راهنمای داخلی با پشتیبانی کامل از RTL
+- ظاهر دارک یکپارچه برای منوها، تب‌ها و دکمه‌های پنجره
 
 ### نیازمندی‌های سیستم
 
@@ -305,8 +319,8 @@ dotnet publish RtlTerminal.csproj `
 این مخزن دارای GitHub Actions است که نسخه مستقل و تک‌فایلی ویندوز ۶۴ بیتی را می‌سازد. برای ایجاد Release خودکار، یک تگ نسخه ایجاد و Push کنید:
 
 ```powershell
-git tag v1.0.0
-git push origin v1.0.0
+git tag v1.0.2
+git push origin v1.0.2
 ```
 
 پس از پایان Workflow، فایل‌های Portable، فایل `ZIP` و فایل Setup دارای Uninstall در بخش Releases قرار می‌گیرند و برای اجرا به نصب جداگانه .NET نیاز ندارند. اجرای دستی Workflow از بخش Actions فقط Artifact قابل دانلود می‌سازد.
@@ -317,7 +331,11 @@ git push origin v1.0.0
 |---|---|
 | کپی متن انتخاب‌شده | `Ctrl+C` یا `Ctrl+Shift+C` |
 | چسباندن متن | `Ctrl+V` یا `Ctrl+Shift+V` |
+| چسباندن فایل یا تصویر کپی‌شده به‌صورت مسیر | `Ctrl+V` یا `Ctrl+Shift+V` |
 | چسباندن با ماوس | راست‌کلیک در صورتی که متنی انتخاب نشده باشد |
+| ساخت تب Command Prompt | `Ctrl+Shift+T` |
+| جابه‌جایی بین تب‌ها | `Ctrl+Tab` یا `Ctrl+Shift+Tab` |
+| بستن تب فعال | `Ctrl+W` |
 | متوقف‌کردن فرمان جاری | `Ctrl+C` در صورتی که متنی انتخاب نشده باشد |
 | بازکردن لینک | نگه‌داشتن `Ctrl` و کلیک روی لینک آبی |
 | فعال‌کردن RTL | منوی `View` و گزینه `Right-to-left` |
@@ -348,11 +366,15 @@ git push origin v1.0.0
 - عرض النصوص العربية والفارسية والإنجليزية والنصوص المختلطة
 - دعم ألوان ANSI والألوان الساطعة والنص الخافت و256 لوناً وألوان RGB
 - تشغيل تطبيقات CLI وTUI التفاعلية
+- تشغيل Command Prompt وPowerShell وWSL في علامات تبويب مستقلة
+- إنشاء علامات التبويب والتنقل بينها وإغلاقها باختصارات لوحة المفاتيح
 - دعم أشرطة التقدم وتحديث السطر نفسه
+- تصيير تدريجي سريع لمخرجات وكلاء الذكاء الاصطناعي الطويلة
 - الاحتفاظ بما يصل إلى 5000 سطر من سجل الطرفية
 - اكتشاف الروابط وفتحها باستخدام `Ctrl + Click`
 - نسخ النص باستخدام `Ctrl+C` أو `Ctrl+Shift+C`
-- لصق النص باستخدام `Ctrl+V` أو `Ctrl+Shift+V` أو زر الفأرة الأيمن
+- لصق النص ومسارات الملفات المنسوخة وصور Clipboard باستخدام `Ctrl+V` أو `Ctrl+Shift+V` أو زر الفأرة الأيمن
+- تحويل مسارات Windows تلقائياً إلى `/mnt/<drive>/...` داخل علامات WSL
 - إرسال أمر المقاطعة عند الضغط على `Ctrl+C` دون تحديد نص
 - اختيار جميع الخطوط المثبتة في Windows
 - تخصيص حجم الخط ووزنه ونمطه المائل
@@ -360,6 +382,7 @@ git push origin v1.0.0
 - إضافة خيار **Open in RtlTerminal** إلى قائمة المجلدات
 - فتح الطرفية مباشرة داخل المجلد المحدد
 - نافذة مساعدة داخلية تدعم RTL
+- واجهة داكنة متناسقة للقوائم وعلامات التبويب وأزرار النافذة
 
 ### متطلبات النظام
 
@@ -409,8 +432,8 @@ dotnet publish RtlTerminal.csproj `
 يتضمن المستودع GitHub Actions لبناء إصدار Windows x64 مستقل وذي ملف واحد. أنشئ وادفع وسم إصدار لإنشاء GitHub Release تلقائياً:
 
 ```powershell
-git tag v1.0.0
-git push origin v1.0.0
+git tag v1.0.2
+git push origin v1.0.2
 ```
 
 بعد اكتمال Workflow ستظهر ملفات `EXE` و`ZIP` المحمولة وملف Setup الذي يدعم إزالة التثبيت في صفحة Releases. لا تحتاج هذه الملفات إلى تثبيت .NET بشكل منفصل. التشغيل اليدوي من صفحة Actions ينشئ Artifact قابلاً للتنزيل فقط.
@@ -421,7 +444,11 @@ git push origin v1.0.0
 |---|---|
 | نسخ النص المحدد | `Ctrl+C` أو `Ctrl+Shift+C` |
 | لصق النص | `Ctrl+V` أو `Ctrl+Shift+V` |
+| لصق ملف أو صورة منسوخة كمسار | `Ctrl+V` أو `Ctrl+Shift+V` |
 | اللصق بالفأرة | زر الفأرة الأيمن عند عدم تحديد نص |
+| إنشاء علامة Command Prompt | `Ctrl+Shift+T` |
+| التنقل بين علامات التبويب | `Ctrl+Tab` أو `Ctrl+Shift+Tab` |
+| إغلاق علامة التبويب النشطة | `Ctrl+W` |
 | مقاطعة الأمر الحالي | `Ctrl+C` عند عدم تحديد نص |
 | فتح رابط | اضغط باستمرار على `Ctrl` ثم انقر على الرابط الأزرق |
 | تفعيل اتجاه RTL | قائمة `View` ثم `Right-to-left` |

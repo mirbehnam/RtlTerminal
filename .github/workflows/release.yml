@@ -99,10 +99,11 @@ jobs:
             ## Rtl Terminal ${{ github.ref_name }}
 
             ### Changes
-            - Added the official GitHub repository link to the terminal welcome message.
-            - Fixed opening blue links with Ctrl + Click.
-            - Added an automatic standalone Windows x64 build.
-            - Added an automatic Windows Setup installer with uninstall support.
+            - Added independent Command Prompt, PowerShell and WSL tabs.
+            - Added clipboard file-path and image paste, including WSL path conversion.
+            - Improved rendering performance for long-running AI agent output.
+            - Added consistent dark menus, tab styling and window controls.
+            - Improved output following and preserved scroll position while reviewing history.
 
             ### Downloads
             - `RtlTerminal-${{ steps.version.outputs.version }}-win-x64.exe`: standalone portable executable
