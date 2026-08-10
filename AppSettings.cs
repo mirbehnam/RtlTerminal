@@ -84,6 +84,25 @@ public static class AppSettings
             RegistryValueKind.DWord);
     }
 
+    public static string? LoadSkippedUpdateVersion()
+    {
+        using var key = Registry.CurrentUser.OpenSubKey(SettingsKey);
+        return key?.GetValue("SkippedUpdateVersion") as string;
+    }
+
+    public static void SaveSkippedUpdateVersion(string? version)
+    {
+        using var key = Registry.CurrentUser.CreateSubKey(SettingsKey);
+
+        if (string.IsNullOrWhiteSpace(version))
+            key.DeleteValue("SkippedUpdateVersion", throwOnMissingValue: false);
+        else
+            key.SetValue(
+                "SkippedUpdateVersion",
+                version,
+                RegistryValueKind.String);
+    }
+
     public static TerminalFontSettings? LoadFont()
     {
         using var key = Registry.CurrentUser.OpenSubKey(SettingsKey);

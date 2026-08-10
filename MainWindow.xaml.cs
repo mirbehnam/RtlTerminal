@@ -1,9 +1,11 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Net.Http;
 using System.Collections.Generic;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
@@ -52,6 +54,7 @@ public partial class MainWindow : Window
     private bool _renderedSmartRtlEnabled = true;
     private TerminalProfile _defaultProfile = TerminalProfile.CommandPrompt;
     private int _historySize = 2000;
+    private bool _updateCheckInProgress;
 
     public MainWindow()
     {
@@ -77,6 +80,7 @@ public partial class MainWindow : Window
         Dispatcher.BeginInvoke(
             DispatcherPriority.Loaded,
             () => CreateTerminalTab(_defaultProfile));
+        _ = CheckForUpdatesOnStartupAsync();
     }
 
     private void CreateTerminalTab(
@@ -440,6 +444,149 @@ public partial class MainWindow : Window
             Owner = this
         };
         guideWindow.Show();
+    }
+
+    private async void CheckForUpdatesMenuItem_Click(
+        object sender,
+        RoutedEventArgs e)
+    {
+        await CheckForUpdatesAsync(manual: true);
+    }
+
+    private async Task CheckForUpdatesOnStartupAsync()
+    {
+        // Let terminal startup finish before performing optional network I/O.
+        await Task.Delay(TimeSpan.FromSeconds(1.5));
+
+        if (!IsLoaded)
+            return;
+
+        await CheckForUpdatesAsync(manual: false);
+    }
+
+    private async Task CheckForUpdatesAsync(bool manual)
+    {
+        if (_updateCheckInProgress)
+        {
+            if (manual)
+            {
+                MessageBox.Show(
+                    this,
+                    "An update check is already in progress.",
+                    "Check for updates",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
+            }
+
+            return;
+        }
+
+        _updateCheckInProgress = true;
+        CheckForUpdatesMenuItem.IsEnabled = false;
+        var originalHeader = CheckForUpdatesMenuItem.Header;
+
+        if (manual)
+            CheckForUpdatesMenuItem.Header = "Checking for updates...";
+
+        try
+        {
+            var result = await UpdateService.CheckAsync();
+
+            if (!result.IsUpdateAvailable)
+            {
+                if (manual)
+                {
+                    MessageBox.Show(
+                        this,
+                        $"Rtl Terminal {result.CurrentVersion.ToString(3)} is up to date.",
+                        "Check for updates",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Information);
+                }
+
+                return;
+            }
+
+            if (!manual && string.Equals(
+                    AppSettings.LoadSkippedUpdateVersion(),
+                    result.LatestTag,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                return;
+            }
+
+            ShowUpdateAvailable(result);
+        }
+        catch (Exception exception) when (
+            exception is HttpRequestException or
+                TaskCanceledException or
+                InvalidDataException or
+                JsonException)
+        {
+            if (manual)
+            {
+                MessageBox.Show(
+                    this,
+                    "Rtl Terminal could not check GitHub for updates.\n\n" +
+                    exception.Message,
+                    "Check for updates",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+            }
+        }
+        finally
+        {
+            CheckForUpdatesMenuItem.Header = originalHeader;
+            CheckForUpdatesMenuItem.IsEnabled = true;
+            _updateCheckInProgress = false;
+        }
+    }
+
+    private void ShowUpdateAvailable(UpdateCheckResult result)
+    {
+        var updateWindow = new UpdateAvailableWindow(
+            result.CurrentVersion,
+            result.LatestVersion)
+        {
+            Owner = this
+        };
+
+        updateWindow.ShowDialog();
+
+        if (updateWindow.DontShowAgain)
+        {
+            AppSettings.SaveSkippedUpdateVersion(result.LatestTag);
+        }
+        else if (string.Equals(
+                     AppSettings.LoadSkippedUpdateVersion(),
+                     result.LatestTag,
+                     StringComparison.OrdinalIgnoreCase))
+        {
+            AppSettings.SaveSkippedUpdateVersion(null);
+        }
+
+        if (!updateWindow.OpenUpdateRequested)
+            return;
+
+        try
+        {
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = result.ReleasePage.AbsoluteUri,
+                UseShellExecute = true
+            });
+        }
+        catch (Exception exception) when (
+            exception is InvalidOperationException or
+                System.ComponentModel.Win32Exception)
+        {
+            MessageBox.Show(
+                this,
+                "The update page could not be opened.\n\n" + exception.Message,
+                "Rtl Terminal update",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+        }
     }
 
     private void AboutMenuItem_Click(object sender, RoutedEventArgs e)

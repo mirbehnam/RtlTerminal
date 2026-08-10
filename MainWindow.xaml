@@ -412,6 +412,10 @@
             <MenuItem Header="_Help">
                 <MenuItem Header="_Guide"
                           Click="GuideMenuItem_Click" />
+                <MenuItem x:Name="CheckForUpdatesMenuItem"
+                          Header="Check for _updates..."
+                          Click="CheckForUpdatesMenuItem_Click" />
+                <Separator />
                 <MenuItem Header="_About Rtl Terminal"
                           Click="AboutMenuItem_Click" />
             </MenuItem>
