@@ -11,6 +11,7 @@ public readonly record struct TerminalStyle(
     TerminalColor? Foreground,
     TerminalColor? Background,
     bool Bold,
+    bool Italic,
     bool Dim);
 
 public sealed record TerminalRun(string Text, TerminalStyle Style);
@@ -496,12 +497,18 @@ public sealed class TerminalBuffer
                 case 2:
                     _currentStyle = _currentStyle with { Dim = true };
                     break;
+                case 3:
+                    _currentStyle = _currentStyle with { Italic = true };
+                    break;
                 case 22:
                     _currentStyle = _currentStyle with
                     {
                         Bold = false,
                         Dim = false
                     };
+                    break;
+                case 23:
+                    _currentStyle = _currentStyle with { Italic = false };
                     break;
                 case 39:
                     _currentStyle = _currentStyle with { Foreground = null };
@@ -530,11 +537,11 @@ public sealed class TerminalBuffer
                         _currentStyle = _currentStyle with { Background = background };
                     break;
                 case 7:
-                    _currentStyle = new(
-                        _currentStyle.Background ?? AnsiColors[0],
-                        _currentStyle.Foreground ?? AnsiColors[7],
-                        _currentStyle.Bold,
-                        _currentStyle.Dim);
+                    _currentStyle = _currentStyle with
+                    {
+                        Foreground = _currentStyle.Background ?? AnsiColors[0],
+                        Background = _currentStyle.Foreground ?? AnsiColors[7]
+                    };
                     break;
             }
         }

@@ -13,6 +13,18 @@ public static class AppSettings
 {
     private const string SettingsKey = @"Software\RtlTerminal";
 
+    public static string? LoadTerminalProfile()
+    {
+        using var key = Registry.CurrentUser.OpenSubKey(SettingsKey);
+        return key?.GetValue("TerminalProfile") as string;
+    }
+
+    public static void SaveTerminalProfile(string profile)
+    {
+        using var key = Registry.CurrentUser.CreateSubKey(SettingsKey);
+        key.SetValue("TerminalProfile", profile, RegistryValueKind.String);
+    }
+
     public static TerminalFontSettings? LoadFont()
     {
         using var key = Registry.CurrentUser.OpenSubKey(SettingsKey);

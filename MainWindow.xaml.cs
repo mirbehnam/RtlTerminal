@@ -45,6 +45,7 @@ public partial class MainWindow : Window
     private bool _restoringScrollPosition;
     private int _scrollRequestVersion;
     private int _nextTabNumber = 1;
+    private TerminalProfile _defaultProfile = TerminalProfile.CommandPrompt;
 
     public MainWindow()
     {
@@ -55,6 +56,7 @@ public partial class MainWindow : Window
             Interval = TimeSpan.FromMilliseconds(50)
         };
         _renderTimer.Tick += RenderTimer_Tick;
+        _defaultProfile = LoadDefaultProfile();
         ApplySavedFontSettings();
         UpdateFontMetrics();
     }
@@ -67,7 +69,7 @@ public partial class MainWindow : Window
         TerminalTextBox.UpdateLayout();
         Dispatcher.BeginInvoke(
             DispatcherPriority.Loaded,
-            () => CreateTerminalTab(TerminalProfile.CommandPrompt));
+            () => CreateTerminalTab(_defaultProfile));
     }
 
     private void CreateTerminalTab(TerminalProfile profile)
@@ -144,7 +146,7 @@ public partial class MainWindow : Window
 
         if (controlPressed && shiftPressed && e.Key == Key.T)
         {
-            CreateTerminalTab(TerminalProfile.CommandPrompt);
+            CreateTerminalTab(_defaultProfile);
             e.Handled = true;
             return;
         }
@@ -165,7 +167,7 @@ public partial class MainWindow : Window
 
     private void NewTabButton_Click(object sender, RoutedEventArgs e)
     {
-        CreateTerminalTab(TerminalProfile.CommandPrompt);
+        CreateTerminalTab(_defaultProfile);
     }
 
     private void ProfileMenuButton_Click(object sender, RoutedEventArgs e)
@@ -191,8 +193,15 @@ public partial class MainWindow : Window
         TerminalProfile profile)
     {
         var item = new MenuItem { Header = header };
-        item.Click += (_, _) => CreateTerminalTab(profile);
+        item.Click += (_, _) => SelectTerminalProfile(profile);
         menu.Items.Add(item);
+    }
+
+    private void SelectTerminalProfile(TerminalProfile profile)
+    {
+        _defaultProfile = profile;
+        AppSettings.SaveTerminalProfile(profile.ToString());
+        CreateTerminalTab(profile);
     }
 
     private void MinimizeButton_Click(object sender, RoutedEventArgs e)
@@ -424,6 +433,20 @@ public partial class MainWindow : Window
         var windowsDirectory =
             Environment.GetFolderPath(Environment.SpecialFolder.Windows);
         return File.Exists(Path.Combine(windowsDirectory, "System32", "wsl.exe"));
+    }
+
+    private static TerminalProfile LoadDefaultProfile()
+    {
+        var savedProfile = AppSettings.LoadTerminalProfile();
+
+        if (!Enum.TryParse(savedProfile, out TerminalProfile profile) ||
+            !Enum.IsDefined(profile) ||
+            profile == TerminalProfile.Wsl && !IsWslAvailable())
+        {
+            return TerminalProfile.CommandPrompt;
+        }
+
+        return profile;
     }
 
     private void SaveActiveTabState()
@@ -998,6 +1021,8 @@ public partial class MainWindow : Window
                 LineHeight = _lineHeight,
                 FontFamily = TerminalTextBox.FontFamily,
                 FontSize = TerminalTextBox.FontSize,
+                FontWeight = TerminalTextBox.FontWeight,
+                FontStyle = TerminalTextBox.FontStyle,
                 Foreground = ToBrush(DefaultForeground),
                 Background = ToBrush(DefaultBackground)
             };
@@ -1045,14 +1070,45 @@ public partial class MainWindow : Window
                     : TextAlignment.Left
             };
 
-            var cellOffset = 0;
             var runPositions = new List<RunPosition>();
+            var renderSegments = CreateRenderSegments(line);
+            var lineText = string.Concat(
+                renderSegments.Select(segment => segment.Text));
+            IReadOnlyList<DirectionalSpan> directionalSpans = isRightToLeft
+                ? SmartRtl.GetDirectionalSpans(lineText, true)
+                : string.IsNullOrEmpty(lineText)
+                    ? []
+                    : [new DirectionalSpan(0, lineText.Length, false)];
 
-            foreach (var terminalRun in line.Runs)
+            foreach (var directionalSpan in directionalSpans)
             {
-                foreach (var segment in SplitLinks(terminalRun.Text))
+                var inlineSpan = new Span
                 {
-                    var run = CreateRun(segment.Text, terminalRun.Style);
+                    FlowDirection = directionalSpan.IsRightToLeft
+                        ? FlowDirection.RightToLeft
+                        : FlowDirection.LeftToRight
+                };
+                var directionalEnd =
+                    directionalSpan.Start + directionalSpan.Length;
+
+                foreach (var segment in renderSegments)
+                {
+                    var segmentEnd = segment.Start + segment.Text.Length;
+
+                    if (segmentEnd <= directionalSpan.Start)
+                        continue;
+
+                    if (segment.Start >= directionalEnd)
+                        break;
+
+                    var overlapStart = Math.Max(
+                        segment.Start,
+                        directionalSpan.Start);
+                    var overlapEnd = Math.Min(segmentEnd, directionalEnd);
+                    var text = segment.Text.Substring(
+                        overlapStart - segment.Start,
+                        overlapEnd - overlapStart);
+                    var run = CreateRun(text, segment.Style);
 
                     if (segment.Uri is not null)
                     {
@@ -1065,17 +1121,18 @@ public partial class MainWindow : Window
                         };
                         hyperlink.Click += Link_Click;
                         hyperlink.Tag = segment.Uri;
-                        paragraph.Inlines.Add(hyperlink);
+                        inlineSpan.Inlines.Add(hyperlink);
                     }
                     else
                     {
-                        paragraph.Inlines.Add(run);
+                        inlineSpan.Inlines.Add(run);
                     }
 
                     runPositions.Add(
-                        new RunPosition(run, cellOffset, segment.Text.Length));
-                    cellOffset += segment.Text.Length;
+                        new RunPosition(run, overlapStart, text.Length));
                 }
+
+                paragraph.Inlines.Add(inlineSpan);
             }
 
             var renderedLine = new RenderedLine(
@@ -1239,6 +1296,7 @@ public partial class MainWindow : Window
                 .Append(run.Style.Foreground)
                 .Append(run.Style.Background)
                 .Append(run.Style.Bold)
+                .Append(run.Style.Italic)
                 .Append(run.Style.Dim)
                 .Append('\u001e');
         }
@@ -1268,14 +1326,43 @@ public partial class MainWindow : Window
         return line.Paragraph.ContentEnd;
     }
 
-    private static Run CreateRun(string text, TerminalStyle style)
+    private Run CreateRun(string text, TerminalStyle style)
     {
         return new Run(text)
         {
             Foreground = ToBrush(GetForeground(style)),
             Background = ToBrush(style.Background ?? DefaultBackground),
-            FontWeight = style.Bold ? FontWeights.Bold : FontWeights.Normal
+            FontWeight = style.Bold ||
+                TerminalTextBox.FontWeight >= FontWeights.Bold
+                    ? FontWeights.Bold
+                    : FontWeights.Normal,
+            FontStyle = style.Italic ||
+                TerminalTextBox.FontStyle != FontStyles.Normal
+                    ? FontStyles.Italic
+                    : FontStyles.Normal
         };
+    }
+
+    private static IReadOnlyList<RenderSegment> CreateRenderSegments(
+        TerminalLine line)
+    {
+        var segments = new List<RenderSegment>();
+        var start = 0;
+
+        foreach (var terminalRun in line.Runs)
+        {
+            foreach (var linkSegment in SplitLinks(terminalRun.Text))
+            {
+                segments.Add(new RenderSegment(
+                    linkSegment.Text,
+                    terminalRun.Style,
+                    linkSegment.Uri,
+                    start));
+                start += linkSegment.Text.Length;
+            }
+        }
+
+        return segments;
     }
 
     private static IEnumerable<LinkSegment> SplitLinks(string text)
@@ -1430,6 +1517,12 @@ public partial class MainWindow : Window
         Run Run,
         int Start,
         int Length);
+
+    private readonly record struct RenderSegment(
+        string Text,
+        TerminalStyle Style,
+        Uri? Uri,
+        int Start);
 
     private enum TerminalProfile
     {
