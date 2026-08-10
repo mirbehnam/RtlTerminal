@@ -382,12 +382,12 @@
                           Click="FontSettingsMenuItem_Click" />
             </MenuItem>
             <MenuItem Header="_View">
-                <MenuItem x:Name="RtlMenuItem"
-                          Header="_Right-to-left"
+                <MenuItem x:Name="SmartRtlMenuItem"
+                          Header="_Smart RTL"
                           IsCheckable="True"
-                          ToolTip="نمایش کل ترمینال از راست به چپ"
-                          Checked="RtlMenuItem_Changed"
-                          Unchecked="RtlMenuItem_Changed" />
+                          ToolTip="Use right-to-left layout only for lines containing RTL letters"
+                          Checked="SmartRtlMenuItem_Changed"
+                          Unchecked="SmartRtlMenuItem_Changed" />
             </MenuItem>
             <MenuItem Header="_Tools">
                 <MenuItem x:Name="ContextMenuIntegrationMenuItem"

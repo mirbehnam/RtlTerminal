@@ -49,6 +49,7 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        SmartRtlMenuItem.IsChecked = true;
         _renderTimer = new DispatcherTimer(DispatcherPriority.Render)
         {
             Interval = TimeSpan.FromMilliseconds(50)
@@ -117,7 +118,7 @@ public partial class MainWindow : Window
         SaveActiveTabState();
 
         foreach (var tab in _tabs)
-            tab.Dispose();
+            _ = tab.DisposeAsync();
 
         CleanupTemporaryClipboardFiles();
     }
@@ -249,7 +250,7 @@ public partial class MainWindow : Window
         TerminalTextBox.Focus();
     }
 
-    private void RtlMenuItem_Changed(object sender, RoutedEventArgs e)
+    private void SmartRtlMenuItem_Changed(object sender, RoutedEventArgs e)
     {
         if (_lastRenderedSnapshot is not null)
             Render(_lastRenderedSnapshot);
@@ -406,15 +407,15 @@ public partial class MainWindow : Window
         {
             TerminalProfile.PowerShell =>
                 """
-                C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -NoLogo -NoExit -Command "$lines=@('+--------------------------------------------------------+','| RtlTerminal v1.0.2                                     |','|                                                        |','| Author : Behnam Tajadini                               |','| Source : github.com/mirbehnam/RtlTerminal              |','| YouTube: @aka_techno                                   |','+--------------------------------------------------------+','','  پشتیبانی کامل از زبان فارسی و راست‌به‌چپ',''); $lines | ForEach-Object { Write-Host $_ }"
+                C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -NoLogo -NoExit -Command "$lines=@('+--------------------------------------------------------+','| RtlTerminal v1.0.3                                     |','|                                                        |','| Author : Behnam Tajadini                               |','| Source : github.com/mirbehnam/RtlTerminal              |','| YouTube: @aka_techno                                   |','+--------------------------------------------------------+','','  پشتیبانی کامل از زبان فارسی و راست‌به‌چپ',''); $lines | ForEach-Object { Write-Host $_ }"
                 """,
             TerminalProfile.Wsl =>
                 """
-                C:\Windows\System32\wsl.exe --exec sh -lc "printf '%s\n' '+--------------------------------------------------------+' '| RtlTerminal v1.0.2                                     |' '|                                                        |' '| Author : Behnam Tajadini                               |' '| Source : github.com/mirbehnam/RtlTerminal              |' '| YouTube: @aka_techno                                   |' '+--------------------------------------------------------+' '' '  پشتیبانی کامل از زبان فارسی و راست‌به‌چپ' ''; exec \"${SHELL:-/bin/bash}\" -l"
+                C:\Windows\System32\wsl.exe --exec sh -lc "printf '%s\n' '+--------------------------------------------------------+' '| RtlTerminal v1.0.3                                     |' '|                                                        |' '| Author : Behnam Tajadini                               |' '| Source : github.com/mirbehnam/RtlTerminal              |' '| YouTube: @aka_techno                                   |' '+--------------------------------------------------------+' '' '  پشتیبانی کامل از زبان فارسی و راست‌به‌چپ' ''; exec \"${SHELL:-/bin/bash}\" -l"
                 """,
             _ =>
                 """
-                C:\Windows\System32\cmd.exe /D /Q /K "chcp 65001>nul & echo +--------------------------------------------------------+& echo ^| RtlTerminal v1.0.2                                     ^|& echo ^|                                                        ^|& echo ^| Author : Behnam Tajadini                               ^|& echo ^| Source : github.com/mirbehnam/RtlTerminal              ^|& echo ^| YouTube: @aka_techno                                   ^|& echo +--------------------------------------------------------+& echo.& echo   پشتیبانی کامل از زبان فارسی و راست‌به‌چپ& echo."
+                C:\Windows\System32\cmd.exe /D /Q /K "chcp 65001>nul & echo +--------------------------------------------------------+& echo ^| RtlTerminal v1.0.3                                     ^|& echo ^|                                                        ^|& echo ^| Author : Behnam Tajadini                               ^|& echo ^| Source : github.com/mirbehnam/RtlTerminal              ^|& echo ^| YouTube: @aka_techno                                   ^|& echo +--------------------------------------------------------+& echo.& echo   پشتیبانی کامل از زبان فارسی و راست‌به‌چپ& echo."
                 """
         };
 
@@ -519,16 +520,21 @@ public partial class MainWindow : Window
         if (ReferenceEquals(tab, _activeTab))
             SaveActiveTabState();
 
+        var wasActive = ReferenceEquals(tab, _activeTab);
         _tabs.RemoveAt(index);
-        tab.Dispose();
 
         if (_tabs.Count == 0)
         {
+            _activeTab = null;
+            _session = null;
+            _terminalBuffer = null;
+            _cancellationTokenSource = null;
+            _ = tab.DisposeAsync();
             Close();
             return;
         }
 
-        if (ReferenceEquals(tab, _activeTab))
+        if (wasActive)
         {
             _activeTab = _tabs[Math.Min(index, _tabs.Count - 1)];
             LoadTabState(_activeTab);
@@ -536,6 +542,7 @@ public partial class MainWindow : Window
 
         RebuildTabStrip();
         TerminalTextBox.Focus();
+        _ = tab.DisposeAsync();
     }
 
     private void RebuildTabStrip()
@@ -685,6 +692,17 @@ public partial class MainWindow : Window
             return;
         }
 
+        if (!controlPressed &&
+            shiftPressed &&
+            GetEffectiveKey(e) == Key.OemQuestion &&
+            InputLanguageManager.Current.CurrentInputLanguage
+                .TwoLetterISOLanguageName == "fa")
+        {
+            _session.Write("\u061f");
+            e.Handled = true;
+            return;
+        }
+
         string? sequence = e.Key switch
         {
             Key.Enter => "\r",
@@ -711,6 +729,14 @@ public partial class MainWindow : Window
         _session.Write(sequence);
         e.Handled = true;
     }
+
+    private static Key GetEffectiveKey(KeyEventArgs e) =>
+        e.Key switch
+        {
+            Key.System => e.SystemKey,
+            Key.ImeProcessed => e.ImeProcessedKey,
+            _ => e.Key
+        };
 
     private void CopySelection()
     {
@@ -835,9 +861,13 @@ public partial class MainWindow : Window
 
     private void ReadOutputLoop(TerminalTab tab)
     {
-        if (tab.Session is null ||
-            tab.Buffer is null ||
-            tab.CancellationTokenSource is null)
+        var session = tab.Session;
+        var buffer = tab.Buffer;
+        var cancellationTokenSource = tab.CancellationTokenSource;
+
+        if (session is null ||
+            buffer is null ||
+            cancellationTokenSource is null)
         {
             return;
         }
@@ -845,7 +875,7 @@ public partial class MainWindow : Window
         var bytes = new byte[8192];
         var characters = new char[Encoding.UTF8.GetMaxCharCount(bytes.Length)];
         var decoder = Encoding.UTF8.GetDecoder();
-        var cancellationToken = tab.CancellationTokenSource.Token;
+        var cancellationToken = cancellationTokenSource.Token;
 
         while (!cancellationToken.IsCancellationRequested)
         {
@@ -853,7 +883,7 @@ public partial class MainWindow : Window
 
             try
             {
-                byteCount = tab.Session.Read(bytes);
+                byteCount = session.Read(bytes);
             }
             catch (ObjectDisposedException)
             {
@@ -877,7 +907,7 @@ public partial class MainWindow : Window
 
             var output = new string(characters, 0, characterCount);
 
-            QueueRender(tab, tab.Buffer.Process(output));
+            QueueRender(tab, buffer.Process(output));
         }
     }
 
@@ -954,7 +984,7 @@ public partial class MainWindow : Window
     private void Render(TerminalSnapshot snapshot)
     {
         _lastRenderedSnapshot = snapshot;
-        var isRightToLeft = RtlMenuItem.IsChecked;
+        var smartRtlEnabled = SmartRtlMenuItem.IsChecked;
         var scrollViewer = FindVisualChild<ScrollViewer>(TerminalTextBox);
         var verticalOffset = scrollViewer?.VerticalOffset ?? 0;
         var shouldFollowOutput = _followOutput;
@@ -984,6 +1014,8 @@ public partial class MainWindow : Window
         for (var row = 0; row < snapshot.Lines.Count; row++)
         {
             var line = snapshot.Lines[row];
+            var isRightToLeft =
+                smartRtlEnabled && SmartRtl.IsRightToLeft(line);
 
             if (row < _renderedLines.Count &&
                 ReferenceEquals(_renderedLines[row].Source, line) &&
@@ -1077,7 +1109,7 @@ public partial class MainWindow : Window
                     string.Empty,
                     [],
                     null,
-                    isRightToLeft));
+                    false));
         }
 
         if (shouldFollowOutput)
@@ -1409,8 +1441,10 @@ public partial class MainWindow : Window
     private sealed class TerminalTab(
         int number,
         TerminalProfile profile,
-        string profileTitle) : IDisposable
+        string profileTitle)
     {
+        private int _disposeStarted;
+
         public int Number { get; } = number;
         public TerminalProfile Profile { get; } = profile;
         public string Title { get; } = $"{profileTitle} {number}";
@@ -1426,13 +1460,30 @@ public partial class MainWindow : Window
         public bool FollowOutput { get; set; } = true;
         public double VerticalOffset { get; set; }
 
-        public void Dispose()
+        public Task DisposeAsync()
         {
-            CancellationTokenSource?.Cancel();
-            Session?.Dispose();
-            CancellationTokenSource?.Dispose();
+            if (Interlocked.Exchange(ref _disposeStarted, 1) != 0)
+                return Task.CompletedTask;
+
+            var session = Session;
+            var cancellationTokenSource = CancellationTokenSource;
             CancellationTokenSource = null;
             Session = null;
+
+            return Task.Run(() =>
+            {
+                try
+                {
+                    // Keep ReadOutputLoop draining until ClosePseudoConsole
+                    // completes and closes the output channel.
+                    session?.Dispose();
+                }
+                finally
+                {
+                    cancellationTokenSource?.Cancel();
+                    cancellationTokenSource?.Dispose();
+                }
+            });
         }
     }
 }

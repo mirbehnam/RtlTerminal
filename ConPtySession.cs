@@ -232,7 +232,20 @@ public sealed class ConPtySession : IDisposable
 
 
 
+        // Stop accepting input, but keep the output reader alive while the
+        // pseudoconsole shuts down. Older Windows builds can wait forever if
+        // a client's final output is not drained concurrently.
         _inputWriter?.Dispose();
+
+        if (_pseudoConsole != IntPtr.Zero)
+
+        {
+
+            ClosePseudoConsole(_pseudoConsole);
+
+            _pseudoConsole = IntPtr.Zero;
+
+        }
 
         _outputReader?.Dispose();
 
@@ -261,10 +274,6 @@ public sealed class ConPtySession : IDisposable
         }
 
 
-
-        if (_pseudoConsole != IntPtr.Zero)
-
-            ClosePseudoConsole(_pseudoConsole);
 
     }
 

@@ -412,6 +412,13 @@ public sealed class TerminalBuffer
             LineFeed(wrapped: true);
         }
 
+        // A redraw may replace only one half of an existing wide glyph.
+        // Clear any wide character crossing either edge of the cells that
+        // are about to be overwritten, otherwise later erase commands can
+        // leave stale cells behind or erase the newly written character.
+        NormalizeWideCharacterBoundary(_cursorRow, _cursorColumn);
+        NormalizeWideCharacterBoundary(_cursorRow, _cursorColumn + width);
+
         _cells[_cursorRow, _cursorColumn] = new Cell(text, _currentStyle, false);
 
         if (width == 2 && _cursorColumn + 1 < _columns)
