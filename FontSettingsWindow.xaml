@@ -90,6 +90,20 @@
                           Content="Italic"
                           Checked="FontOption_Changed"
                           Unchecked="FontOption_Changed" />
+
+                <TextBlock Text="History lines"
+                           Margin="0,24,0,5" />
+                <ComboBox x:Name="HistorySizeComboBox"
+                          ToolTip="Maximum number of previous terminal lines kept in memory">
+                    <ComboBoxItem Content="2,000" Tag="2000" />
+                    <ComboBoxItem Content="5,000" Tag="5000" />
+                    <ComboBoxItem Content="10,000" Tag="10000" />
+                </ComboBox>
+                <TextBlock Margin="0,6,0,0"
+                           Foreground="#697386"
+                           FontSize="11"
+                           TextWrapping="Wrap"
+                           Text="Larger history uses more memory and may make scrolling slower." />
             </StackPanel>
         </Grid>
 

@@ -51,6 +51,7 @@ public partial class MainWindow : Window
     private long _renderedScrollbackStartIndex;
     private bool _renderedSmartRtlEnabled = true;
     private TerminalProfile _defaultProfile = TerminalProfile.CommandPrompt;
+    private int _historySize = 2000;
 
     public MainWindow()
     {
@@ -62,6 +63,7 @@ public partial class MainWindow : Window
         };
         _renderTimer.Tick += RenderTimer_Tick;
         _defaultProfile = LoadDefaultProfile();
+        _historySize = AppSettings.LoadHistorySize();
         ApplySavedFontSettings();
         UpdateFontMetrics();
     }
@@ -98,7 +100,10 @@ public partial class MainWindow : Window
         {
             var columns = GetColumns();
             var rows = GetRows();
-            _terminalBuffer = new TerminalBuffer(columns, rows);
+            _terminalBuffer = new TerminalBuffer(
+                columns,
+                rows,
+                _historySize);
             _cancellationTokenSource = new CancellationTokenSource();
             _session = new ConPtySession(columns, rows);
             _session.Start(
@@ -396,7 +401,8 @@ public partial class MainWindow : Window
             TerminalTextBox.FontFamily.Source,
             TerminalTextBox.FontSize,
             TerminalTextBox.FontWeight,
-            TerminalTextBox.FontStyle)
+            TerminalTextBox.FontStyle,
+            _historySize)
         {
             Owner = this
         };
@@ -404,9 +410,27 @@ public partial class MainWindow : Window
         if (settingsWindow.ShowDialog() != true)
             return;
 
+        ApplyHistorySize(settingsWindow.SelectedHistorySize);
         ApplyFontSettings(settingsWindow.SelectedSettings);
         AppSettings.SaveFont(settingsWindow.SelectedSettings);
+        AppSettings.SaveHistorySize(settingsWindow.SelectedHistorySize);
         TerminalTextBox.Focus();
+    }
+
+    private void ApplyHistorySize(int historySize)
+    {
+        _historySize = historySize;
+        SaveActiveTabState();
+
+        foreach (var tab in _tabs)
+        {
+            if (tab.Buffer is not { } buffer)
+                continue;
+
+            QueueRender(
+                tab,
+                buffer.SetMaximumScrollbackRows(historySize));
+        }
     }
 
     private void GuideMenuItem_Click(object sender, RoutedEventArgs e)
@@ -1175,6 +1199,7 @@ public partial class MainWindow : Window
     private void Render(TerminalSnapshot snapshot)
     {
         _lastRenderedSnapshot = snapshot;
+        TerminalTextBox.IsReadOnlyCaretVisible = snapshot.CursorVisible;
         var smartRtlEnabled = SmartRtlMenuItem.IsChecked;
         var scrollViewer = FindVisualChild<ScrollViewer>(TerminalTextBox);
         var verticalOffset = scrollViewer?.VerticalOffset ?? 0;

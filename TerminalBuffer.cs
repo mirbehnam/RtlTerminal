@@ -28,15 +28,14 @@ public sealed record TerminalSnapshot(
     IReadOnlyList<TerminalLine> Lines,
     int CursorRow,
     int CursorColumn,
+    bool CursorVisible,
     int ScrollbackCount,
     long ScrollbackStartIndex,
     long Revision);
 
 public sealed class TerminalBuffer
 {
-    // FlowDocument does not virtualize paragraphs. Keep a bounded ring-like
-    // history so scrolling stays responsive even for long-running agents.
-    private const int MaximumScrollbackRows = 2000;
+    private const int DefaultMaximumScrollbackRows = 2000;
     private static readonly TerminalColor[] AnsiColors =
     [
         new(12, 12, 12),
@@ -60,6 +59,7 @@ public sealed class TerminalBuffer
     private readonly object _syncRoot = new();
     private readonly StringBuilder _csi = new();
     private readonly List<TerminalLine> _scrollback = [];
+    private int _maximumScrollbackRows;
     private long _scrollbackStartIndex;
     private Cell[,] _cells;
     private bool[] _wrappedFromPrevious;
@@ -75,19 +75,36 @@ public sealed class TerminalBuffer
     private bool _wrapPending;
     private bool _carriageReturnPending;
     private bool _alternateScreenActive;
+    private bool _cursorVisible = true;
     private char? _pendingHighSurrogate;
     private ParserState _state;
     private TerminalStyle _currentStyle;
     private SavedScreen? _savedMainScreen;
 
-    public TerminalBuffer(int columns, int rows)
+    public TerminalBuffer(
+        int columns,
+        int rows,
+        int maximumScrollbackRows = DefaultMaximumScrollbackRows)
     {
+        _maximumScrollbackRows = NormalizeMaximumScrollbackRows(
+            maximumScrollbackRows);
         _columns = Math.Max(10, columns);
         _rows = Math.Max(5, rows);
         _scrollBottom = _rows - 1;
         _cells = new Cell[_rows, _columns];
         _wrappedFromPrevious = new bool[_rows];
         ClearAll();
+    }
+
+    public TerminalSnapshot SetMaximumScrollbackRows(int maximumRows)
+    {
+        lock (_syncRoot)
+        {
+            _maximumScrollbackRows = NormalizeMaximumScrollbackRows(
+                maximumRows);
+            TrimScrollback();
+            return CreateSnapshot();
+        }
     }
 
     public TerminalSnapshot Process(string text)
@@ -626,6 +643,9 @@ public sealed class TerminalBuffer
 
     private void HandlePrivateMode(IReadOnlyList<int> parameters, bool enabled)
     {
+        if (parameters.Contains(25))
+            _cursorVisible = enabled;
+
         if (!parameters.Contains(1049))
             return;
 
@@ -972,6 +992,7 @@ public sealed class TerminalBuffer
             lines,
             _scrollback.Count + _cursorRow,
             _cursorColumn,
+            _cursorVisible,
             _scrollback.Count,
             _scrollbackStartIndex,
             ++_revision);
@@ -1087,16 +1108,26 @@ public sealed class TerminalBuffer
 
         _scrollback.Add(CreateLine(copy, copy.Length));
 
-        if (_scrollback.Count >
-            MaximumScrollbackRows + 128)
-        {
-            var removeCount =
-                _scrollback.Count - MaximumScrollbackRows;
-            _scrollback.RemoveRange(
-                0,
-                removeCount);
-            _scrollbackStartIndex += removeCount;
-        }
+        if (_scrollback.Count > _maximumScrollbackRows + 128)
+            TrimScrollback();
+    }
+
+    private void TrimScrollback()
+    {
+        if (_scrollback.Count <= _maximumScrollbackRows)
+            return;
+
+        var removeCount =
+            _scrollback.Count - _maximumScrollbackRows;
+        _scrollback.RemoveRange(0, removeCount);
+        _scrollbackStartIndex += removeCount;
+    }
+
+    private static int NormalizeMaximumScrollbackRows(int maximumRows)
+    {
+        return maximumRows is 2000 or 5000 or 10000
+            ? maximumRows
+            : DefaultMaximumScrollbackRows;
     }
 
     private readonly record struct Cell(

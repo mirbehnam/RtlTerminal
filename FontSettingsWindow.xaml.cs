@@ -37,7 +37,8 @@ public partial class FontSettingsWindow : Window
         string family,
         double size,
         FontWeight weight,
-        FontStyle style)
+        FontStyle style,
+        int historySize)
     {
         InitializeComponent();
         _fontFamilies = Fonts.SystemFontFamilies
@@ -55,10 +56,17 @@ public partial class FontSettingsWindow : Window
             CultureInfo.CurrentCulture);
         BoldCheckBox.IsChecked = weight >= FontWeights.Bold;
         ItalicCheckBox.IsChecked = style == FontStyles.Italic;
+        HistorySizeComboBox.SelectedIndex = historySize switch
+        {
+            5000 => 1,
+            10000 => 2,
+            _ => 0
+        };
         RefreshFontList();
     }
 
     public TerminalFontSettings SelectedSettings { get; private set; }
+    public int SelectedHistorySize { get; private set; } = 2000;
 
     private void FontSearchTextBox_TextChanged(
         object sender,
@@ -164,6 +172,7 @@ public partial class FontSettingsWindow : Window
             GetFontSize(),
             BoldCheckBox.IsChecked == true,
             ItalicCheckBox.IsChecked == true);
+        SelectedHistorySize = GetHistorySize();
         DialogResult = true;
     }
 
@@ -176,6 +185,14 @@ public partial class FontSettingsWindow : Window
             out var size)
             ? Math.Clamp(size, 8, 72)
             : 15;
+    }
+
+    private int GetHistorySize()
+    {
+        return HistorySizeComboBox.SelectedItem is ComboBoxItem item &&
+            int.TryParse(item.Tag?.ToString(), out var historySize)
+                ? historySize
+                : 2000;
     }
 
     private string GetSelectedFamily()

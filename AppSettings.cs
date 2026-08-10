@@ -12,6 +12,7 @@ public readonly record struct TerminalFontSettings(
 public static class AppSettings
 {
     private const string SettingsKey = @"Software\RtlTerminal";
+    private static readonly int[] SupportedHistorySizes = [2000, 5000, 10000];
 
     public static string? LoadTerminalProfile()
     {
@@ -58,6 +59,29 @@ public static class AppSettings
             "LastCmdDirectories",
             directories,
             RegistryValueKind.MultiString);
+    }
+
+    public static int LoadHistorySize()
+    {
+        using var key = Registry.CurrentUser.OpenSubKey(SettingsKey);
+        var savedSize = key?.GetValue("HistorySize") is int value
+            ? value
+            : 2000;
+        return SupportedHistorySizes.Contains(savedSize)
+            ? savedSize
+            : 2000;
+    }
+
+    public static void SaveHistorySize(int historySize)
+    {
+        if (!SupportedHistorySizes.Contains(historySize))
+            historySize = 2000;
+
+        using var key = Registry.CurrentUser.CreateSubKey(SettingsKey);
+        key.SetValue(
+            "HistorySize",
+            historySize,
+            RegistryValueKind.DWord);
     }
 
     public static TerminalFontSettings? LoadFont()
