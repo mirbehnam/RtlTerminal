@@ -377,6 +377,20 @@
               Background="#202020"
               Foreground="#f0f0f0"
               ItemContainerStyle="{StaticResource DarkTopLevelMenuItemStyle}">
+            <MenuItem Header="_File">
+                <MenuItem x:Name="LastDirectoriesMenuItem"
+                          Header="_Last directories"
+                          SubmenuOpened="LastDirectoriesMenuItem_SubmenuOpened">
+                    <MenuItem Header="No recent directories"
+                              IsEnabled="False" />
+                </MenuItem>
+                <Separator />
+                <MenuItem Header="_Export session..."
+                          Click="ExportSessionMenuItem_Click" />
+                <Separator />
+                <MenuItem Header="E_xit"
+                          Click="ExitMenuItem_Click" />
+            </MenuItem>
             <MenuItem Header="_Edit">
                 <MenuItem Header="_Font settings..."
                           Click="FontSettingsMenuItem_Click" />
@@ -412,6 +426,7 @@
                      FontSize="15"
                      HorizontalScrollBarVisibility="Disabled"
                      VerticalScrollBarVisibility="Auto"
+                     ScrollViewer.IsDeferredScrollingEnabled="True"
                      IsReadOnly="True"
                      IsDocumentEnabled="True"
                      IsReadOnlyCaretVisible="True"

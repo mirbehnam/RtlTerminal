@@ -25,6 +25,41 @@ public static class AppSettings
         key.SetValue("TerminalProfile", profile, RegistryValueKind.String);
     }
 
+    public static IReadOnlyList<string> LoadLastCmdDirectories()
+    {
+        using var key = Registry.CurrentUser.OpenSubKey(SettingsKey);
+        var directories = key?.GetValue("LastCmdDirectories") switch
+        {
+            string[] values => values,
+            string value => [value],
+            _ => []
+        };
+
+        return directories
+            .Where(directory => !string.IsNullOrWhiteSpace(directory))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Take(10)
+            .ToArray();
+    }
+
+    public static void RememberCmdDirectory(string directory)
+    {
+        var directories = LoadLastCmdDirectories()
+            .Where(savedDirectory => !string.Equals(
+                savedDirectory,
+                directory,
+                StringComparison.OrdinalIgnoreCase))
+            .Prepend(directory)
+            .Take(10)
+            .ToArray();
+
+        using var key = Registry.CurrentUser.CreateSubKey(SettingsKey);
+        key.SetValue(
+            "LastCmdDirectories",
+            directories,
+            RegistryValueKind.MultiString);
+    }
+
     public static TerminalFontSettings? LoadFont()
     {
         using var key = Registry.CurrentUser.OpenSubKey(SettingsKey);

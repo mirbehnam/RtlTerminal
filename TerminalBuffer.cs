@@ -18,17 +18,25 @@ public sealed record TerminalRun(string Text, TerminalStyle Style);
 
 public sealed record TerminalLine(
     IReadOnlyList<TerminalRun> Runs,
-    int CellLength);
+    int CellLength)
+{
+    internal bool ContainsRightToLeft { get; } =
+        SmartRtl.ContainsRightToLeft(Runs);
+}
 
 public sealed record TerminalSnapshot(
     IReadOnlyList<TerminalLine> Lines,
     int CursorRow,
     int CursorColumn,
+    int ScrollbackCount,
+    long ScrollbackStartIndex,
     long Revision);
 
 public sealed class TerminalBuffer
 {
-    private const int MaximumScrollbackRows = 5000;
+    // FlowDocument does not virtualize paragraphs. Keep a bounded ring-like
+    // history so scrolling stays responsive even for long-running agents.
+    private const int MaximumScrollbackRows = 2000;
     private static readonly TerminalColor[] AnsiColors =
     [
         new(12, 12, 12),
@@ -52,6 +60,7 @@ public sealed class TerminalBuffer
     private readonly object _syncRoot = new();
     private readonly StringBuilder _csi = new();
     private readonly List<TerminalLine> _scrollback = [];
+    private long _scrollbackStartIndex;
     private Cell[,] _cells;
     private bool[] _wrappedFromPrevious;
     private int _columns;
@@ -134,6 +143,12 @@ public sealed class TerminalBuffer
             _wrapPending = false;
             return CreateSnapshot();
         }
+    }
+
+    public TerminalSnapshot CaptureSnapshot()
+    {
+        lock (_syncRoot)
+            return CreateSnapshot();
     }
 
     private void ProcessCharacter(char character)
@@ -405,7 +420,7 @@ public sealed class TerminalBuffer
             _wrapPending = false;
         }
 
-        var width = IsWide(text) ? 2 : 1;
+        var width = GetCellWidth(Rune.GetRuneAt(text, 0));
 
         if (width == 2 && _cursorColumn == _columns - 1)
         {
@@ -452,15 +467,25 @@ public sealed class TerminalBuffer
 
     private static bool IsCombining(string text)
     {
-        var category = Rune.GetUnicodeCategory(Rune.GetRuneAt(text, 0));
-        return category is UnicodeCategory.NonSpacingMark
-            or UnicodeCategory.SpacingCombiningMark
-            or UnicodeCategory.EnclosingMark;
+        return GetCellWidth(Rune.GetRuneAt(text, 0)) == 0;
     }
 
-    private static bool IsWide(string text)
+    internal static int GetCellWidth(Rune rune)
     {
-        var value = Rune.GetRuneAt(text, 0).Value;
+        var category = Rune.GetUnicodeCategory(rune);
+
+        if (category is UnicodeCategory.NonSpacingMark
+            or UnicodeCategory.SpacingCombiningMark
+            or UnicodeCategory.EnclosingMark)
+        {
+            return 0;
+        }
+
+        return IsWide(rune.Value) ? 2 : 1;
+    }
+
+    private static bool IsWide(int value)
+    {
         return value is >= 0x1100 and <= 0x115f
             or >= 0x2329 and <= 0x232a
             or >= 0x2e80 and <= 0xa4cf
@@ -947,6 +972,8 @@ public sealed class TerminalBuffer
             lines,
             _scrollback.Count + _cursorRow,
             _cursorColumn,
+            _scrollback.Count,
+            _scrollbackStartIndex,
             ++_revision);
     }
 
@@ -1061,11 +1088,14 @@ public sealed class TerminalBuffer
         _scrollback.Add(CreateLine(copy, copy.Length));
 
         if (_scrollback.Count >
-            MaximumScrollbackRows + 256)
+            MaximumScrollbackRows + 128)
         {
+            var removeCount =
+                _scrollback.Count - MaximumScrollbackRows;
             _scrollback.RemoveRange(
                 0,
-                _scrollback.Count - MaximumScrollbackRows);
+                removeCount);
+            _scrollbackStartIndex += removeCount;
         }
     }
 

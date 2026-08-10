@@ -13,6 +13,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Controls;
 using System.Windows.Threading;
+using Microsoft.Win32;
 
 namespace RtlTerminal;
 
@@ -24,6 +25,7 @@ public partial class MainWindow : Window
     private static readonly Regex LinkPattern = new(
         @"(?i)\b(?:https?://|www\.)[^\s<>{}\[\]""']+",
         RegexOptions.Compiled);
+    private static readonly Dictionary<TerminalColor, SolidColorBrush> BrushCache = [];
     private readonly object _renderLock = new();
     private readonly DispatcherTimer _renderTimer;
     private readonly List<RenderedLine> _renderedLines = [];
@@ -45,13 +47,16 @@ public partial class MainWindow : Window
     private bool _restoringScrollPosition;
     private int _scrollRequestVersion;
     private int _nextTabNumber = 1;
+    private int _renderedScrollbackCount;
+    private long _renderedScrollbackStartIndex;
+    private bool _renderedSmartRtlEnabled = true;
     private TerminalProfile _defaultProfile = TerminalProfile.CommandPrompt;
 
     public MainWindow()
     {
         InitializeComponent();
         SmartRtlMenuItem.IsChecked = true;
-        _renderTimer = new DispatcherTimer(DispatcherPriority.Render)
+        _renderTimer = new DispatcherTimer(DispatcherPriority.Background)
         {
             Interval = TimeSpan.FromMilliseconds(50)
         };
@@ -72,9 +77,13 @@ public partial class MainWindow : Window
             () => CreateTerminalTab(_defaultProfile));
     }
 
-    private void CreateTerminalTab(TerminalProfile profile)
+    private void CreateTerminalTab(
+        TerminalProfile profile,
+        string? requestedStartupDirectory = null)
     {
         SaveActiveTabState();
+        var startupDirectory = ResolveStartupDirectory(
+            requestedStartupDirectory);
 
         var tab = new TerminalTab(
             _nextTabNumber++,
@@ -94,7 +103,14 @@ public partial class MainWindow : Window
             _session = new ConPtySession(columns, rows);
             _session.Start(
                 GetProfileCommand(profile),
-                GetStartupDirectory());
+                startupDirectory);
+
+            if (profile == TerminalProfile.CommandPrompt &&
+                startupDirectory is not null)
+            {
+                AppSettings.RememberCmdDirectory(startupDirectory);
+            }
+
             SaveActiveTabState();
             _ = Task.Run(() => ReadOutputLoop(tab));
         }
@@ -219,6 +235,113 @@ public partial class MainWindow : Window
     private void CloseWindowButton_Click(object sender, RoutedEventArgs e)
     {
         Close();
+    }
+
+    private void ExitMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        Close();
+    }
+
+    private void ExportSessionMenuItem_Click(
+        object sender,
+        RoutedEventArgs e)
+    {
+        if (_terminalBuffer is null)
+        {
+            MessageBox.Show(
+                this,
+                "There is no active terminal session to export.",
+                "Export session",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+            return;
+        }
+
+        var dialog = new SaveFileDialog
+        {
+            Title = "Export terminal session",
+            Filter = "Text files (*.txt)|*.txt|All files (*.*)|*.*",
+            DefaultExt = ".txt",
+            AddExtension = true,
+            FileName = $"RtlTerminal-{DateTime.Now:yyyyMMdd-HHmmss}.txt"
+        };
+
+        if (dialog.ShowDialog(this) != true)
+            return;
+
+        try
+        {
+            var snapshot = _terminalBuffer.CaptureSnapshot();
+            File.WriteAllText(
+                dialog.FileName,
+                CreateSessionText(snapshot),
+                new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+        }
+        catch (Exception exception) when (
+            exception is IOException or
+                UnauthorizedAccessException or
+                NotSupportedException)
+        {
+            MessageBox.Show(
+                this,
+                $"The session could not be exported.{Environment.NewLine}{exception.Message}",
+                "Export session",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+        }
+    }
+
+    private static string CreateSessionText(TerminalSnapshot snapshot)
+    {
+        var text = new StringBuilder();
+
+        foreach (var line in snapshot.Lines)
+        {
+            foreach (var run in line.Runs)
+                text.Append(run.Text);
+
+            text.AppendLine();
+        }
+
+        return text.ToString();
+    }
+
+    private void LastDirectoriesMenuItem_SubmenuOpened(
+        object sender,
+        RoutedEventArgs e)
+    {
+        LastDirectoriesMenuItem.Items.Clear();
+
+        foreach (var directory in AppSettings.LoadLastCmdDirectories())
+        {
+            if (!Directory.Exists(directory))
+                continue;
+
+            var item = new MenuItem
+            {
+                Header = new TextBlock
+                {
+                    Text = directory,
+                    MaxWidth = 520,
+                    TextTrimming = TextTrimming.CharacterEllipsis,
+                    FlowDirection = FlowDirection.LeftToRight
+                },
+                ToolTip = directory
+            };
+            item.Click += (_, _) => CreateTerminalTab(
+                TerminalProfile.CommandPrompt,
+                directory);
+            LastDirectoriesMenuItem.Items.Add(item);
+        }
+
+        if (LastDirectoriesMenuItem.Items.Count == 0)
+        {
+            LastDirectoriesMenuItem.Items.Add(new MenuItem
+            {
+                Header = "No recent directories",
+                IsEnabled = false
+            });
+        }
     }
 
     private void TerminalTextBox_PreviewTextInput(
@@ -392,15 +515,49 @@ public partial class MainWindow : Window
         _updatingContextMenuItem = false;
     }
 
-    private static string? GetStartupDirectory()
+    private static string? ResolveStartupDirectory(
+        string? requestedDirectory = null)
     {
+        if (TryResolveDirectory(requestedDirectory, out var directory))
+            return directory;
+
         var arguments = Environment.GetCommandLineArgs();
 
-        if (arguments.Length < 2)
-            return null;
+        if (arguments.Length >= 2 &&
+            TryResolveDirectory(arguments[1], out directory))
+        {
+            return directory;
+        }
 
-        var path = arguments[1];
-        return Directory.Exists(path) ? Path.GetFullPath(path) : null;
+        return TryResolveDirectory(Environment.CurrentDirectory, out directory)
+            ? directory
+            : null;
+    }
+
+    private static bool TryResolveDirectory(
+        string? candidate,
+        out string? directory)
+    {
+        directory = null;
+
+        if (string.IsNullOrWhiteSpace(candidate) ||
+            !Directory.Exists(candidate))
+        {
+            return false;
+        }
+
+        try
+        {
+            directory = Path.GetFullPath(candidate);
+            return true;
+        }
+        catch (Exception exception) when (
+            exception is ArgumentException or
+                NotSupportedException or
+                PathTooLongException)
+        {
+            return false;
+        }
     }
 
     private static string GetProfileTitle(TerminalProfile profile) =>
@@ -462,6 +619,10 @@ public partial class MainWindow : Window
         _activeTab.LatestQueuedRevision = _latestQueuedRevision;
         _activeTab.LastRenderedSnapshot = _lastRenderedSnapshot;
         _activeTab.Document = _terminalDocument;
+        _activeTab.RenderedScrollbackCount = _renderedScrollbackCount;
+        _activeTab.RenderedScrollbackStartIndex =
+            _renderedScrollbackStartIndex;
+        _activeTab.RenderedSmartRtlEnabled = _renderedSmartRtlEnabled;
         _activeTab.FollowOutput = _followOutput;
         _activeTab.RenderedLines.Clear();
         _activeTab.RenderedLines.AddRange(_renderedLines);
@@ -484,6 +645,9 @@ public partial class MainWindow : Window
 
         _lastRenderedSnapshot = tab.LastRenderedSnapshot;
         _terminalDocument = tab.Document;
+        _renderedScrollbackCount = tab.RenderedScrollbackCount;
+        _renderedScrollbackStartIndex = tab.RenderedScrollbackStartIndex;
+        _renderedSmartRtlEnabled = tab.RenderedSmartRtlEnabled;
         _followOutput = tab.FollowOutput;
         _renderedLines.Clear();
         _renderedLines.AddRange(tab.RenderedLines);
@@ -514,8 +678,12 @@ public partial class MainWindow : Window
 
         if (_pendingSnapshot is not null)
             StartRenderTimer();
-        else if (_lastRenderedSnapshot is not null && _terminalDocument is null)
+        else if (_lastRenderedSnapshot is not null &&
+            (_terminalDocument is null ||
+                _renderedSmartRtlEnabled != SmartRtlMenuItem.IsChecked))
+        {
             Render(_lastRenderedSnapshot);
+        }
 
         TerminalTextBox.Focus();
     }
@@ -964,7 +1132,7 @@ public partial class MainWindow : Window
         }
 
         Dispatcher.BeginInvoke(
-            DispatcherPriority.Render,
+            DispatcherPriority.Background,
             StartRenderTimer);
     }
 
@@ -1027,7 +1195,37 @@ public partial class MainWindow : Window
                 Background = ToBrush(DefaultBackground)
             };
             TerminalTextBox.Document = _terminalDocument;
+            _renderedScrollbackCount = 0;
+            _renderedScrollbackStartIndex = snapshot.ScrollbackStartIndex;
         }
+
+        if (snapshot.ScrollbackStartIndex <
+            _renderedScrollbackStartIndex)
+        {
+            _terminalDocument.Blocks.Clear();
+            _renderedLines.Clear();
+            _renderedScrollbackCount = 0;
+            _renderedScrollbackStartIndex =
+                snapshot.ScrollbackStartIndex;
+        }
+
+        var trimmedRowCount = (int)Math.Min(
+            snapshot.ScrollbackStartIndex -
+                _renderedScrollbackStartIndex,
+            _renderedLines.Count);
+
+        for (var row = 0; row < trimmedRowCount; row++)
+            _terminalDocument.Blocks.Remove(_renderedLines[row].Paragraph);
+
+        if (trimmedRowCount > 0)
+        {
+            _renderedLines.RemoveRange(0, trimmedRowCount);
+            _renderedScrollbackCount = Math.Max(
+                0,
+                _renderedScrollbackCount - trimmedRowCount);
+        }
+
+        _renderedScrollbackStartIndex = snapshot.ScrollbackStartIndex;
 
         while (_renderedLines.Count > snapshot.Lines.Count)
         {
@@ -1036,7 +1234,18 @@ public partial class MainWindow : Window
             _renderedLines.RemoveAt(_renderedLines.Count - 1);
         }
 
-        for (var row = 0; row < snapshot.Lines.Count; row++)
+        var firstRowToRender =
+            _renderedSmartRtlEnabled == smartRtlEnabled
+                ? Math.Min(
+                    Math.Min(
+                        _renderedScrollbackCount,
+                        snapshot.ScrollbackCount),
+                    _renderedLines.Count)
+                : 0;
+
+        for (var row = firstRowToRender;
+             row < snapshot.Lines.Count;
+             row++)
         {
             var line = snapshot.Lines[row];
             var isRightToLeft =
@@ -1155,6 +1364,9 @@ public partial class MainWindow : Window
                 _renderedLines.Add(renderedLine);
             }
         }
+
+        _renderedScrollbackCount = snapshot.ScrollbackCount;
+        _renderedSmartRtlEnabled = smartRtlEnabled;
 
         if (_renderedLines.Count == 0)
         {
@@ -1308,22 +1520,60 @@ public partial class MainWindow : Window
         RenderedLine line,
         int cursorColumn)
     {
+        var textOffset = GetTextOffsetForColumn(line, cursorColumn);
+        TextPointer? lastRunEnd = null;
+
         foreach (var position in line.Runs)
         {
-            if (cursorColumn > position.Start + position.Length)
+            if (textOffset >= position.Start + position.Length)
+            {
+                lastRunEnd = position.Run.ContentEnd;
                 continue;
+            }
 
             var offset = Math.Clamp(
-                cursorColumn - position.Start,
+                textOffset - position.Start,
                 0,
                 position.Length);
-            return position.Run.ContentStart.GetPositionAtOffset(
-                offset,
-                LogicalDirection.Forward) ??
-                position.Run.ContentEnd;
+            var positionAtOffset =
+                position.Run.ContentStart.GetPositionAtOffset(
+                    offset,
+                    LogicalDirection.Forward);
+            return positionAtOffset?.GetInsertionPosition(
+                    LogicalDirection.Forward) ??
+                position.Run.ContentEnd.GetInsertionPosition(
+                    LogicalDirection.Backward);
         }
 
-        return line.Paragraph.ContentEnd;
+        return (lastRunEnd ?? line.Paragraph.ContentEnd)
+            .GetInsertionPosition(LogicalDirection.Backward);
+    }
+
+    private static int GetTextOffsetForColumn(
+        RenderedLine line,
+        int cursorColumn)
+    {
+        if (line.Source is null || cursorColumn <= 0)
+            return 0;
+
+        var column = 0;
+        var textOffset = 0;
+
+        foreach (var run in line.Source.Runs)
+        {
+            foreach (var rune in run.Text.EnumerateRunes())
+            {
+                var width = TerminalBuffer.GetCellWidth(rune);
+
+                if (width > 0 && column >= cursorColumn)
+                    return textOffset;
+
+                column += width;
+                textOffset += rune.Utf16SequenceLength;
+            }
+        }
+
+        return textOffset;
     }
 
     private Run CreateRun(string text, TerminalStyle style)
@@ -1434,9 +1684,13 @@ public partial class MainWindow : Window
 
     private static SolidColorBrush ToBrush(TerminalColor color)
     {
+        if (BrushCache.TryGetValue(color, out var cachedBrush))
+            return cachedBrush;
+
         var brush = new SolidColorBrush(
             Color.FromRgb(color.Red, color.Green, color.Blue));
         brush.Freeze();
+        BrushCache[color] = brush;
         return brush;
     }
 
@@ -1549,6 +1803,9 @@ public partial class MainWindow : Window
         public long LatestQueuedRevision { get; set; }
         public TerminalSnapshot? LastRenderedSnapshot { get; set; }
         public FlowDocument? Document { get; set; }
+        public int RenderedScrollbackCount { get; set; }
+        public long RenderedScrollbackStartIndex { get; set; }
+        public bool RenderedSmartRtlEnabled { get; set; } = true;
         public List<RenderedLine> RenderedLines { get; } = [];
         public bool FollowOutput { get; set; } = true;
         public double VerticalOffset { get; set; }

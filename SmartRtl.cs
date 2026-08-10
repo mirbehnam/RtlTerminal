@@ -12,7 +12,13 @@ internal static class SmartRtl
 {
     public static bool IsRightToLeft(TerminalLine line)
     {
-        foreach (var run in line.Runs)
+        return line.ContainsRightToLeft;
+    }
+
+    internal static bool ContainsRightToLeft(
+        IReadOnlyList<TerminalRun> runs)
+    {
+        foreach (var run in runs)
         {
             foreach (var rune in run.Text.EnumerateRunes())
             {
