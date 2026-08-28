@@ -37,17 +37,29 @@ jobs:
           "version=$version" >> $env:GITHUB_OUTPUT
           "tag=v$version" >> $env:GITHUB_OUTPUT
 
+      - name: Install Inno Setup
+        run: choco install innosetup --no-progress -y
+
       - name: Publish application
         run: >-
           dotnet publish RtlTerminal.csproj
           --configuration Release
           --runtime win-x64
           --self-contained true
-          --output publish/release
+          -p:PublishSingleFile=true
+          -p:IncludeNativeLibrariesForSelfExtract=true
+          -p:PublishTrimmed=false
+          --output publish/win-x64
+
+      - name: Build installer
+        shell: pwsh
+        run: |
+          $iscc = (Get-Command ISCC.exe -ErrorAction Stop).Source
+          & $iscc "/DAppVersion=${{ steps.version.outputs.version }}" installer\RtlTerminal.iss
 
       - name: Package application
         shell: pwsh
-        run: Compress-Archive -Path publish/release/* -DestinationPath RtlTerminal-${{ steps.version.outputs.version }}-win-x64.zip
+        run: Compress-Archive -Path publish/win-x64/* -DestinationPath RtlTerminal-${{ steps.version.outputs.version }}-win-x64.zip
 
       - name: Create or update GitHub release
         env:
@@ -56,11 +68,13 @@ jobs:
           TAG: ${{ steps.version.outputs.tag }}
         shell: pwsh
         run: |
+          $installer = "release/RtlTerminal-Setup-$env:VERSION-x64.exe"
           $releaseExists = gh release view $env:TAG 2>$null
           if ($LASTEXITCODE -eq 0) {
             gh release upload $env:TAG "RtlTerminal-$env:VERSION-win-x64.zip" --clobber
+            gh release upload $env:TAG $installer --clobber
           } else {
-            gh release create $env:TAG "RtlTerminal-$env:VERSION-win-x64.zip" `
+            gh release create $env:TAG "RtlTerminal-$env:VERSION-win-x64.zip" $installer `
               --title "RtlTerminal $env:VERSION" `
               --generate-notes `
               --target $env:GITHUB_SHA
