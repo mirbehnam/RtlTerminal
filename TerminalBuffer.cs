@@ -12,7 +12,20 @@ public readonly record struct TerminalStyle(
     TerminalColor? Background,
     bool Bold,
     bool Italic,
-    bool Dim);
+    bool Dim,
+    bool Underline,
+    bool Strikethrough,
+    bool Inverse,
+    bool Hidden);
+
+public readonly record struct TerminalModes(
+    bool AlternateScreen,
+    bool ApplicationCursorKeys,
+    bool BracketedPaste,
+    bool FocusReporting,
+    int MouseTrackingMode,
+    bool SgrMouse,
+    bool SynchronizedOutput);
 
 public sealed record TerminalRun(string Text, TerminalStyle Style);
 
@@ -31,6 +44,8 @@ public sealed record TerminalSnapshot(
     bool CursorVisible,
     int ScrollbackCount,
     long ScrollbackStartIndex,
+    TerminalModes Modes,
+    IReadOnlyList<string> Responses,
     long Revision);
 
 public sealed class TerminalBuffer
@@ -58,7 +73,10 @@ public sealed class TerminalBuffer
 
     private readonly object _syncRoot = new();
     private readonly StringBuilder _csi = new();
+    private readonly StringBuilder _osc = new();
+    private readonly StringBuilder _dcs = new();
     private readonly List<TerminalLine> _scrollback = [];
+    private readonly List<string> _pendingResponses = [];
     private int _maximumScrollbackRows;
     private long _scrollbackStartIndex;
     private Cell[,] _cells;
@@ -76,6 +94,16 @@ public sealed class TerminalBuffer
     private bool _carriageReturnPending;
     private bool _alternateScreenActive;
     private bool _cursorVisible = true;
+    private bool _applicationCursorKeys;
+    private bool _autoWrapMode = true;
+    private bool _originMode;
+    private bool _bracketedPaste;
+    private bool _focusReporting;
+    private int _mouseTrackingMode;
+    private bool _sgrMouse;
+    private bool _synchronizedOutput;
+    private bool _joinNextCharacter;
+    private bool _regionalIndicatorPending;
     private char? _pendingHighSurrogate;
     private ParserState _state;
     private TerminalStyle _currentStyle;
@@ -209,12 +237,63 @@ public sealed class TerminalBuffer
                 return;
             case ParserState.Osc:
                 if (character == '\a')
+                {
+                    ProcessOsc();
                     _state = ParserState.Normal;
+                }
                 else if (character == '\x1b')
                     _state = ParserState.OscEscape;
+                else if (_osc.Length < 4096)
+                    _osc.Append(character);
                 return;
             case ParserState.OscEscape:
-                _state = character == '\\' ? ParserState.Normal : ParserState.Osc;
+                if (character == '\\')
+                {
+                    ProcessOsc();
+                    _state = ParserState.Normal;
+                }
+                else
+                {
+                    if (_osc.Length < 4096)
+                    {
+                        _osc.Append('\x1b');
+                        _osc.Append(character);
+                    }
+
+                    _state = ParserState.Osc;
+                }
+                return;
+            case ParserState.Dcs:
+                if (character == '\x1b')
+                    _state = ParserState.DcsEscape;
+                else if (_dcs.Length < 4096)
+                    _dcs.Append(character);
+                return;
+            case ParserState.DcsEscape:
+                if (character == '\\')
+                {
+                    ProcessDcs();
+                    _state = ParserState.Normal;
+                }
+                else
+                {
+                    if (_dcs.Length < 4096)
+                    {
+                        _dcs.Append('\x1b');
+                        _dcs.Append(character);
+                    }
+
+                    _state = ParserState.Dcs;
+                }
+                return;
+            case ParserState.ControlString:
+                if (character == '\x1b')
+                    _state = ParserState.ControlStringEscape;
+                return;
+            case ParserState.ControlStringEscape:
+                _state = character == '\\'
+                    ? ParserState.Normal
+                    : ParserState.ControlString;
                 return;
             case ParserState.IgnoreNext:
                 _state = ParserState.Normal;
@@ -224,21 +303,26 @@ public sealed class TerminalBuffer
         switch (character)
         {
             case '\x1b':
+                ResetClusterState();
                 _wrapPending = false;
                 _state = ParserState.Escape;
                 break;
             case '\r':
+                ResetClusterState();
                 _carriageReturnPending = true;
                 break;
             case '\n':
+                ResetClusterState();
                 _wrapPending = false;
                 LineFeed(wrapped: false);
                 break;
             case '\b':
+                ResetClusterState();
                 _wrapPending = false;
                 _cursorColumn = Math.Max(0, _cursorColumn - 1);
                 break;
             case '\t':
+                ResetClusterState();
                 _wrapPending = false;
                 _cursorColumn = Math.Min(_columns - 1, ((_cursorColumn / 8) + 1) * 8);
                 break;
@@ -263,7 +347,17 @@ public sealed class TerminalBuffer
                 _state = ParserState.Csi;
                 break;
             case ']':
+                _osc.Clear();
                 _state = ParserState.Osc;
+                break;
+            case 'P':
+                _dcs.Clear();
+                _state = ParserState.Dcs;
+                break;
+            case '_':
+            case '^':
+            case 'X':
+                _state = ParserState.ControlString;
                 break;
             case '7':
                 SaveCursor();
@@ -311,6 +405,88 @@ public sealed class TerminalBuffer
             _csi.Append(character);
     }
 
+    private void ProcessOsc()
+    {
+        var payload = _osc.ToString();
+        _osc.Clear();
+        var separator = payload.IndexOf(';');
+
+        if (separator <= 0)
+            return;
+
+        if (!int.TryParse(payload[..separator], out var command))
+            return;
+
+        var value = payload[(separator + 1)..];
+
+        switch (command)
+        {
+            case 4:
+                // OSC 4 normally contains a palette index before the query.
+                // It is handled below when that extended form is present.
+                break;
+            case 10:
+                if (value != "?")
+                    return;
+                QueueResponse($"\x1b]10;{FormatOscColor(AnsiColors[7])}\x1b\\");
+                return;
+            case 11:
+                if (value != "?")
+                    return;
+                QueueResponse($"\x1b]11;{FormatOscColor(AnsiColors[0])}\x1b\\");
+                return;
+            case 12:
+                if (value != "?")
+                    return;
+                QueueResponse($"\x1b]12;{FormatOscColor(AnsiColors[7])}\x1b\\");
+                return;
+        }
+
+        if (!payload.StartsWith("4;", StringComparison.Ordinal))
+            return;
+
+        var parts = payload.Split(';');
+
+        if (parts.Length >= 3 &&
+            parts[2] == "?" &&
+            int.TryParse(parts[1], out var paletteIndex))
+        {
+            QueueResponse(
+                $"\x1b]4;{paletteIndex};" +
+                $"{FormatOscColor(Get256Color(paletteIndex))}\x1b\\");
+        }
+    }
+
+    private void ResetClusterState()
+    {
+        _joinNextCharacter = false;
+        _regionalIndicatorPending = false;
+    }
+
+    private void ProcessDcs()
+    {
+        var payload = _dcs.ToString();
+        _dcs.Clear();
+
+        if (!payload.StartsWith("+q", StringComparison.Ordinal))
+            return;
+
+        var capability = payload[2..];
+
+        if (capability.Length > 0)
+            QueueResponse($"\x1bP0+r{capability}\x1b\\");
+    }
+
+    private static string FormatOscColor(TerminalColor color) =>
+        $"rgb:{color.Red:x2}{color.Red:x2}/" +
+        $"{color.Green:x2}{color.Green:x2}/" +
+        $"{color.Blue:x2}{color.Blue:x2}";
+
+    private void QueueResponse(string response)
+    {
+        _pendingResponses.Add(response);
+    }
+
     private void ExecuteCsi(char command, string parameterText)
     {
         var privateMode = parameterText.Length > 0 && parameterText[0] == '?';
@@ -344,11 +520,11 @@ public sealed class TerminalBuffer
                 _cursorColumn = GetParameter(parameters, 0, 1) - 1;
                 break;
             case 'd':
-                _cursorRow = GetParameter(parameters, 0, 1) - 1;
+                _cursorRow = GetRowPosition(parameters, 0);
                 break;
             case 'H':
             case 'f':
-                _cursorRow = GetParameter(parameters, 0, 1) - 1;
+                _cursorRow = GetRowPosition(parameters, 0);
                 _cursorColumn = GetParameter(parameters, 1, 1) - 1;
                 break;
             case 'J':
@@ -382,13 +558,48 @@ public sealed class TerminalBuffer
                 SetScrollRegion(parameters);
                 break;
             case 'm':
-                SetGraphicsRendition(parameters);
+                if (parameterText.StartsWith(">4;", StringComparison.Ordinal))
+                {
+                    // xterm modifyOtherKeys changes input encoding only; it
+                    // is not an SGR sequence and must never alter text style.
+                }
+                else if (!parameterText.StartsWith('>'))
+                    SetGraphicsRendition(parameterText);
                 break;
             case 's':
                 SaveCursor();
                 break;
             case 'u':
-                RestoreCursor();
+                if (parameterText.Trim() == "?")
+                    QueueResponse("\x1b[?0u");
+                else if (parameterText.StartsWith('>') ||
+                    parameterText.StartsWith('<'))
+                {
+                    // Kitty's keyboard protocol is deliberately not
+                    // advertised. Ignore push/pop requests without moving
+                    // the cursor if an application sends them anyway.
+                }
+                else
+                    RestoreCursor();
+                break;
+            case 'n':
+                HandleDeviceStatusReport(privateMode, parameters);
+                break;
+            case 'c':
+                HandleDeviceAttributes(parameterText);
+                break;
+            case 'p':
+                HandleModeQuery(parameterText);
+                break;
+            case 't':
+                HandleWindowReport(parameters);
+                break;
+            case 'q':
+                if (parameterText.StartsWith(">0", StringComparison.Ordinal))
+                {
+                    QueueResponse(
+                        "\x1bP>|RtlTerminal(1.0.4)\x1b\\");
+                }
                 break;
             case 'h':
             case 'l':
@@ -399,6 +610,73 @@ public sealed class TerminalBuffer
 
         ClampCursor();
 
+    }
+
+    private int GetRowPosition(IReadOnlyList<int> parameters, int index)
+    {
+        var row = GetParameter(parameters, index, 1) - 1;
+        return _originMode ? _scrollTop + row : row;
+    }
+
+    private void HandleDeviceStatusReport(
+        bool privateMode,
+        IReadOnlyList<int> parameters)
+    {
+        var code = GetParameter(parameters, 0, 0);
+
+        if (code == 5 && !privateMode)
+        {
+            QueueResponse("\x1b[0n");
+            return;
+        }
+
+        if (code != 6)
+            return;
+
+        var row = _originMode
+            ? _cursorRow - _scrollTop + 1
+            : _cursorRow + 1;
+        var prefix = privateMode ? "?" : string.Empty;
+        QueueResponse($"\x1b[{prefix}{row};{_cursorColumn + 1}R");
+    }
+
+    private void HandleDeviceAttributes(string parameterText)
+    {
+        if (parameterText.StartsWith('>'))
+            QueueResponse("\x1b[>0;10;1c");
+        else if (!parameterText.StartsWith('='))
+            QueueResponse("\x1b[?1;2c");
+    }
+
+    private void HandleModeQuery(string parameterText)
+    {
+        if (!parameterText.StartsWith('?') || !parameterText.EndsWith('$'))
+            return;
+
+        if (!int.TryParse(parameterText[1..^1], out var mode))
+            return;
+
+        var supported = mode is 1 or 6 or 7 or 25 or 47 or 1000 or 1002 or
+            1003 or 1004 or 1006 or 1047 or 1048 or 1049 or 2004 or 2026;
+        var enabled = IsPrivateModeEnabled(mode);
+        var status = supported ? enabled ? 1 : 2 : 0;
+        QueueResponse($"\x1b[?{mode};{status}$y");
+    }
+
+    private void HandleWindowReport(IReadOnlyList<int> parameters)
+    {
+        switch (GetParameter(parameters, 0, 0))
+        {
+            case 14:
+                QueueResponse($"\x1b[4;{_rows * 18};{_columns * 9}t");
+                break;
+            case 16:
+                QueueResponse("\x1b[6;18;9t");
+                break;
+            case 18:
+                QueueResponse($"\x1b[8;{_rows};{_columns}t");
+                break;
+        }
     }
 
     private static List<int> ParseParameters(string text)
@@ -424,6 +702,39 @@ public sealed class TerminalBuffer
 
     private void WriteTextElement(string text)
     {
+        var rune = Rune.GetRuneAt(text, 0);
+
+        if (_joinNextCharacter)
+        {
+            AppendCombiningCharacter(text);
+            _joinNextCharacter = false;
+            _regionalIndicatorPending = false;
+            return;
+        }
+
+        if (rune.Value == 0x200d)
+        {
+            AppendCombiningCharacter(text);
+            _joinNextCharacter = true;
+            return;
+        }
+
+        if (IsRegionalIndicator(rune.Value))
+        {
+            if (_regionalIndicatorPending)
+            {
+                AppendCombiningCharacter(text);
+                _regionalIndicatorPending = false;
+                return;
+            }
+
+            _regionalIndicatorPending = true;
+        }
+        else
+        {
+            _regionalIndicatorPending = false;
+        }
+
         if (IsCombining(text))
         {
             AppendCombiningCharacter(text);
@@ -432,12 +743,16 @@ public sealed class TerminalBuffer
 
         if (_wrapPending)
         {
-            _cursorColumn = 0;
-            LineFeed(wrapped: true);
+            if (_autoWrapMode)
+            {
+                _cursorColumn = 0;
+                LineFeed(wrapped: true);
+            }
+
             _wrapPending = false;
         }
 
-        var width = GetCellWidth(Rune.GetRuneAt(text, 0));
+        var width = GetCellWidth(rune);
 
         if (width == 2 && _cursorColumn == _columns - 1)
         {
@@ -460,7 +775,7 @@ public sealed class TerminalBuffer
         if (_cursorColumn + width >= _columns)
         {
             _cursorColumn = _columns - 1;
-            _wrapPending = true;
+            _wrapPending = _autoWrapMode;
         }
         else
         {
@@ -498,8 +813,18 @@ public sealed class TerminalBuffer
             return 0;
         }
 
+        if (rune.Value is 0x200b or 0x200c or 0x200d or 0x2060 or 0xfeff ||
+            rune.Value is >= 0x1f3fb and <= 0x1f3ff ||
+            category == UnicodeCategory.Format)
+        {
+            return 0;
+        }
+
         return IsWide(rune.Value) ? 2 : 1;
     }
+
+    private static bool IsRegionalIndicator(int value) =>
+        value is >= 0x1f1e6 and <= 0x1f1ff;
 
     private static bool IsWide(int value)
     {
@@ -512,21 +837,18 @@ public sealed class TerminalBuffer
             or >= 0xfe30 and <= 0xfe6f
             or >= 0xff00 and <= 0xff60
             or >= 0xffe0 and <= 0xffe6
+            or >= 0x1f1e6 and <= 0x1f1ff
             or >= 0x1f300 and <= 0x1faff
             or >= 0x20000 and <= 0x3fffd;
     }
 
-    private void SetGraphicsRendition(IReadOnlyList<int> parameters)
+    private void SetGraphicsRendition(string parameterText)
     {
-        if (parameters.Count == 0)
-        {
-            _currentStyle = default;
-            return;
-        }
+        var parameters = ParseGraphicsParameters(parameterText);
 
         for (var index = 0; index < parameters.Count; index++)
         {
-            var code = parameters[index];
+            var code = parameters[index] ?? 0;
 
             switch (code)
             {
@@ -542,6 +864,19 @@ public sealed class TerminalBuffer
                 case 3:
                     _currentStyle = _currentStyle with { Italic = true };
                     break;
+                case 4:
+                case 21:
+                    _currentStyle = _currentStyle with { Underline = true };
+                    break;
+                case 7:
+                    _currentStyle = _currentStyle with { Inverse = true };
+                    break;
+                case 8:
+                    _currentStyle = _currentStyle with { Hidden = true };
+                    break;
+                case 9:
+                    _currentStyle = _currentStyle with { Strikethrough = true };
+                    break;
                 case 22:
                     _currentStyle = _currentStyle with
                     {
@@ -551,6 +886,18 @@ public sealed class TerminalBuffer
                     break;
                 case 23:
                     _currentStyle = _currentStyle with { Italic = false };
+                    break;
+                case 24:
+                    _currentStyle = _currentStyle with { Underline = false };
+                    break;
+                case 27:
+                    _currentStyle = _currentStyle with { Inverse = false };
+                    break;
+                case 28:
+                    _currentStyle = _currentStyle with { Hidden = false };
+                    break;
+                case 29:
+                    _currentStyle = _currentStyle with { Strikethrough = false };
                     break;
                 case 39:
                     _currentStyle = _currentStyle with { Foreground = null };
@@ -578,19 +925,32 @@ public sealed class TerminalBuffer
                     if (TryReadExtendedColor(parameters, ref index, out var background))
                         _currentStyle = _currentStyle with { Background = background };
                     break;
-                case 7:
-                    _currentStyle = _currentStyle with
-                    {
-                        Foreground = _currentStyle.Background ?? AnsiColors[0],
-                        Background = _currentStyle.Foreground ?? AnsiColors[7]
-                    };
-                    break;
             }
         }
     }
 
+    private static List<int?> ParseGraphicsParameters(string text)
+    {
+        if (string.IsNullOrEmpty(text))
+            return [0];
+
+        var parameters = new List<int?>();
+
+        foreach (var section in text.TrimStart('?', '>', '!', '=').Split(';'))
+        {
+            foreach (var part in section.Split(':'))
+            {
+                parameters.Add(int.TryParse(part, out var value)
+                    ? value
+                    : null);
+            }
+        }
+
+        return parameters;
+    }
+
     private static bool TryReadExtendedColor(
-        IReadOnlyList<int> parameters,
+        IReadOnlyList<int?> parameters,
         ref int index,
         out TerminalColor color)
     {
@@ -598,18 +958,28 @@ public sealed class TerminalBuffer
 
         if (index + 2 < parameters.Count && parameters[index + 1] == 5)
         {
-            color = Get256Color(parameters[index + 2]);
+            color = Get256Color(parameters[index + 2] ?? 0);
             index += 2;
             return true;
         }
 
         if (index + 4 < parameters.Count && parameters[index + 1] == 2)
         {
+            var componentStart = index + 2;
+
+            // ISO-8613-6's colon form can include an omitted color-space id:
+            // 38:2::R:G:B. The semicolon form starts directly at R.
+            if (parameters[componentStart] is null)
+                componentStart++;
+
+            if (componentStart + 2 >= parameters.Count)
+                return false;
+
             color = new(
-                (byte)Math.Clamp(parameters[index + 2], 0, 255),
-                (byte)Math.Clamp(parameters[index + 3], 0, 255),
-                (byte)Math.Clamp(parameters[index + 4], 0, 255));
-            index += 4;
+                (byte)Math.Clamp(parameters[componentStart] ?? 0, 0, 255),
+                (byte)Math.Clamp(parameters[componentStart + 1] ?? 0, 0, 255),
+                (byte)Math.Clamp(parameters[componentStart + 2] ?? 0, 0, 255));
+            index = componentStart + 2;
             return true;
         }
 
@@ -643,12 +1013,78 @@ public sealed class TerminalBuffer
 
     private void HandlePrivateMode(IReadOnlyList<int> parameters, bool enabled)
     {
-        if (parameters.Contains(25))
-            _cursorVisible = enabled;
+        foreach (var mode in parameters)
+        {
+            switch (mode)
+            {
+                case 1:
+                    _applicationCursorKeys = enabled;
+                    break;
+                case 6:
+                    _originMode = enabled;
+                    _cursorRow = enabled ? _scrollTop : 0;
+                    _cursorColumn = 0;
+                    break;
+                case 7:
+                    _autoWrapMode = enabled;
+                    _wrapPending = false;
+                    break;
+                case 25:
+                    _cursorVisible = enabled;
+                    break;
+                case 47:
+                case 1047:
+                case 1049:
+                    SetAlternateScreen(enabled);
+                    break;
+                case 1048:
+                    if (enabled)
+                        SaveCursor();
+                    else
+                        RestoreCursor();
+                    break;
+                case 1000:
+                case 1002:
+                case 1003:
+                    if (enabled)
+                        _mouseTrackingMode = mode;
+                    else if (_mouseTrackingMode == mode)
+                        _mouseTrackingMode = 0;
+                    break;
+                case 1004:
+                    _focusReporting = enabled;
+                    break;
+                case 1006:
+                    _sgrMouse = enabled;
+                    break;
+                case 2004:
+                    _bracketedPaste = enabled;
+                    break;
+                case 2026:
+                    _synchronizedOutput = enabled;
+                    break;
+            }
+        }
+    }
 
-        if (!parameters.Contains(1049))
-            return;
+    private bool IsPrivateModeEnabled(int mode) =>
+        mode switch
+        {
+            1 => _applicationCursorKeys,
+            6 => _originMode,
+            7 => _autoWrapMode,
+            25 => _cursorVisible,
+            47 or 1047 or 1049 => _alternateScreenActive,
+            1000 or 1002 or 1003 => _mouseTrackingMode == mode,
+            1004 => _focusReporting,
+            1006 => _sgrMouse,
+            2004 => _bracketedPaste,
+            2026 => _synchronizedOutput,
+            _ => false
+        };
 
+    private void SetAlternateScreen(bool enabled)
+    {
         if (enabled && !_alternateScreenActive)
         {
             _savedMainScreen = new SavedScreen(
@@ -660,12 +1096,16 @@ public sealed class TerminalBuffer
                 _savedColumn,
                 _scrollTop,
                 _scrollBottom,
-                _currentStyle);
+                _currentStyle,
+                _originMode,
+                _autoWrapMode);
             _cells = new Cell[_rows, _columns];
             _wrappedFromPrevious = new bool[_rows];
             Fill(_cells);
             _alternateScreenActive = true;
             _currentStyle = default;
+            _originMode = false;
+            _autoWrapMode = true;
             ClearAll();
             _cursorRow = 0;
             _cursorColumn = 0;
@@ -685,8 +1125,11 @@ public sealed class TerminalBuffer
             _scrollTop = saved.ScrollTop;
             _scrollBottom = saved.ScrollBottom;
             _currentStyle = saved.Style;
+            _originMode = saved.OriginMode;
+            _autoWrapMode = saved.AutoWrapMode;
             _savedMainScreen = null;
             _alternateScreenActive = false;
+            _wrapPending = false;
         }
     }
 
@@ -699,7 +1142,7 @@ public sealed class TerminalBuffer
         {
             _scrollTop = top;
             _scrollBottom = bottom;
-            _cursorRow = 0;
+            _cursorRow = _originMode ? _scrollTop : 0;
             _cursorColumn = 0;
         }
     }
@@ -804,6 +1247,13 @@ public sealed class TerminalBuffer
         if (mode is 2 or 3)
         {
             ClearAll();
+
+            if (mode == 3 && !_alternateScreenActive)
+            {
+                _scrollbackStartIndex += _scrollback.Count;
+                _scrollback.Clear();
+            }
+
             return;
         }
 
@@ -956,14 +1406,20 @@ public sealed class TerminalBuffer
     private void ClampCursor()
     {
         _cursorColumn = Math.Clamp(_cursorColumn, 0, _columns - 1);
-        _cursorRow = Math.Clamp(_cursorRow, 0, _rows - 1);
+        _cursorRow = _originMode
+            ? Math.Clamp(_cursorRow, _scrollTop, _scrollBottom)
+            : Math.Clamp(_cursorRow, 0, _rows - 1);
     }
 
     private TerminalSnapshot CreateSnapshot()
     {
-        var lastVisibleRow = _cursorRow;
+        var lastVisibleRow = _alternateScreenActive
+            ? _rows - 1
+            : _cursorRow;
 
-        for (var row = _rows - 1; row >= 0; row--)
+        for (var row = _rows - 1;
+             !_alternateScreenActive && row >= 0;
+             row--)
         {
             if (FindLastCharacter(row) >= 0)
             {
@@ -973,9 +1429,11 @@ public sealed class TerminalBuffer
         }
 
         var lines = new List<TerminalLine>(
-            _scrollback.Count + lastVisibleRow + 1);
+            (_alternateScreenActive ? 0 : _scrollback.Count) +
+            lastVisibleRow + 1);
 
-        lines.AddRange(_scrollback);
+        if (!_alternateScreenActive)
+            lines.AddRange(_scrollback);
 
         for (var row = 0; row <= lastVisibleRow; row++)
         {
@@ -983,18 +1441,31 @@ public sealed class TerminalBuffer
             var cellLength = lastCharacter + 1;
 
             if (row == _cursorRow)
-                cellLength = Math.Max(cellLength, _cursorColumn + (_wrapPending ? 1 : 0));
+                cellLength = Math.Max(cellLength, _cursorColumn + 1);
 
             lines.Add(CreateLine(_cells, row, cellLength));
         }
 
+        var scrollbackCount = _alternateScreenActive ? 0 : _scrollback.Count;
+        var responses = _pendingResponses.ToArray();
+        _pendingResponses.Clear();
+
         return new TerminalSnapshot(
             lines,
-            _scrollback.Count + _cursorRow,
+            scrollbackCount + _cursorRow,
             _cursorColumn,
             _cursorVisible,
-            _scrollback.Count,
+            scrollbackCount,
             _scrollbackStartIndex,
+            new TerminalModes(
+                _alternateScreenActive,
+                _applicationCursorKeys,
+                _bracketedPaste,
+                _focusReporting,
+                _mouseTrackingMode,
+                _sgrMouse,
+                _synchronizedOutput),
+            responses,
             ++_revision);
     }
 
@@ -1081,7 +1552,9 @@ public sealed class TerminalBuffer
         {
             var cell = _cells[row, column];
 
-            if (cell.Continuation || cell.Text != " ")
+            if (cell.Continuation ||
+                cell.Text != " " ||
+                HasVisibleStyle(cell.Style))
                 return column;
         }
 
@@ -1092,12 +1565,20 @@ public sealed class TerminalBuffer
     {
         for (var column = row.Length - 1; column >= 0; column--)
         {
-            if (row[column].Continuation || row[column].Text != " ")
+            if (row[column].Continuation ||
+                row[column].Text != " " ||
+                HasVisibleStyle(row[column].Style))
                 return column;
         }
 
         return -1;
     }
+
+    private static bool HasVisibleStyle(TerminalStyle style) =>
+        style.Background is not null ||
+        style.Inverse ||
+        style.Underline ||
+        style.Strikethrough;
 
     private void AddScrollbackRow(int row)
     {
@@ -1144,7 +1625,9 @@ public sealed class TerminalBuffer
         int SavedColumn,
         int ScrollTop,
         int ScrollBottom,
-        TerminalStyle Style);
+        TerminalStyle Style,
+        bool OriginMode,
+        bool AutoWrapMode);
 
     private enum ParserState
     {
@@ -1153,6 +1636,10 @@ public sealed class TerminalBuffer
         Csi,
         Osc,
         OscEscape,
+        Dcs,
+        DcsEscape,
+        ControlString,
+        ControlStringEscape,
         IgnoreNext
     }
 }

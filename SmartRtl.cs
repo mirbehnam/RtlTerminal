@@ -15,6 +15,16 @@ internal static class SmartRtl
         return line.ContainsRightToLeft;
     }
 
+    public static bool ShouldRightAlign(
+        TerminalLine line,
+        bool smartRtlEnabled,
+        bool preserveTerminalGrid)
+    {
+        return smartRtlEnabled &&
+            !preserveTerminalGrid &&
+            IsRightToLeft(line);
+    }
+
     internal static bool ContainsRightToLeft(
         IReadOnlyList<TerminalRun> runs)
     {

@@ -38,6 +38,8 @@ public sealed class ConPtySession : IDisposable
 
     private FileStream? _outputReader;
 
+    private readonly object _inputLock = new();
+
     private PROCESS_INFORMATION _processInfo;
 
     private bool _disposed;
@@ -198,9 +200,15 @@ public sealed class ConPtySession : IDisposable
 
         var bytes = Encoding.UTF8.GetBytes(text);
 
-        _inputWriter.Write(bytes, 0, bytes.Length);
+        lock (_inputLock)
+        {
+            if (_inputWriter is null)
+                return;
 
-        _inputWriter.Flush();
+            _inputWriter.Write(bytes, 0, bytes.Length);
+
+            _inputWriter.Flush();
+        }
 
     }
 
@@ -235,7 +243,11 @@ public sealed class ConPtySession : IDisposable
         // Stop accepting input, but keep the output reader alive while the
         // pseudoconsole shuts down. Older Windows builds can wait forever if
         // a client's final output is not drained concurrently.
-        _inputWriter?.Dispose();
+        lock (_inputLock)
+        {
+            _inputWriter?.Dispose();
+            _inputWriter = null;
+        }
 
         if (_pseudoConsole != IntPtr.Zero)
 

@@ -1,6 +1,6 @@
 #define AppName "Rtl Terminal"
 #ifndef AppVersion
-  #define AppVersion "1.0.3"
+  #define AppVersion "1.0.4"
 #endif
 #define AppPublisher "behnamapps"
 #define AppExeName "RtlTerminal.exe"

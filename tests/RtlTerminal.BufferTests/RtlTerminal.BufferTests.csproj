@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="..\..\TerminalBuffer.cs" Link="TerminalBuffer.cs" />
+    <Compile Include="..\..\SmartRtl.cs" Link="SmartRtl.cs" />
+  </ItemGroup>
+</Project>
