@@ -26,8 +26,11 @@ jobs:
         id: version
         shell: pwsh
         run: |
-          $version = dotnet msbuild RtlTerminal.csproj -getProperty:Version -nologo
-          $version = ($version | Select-String -Pattern '"Version":\s*"([^"]+)"').Matches.Groups[1].Value
+          [xml]$project = Get-Content RtlTerminal.csproj
+          $version = $project.Project.PropertyGroup.Version | Select-Object -First 1
+          if ([string]::IsNullOrWhiteSpace($version)) {
+            $version = $project.Project.PropertyGroup.VersionPrefix | Select-Object -First 1
+          }
           if ([string]::IsNullOrWhiteSpace($version)) {
             throw 'Could not read Version from RtlTerminal.csproj.'
           }
