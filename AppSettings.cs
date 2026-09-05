@@ -118,7 +118,7 @@ public static class AppSettings
                 System.Globalization.CultureInfo.InvariantCulture,
                 out var parsedSize)
             ? parsedSize
-            : 15;
+            : 14;
 
         return new TerminalFontSettings(
             family,
@@ -144,4 +144,5 @@ public static class AppSettings
             settings.Italic ? 1 : 0,
             RegistryValueKind.DWord);
     }
+
 }

@@ -7,12 +7,18 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RtlTerminal", "RtlTerminal.
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RtlTerminal.BufferTests", "tests\RtlTerminal.BufferTests\RtlTerminal.BufferTests.csproj", "{7EDE9A52-CF7B-42FD-9B20-F1E67E5C78B7}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RtlTerminal.RenderTests", "tests\RtlTerminal.RenderTests\RtlTerminal.RenderTests.csproj", "{5FEA1653-912B-46F6-B187-C25C45F12F49}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{5FEA1653-912B-46F6-B187-C25C45F12F49}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5FEA1653-912B-46F6-B187-C25C45F12F49}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5FEA1653-912B-46F6-B187-C25C45F12F49}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5FEA1653-912B-46F6-B187-C25C45F12F49}.Release|Any CPU.Build.0 = Release|Any CPU
 		{0A682D41-173D-40AA-B05A-C46DD4289D1F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{0A682D41-173D-40AA-B05A-C46DD4289D1F}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{0A682D41-173D-40AA-B05A-C46DD4289D1F}.Release|Any CPU.ActiveCfg = Release|Any CPU

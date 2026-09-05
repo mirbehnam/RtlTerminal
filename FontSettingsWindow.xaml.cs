@@ -184,7 +184,7 @@ public partial class FontSettingsWindow : Window
             CultureInfo.CurrentCulture,
             out var size)
             ? Math.Clamp(size, 8, 72)
-            : 15;
+            : 14;
     }
 
     private int GetHistorySize()

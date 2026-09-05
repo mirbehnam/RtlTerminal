@@ -5,12 +5,10 @@ using System.Net.Http;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Text;
-using System.Text.RegularExpressions;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
-using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
@@ -22,16 +20,9 @@ namespace RtlTerminal;
 
 public partial class MainWindow : Window
 {
-    private static readonly TerminalColor DefaultForeground = new(230, 230, 230);
-    private static readonly TerminalColor DefaultBackground = new(12, 12, 12);
-    private static readonly TerminalColor LinkForeground = new(86, 156, 214);
-    private static readonly Regex LinkPattern = new(
-        @"(?i)\b(?:https?://|www\.)[^\s<>{}\[\]""']+",
-        RegexOptions.Compiled);
-    private static readonly Dictionary<TerminalColor, SolidColorBrush> BrushCache = [];
     private readonly object _renderLock = new();
     private readonly DispatcherTimer _renderTimer;
-    private readonly List<RenderedLine> _renderedLines = [];
+    private readonly DispatcherTimer _resizeTimer;
     private readonly List<TerminalTab> _tabs = [];
     private readonly List<string> _temporaryClipboardFiles = [];
     private TerminalTab? _activeTab;
@@ -43,33 +34,39 @@ public partial class MainWindow : Window
     private bool _updatingContextMenuItem;
     private long _latestQueuedRevision;
     private TerminalSnapshot? _lastRenderedSnapshot;
-    private FlowDocument? _terminalDocument;
     private double _cellWidth = 8.5;
     private double _lineHeight = 18;
     private bool _followOutput = true;
     private bool _restoringScrollPosition;
-    private int _scrollRequestVersion;
     private int _nextTabNumber = 1;
-    private int _renderedScrollbackCount;
-    private long _renderedScrollbackStartIndex;
     private bool _renderedSmartRtlEnabled = true;
     private TerminalProfile _defaultProfile = TerminalProfile.CommandPrompt;
     private int _historySize = 2000;
     private bool _updateCheckInProgress;
+    private bool _suppressRightMouseUp;
+    private Key? _pendingContextMenuKey;
     private (int X, int Y, int Button)? _lastReportedMouseCell;
 
     public MainWindow()
     {
         InitializeComponent();
+        TerminalTextBox.LinkRequested += uri =>
+        {
+            try { Process.Start(new ProcessStartInfo(uri.AbsoluteUri) { UseShellExecute = true }); }
+            catch (Exception exception)
+            { MessageBox.Show(this, exception.Message, "Open link", MessageBoxButton.OK, MessageBoxImage.Error); }
+        };
         SmartRtlMenuItem.IsChecked = true;
         _renderTimer = new DispatcherTimer(DispatcherPriority.Background)
         {
             Interval = TimeSpan.FromMilliseconds(16)
         };
         _renderTimer.Tick += RenderTimer_Tick;
+        _resizeTimer = new DispatcherTimer(DispatcherPriority.Background) { Interval = TimeSpan.FromMilliseconds(80) };
+        _resizeTimer.Tick += (_, _) => { _resizeTimer.Stop(); ApplyViewportResize(); };
         _defaultProfile = LoadDefaultProfile();
         _historySize = AppSettings.LoadHistorySize();
-        ApplySavedFontSettings();
+ApplySavedFontSettings();
         UpdateFontMetrics();
     }
 
@@ -127,16 +124,8 @@ public partial class MainWindow : Window
         }
         catch (Exception exception)
         {
-            TerminalTextBox.Document.Blocks.Clear();
-            TerminalTextBox.Document.Blocks.Add(
-                new Paragraph(new Run(
-                    "خطا در اجرای ConPTY:" +
-                    Environment.NewLine +
-                    exception))
-                {
-                    FlowDirection = FlowDirection.RightToLeft
-                });
-            tab.LastRenderedSnapshot = null;
+            var errorBuffer = new TerminalBuffer(GetColumns(), GetRows());
+            Render(errorBuffer.Process("خطا در اجرای ConPTY:\r\n" + exception.Message));
         }
 
         TerminalTextBox.Focus();
@@ -152,18 +141,36 @@ public partial class MainWindow : Window
         CleanupTemporaryClipboardFiles();
     }
 
+    private void Window_SourceInitialized(object? sender, EventArgs e) => WindowWorkArea.Attach(this);
+
     private void Window_SizeChanged(object sender, SizeChangedEventArgs e)
     {
-        MaximizeButton.Content =
-            WindowState == WindowState.Maximized ? "❐" : "□";
+        MaximizeGlyph.Data = Geometry.Parse(WindowState == WindowState.Maximized
+            ? "M2.5,0.5 L9.5,0.5 9.5,7.5 M0.5,2.5 L7.5,2.5 7.5,9.5 0.5,9.5 Z"
+            : "M0.5,0.5 L9.5,0.5 9.5,9.5 0.5,9.5 Z");
 
-        if (_session is null || _terminalBuffer is null)
-            return;
+        QueueViewportResize();
+    }
 
+    private void QueueViewportResize()
+    {
+        if (_resizeTimer is null) return;
+        _resizeTimer.Stop();
+        if (WindowState != WindowState.Minimized) _resizeTimer.Start();
+    }
+
+    private void ApplyViewportResize()
+    {
+        if (WindowState == WindowState.Minimized || _session is null || _terminalBuffer is null ||
+            _activeTab is null || TerminalTextBox.ViewportWidth <= 0 || TerminalTextBox.ViewportHeight <= 0) return;
         var columns = GetColumns();
         var rows = GetRows();
+        if (_activeTab.GridSize == (columns, rows)) return;
+        // Use the settled viewport, not transient window sizes during minimize/restore.
+        var snapshot = _terminalBuffer.Resize(columns, rows);
         _session.Resize(columns, rows);
-        QueueRender(_terminalBuffer.Resize(columns, rows));
+        _activeTab.GridSize = (columns, rows);
+        QueueRender(snapshot);
     }
 
     private void Window_PreviewKeyDown(object sender, KeyEventArgs e)
@@ -370,7 +377,13 @@ public partial class MainWindow : Window
         object sender,
         ScrollChangedEventArgs e)
     {
-        if (_restoringScrollPosition)
+        if ((e.ViewportWidthChange != 0 || e.ViewportHeightChange != 0) &&
+            _session is not null && _terminalBuffer is not null)
+        {
+            QueueViewportResize();
+        }
+
+        if (_restoringScrollPosition || TerminalTextBox.IsUpdatingScroll)
             return;
 
         if (Math.Abs(e.VerticalChange) < 0.01)
@@ -385,21 +398,34 @@ public partial class MainWindow : Window
         object sender,
         MouseButtonEventArgs e)
     {
-        if (IsSgrMouseTrackingEnabled())
+        if (IsSgrMouseTrackingEnabled() && !TerminalTextBox.HasSelection)
             return;
 
-        if (!TerminalTextBox.Selection.IsEmpty)
-            return;
-
-        PasteClipboard();
         e.Handled = true;
+        _suppressRightMouseUp = true;
+        if (TerminalTextBox.HasSelection) CopySelection();
+        else PasteClipboard();
         TerminalTextBox.Focus();
+    }
+
+    private ContextMenu CreateTerminalContextMenu()
+    {
+        var menu = new ContextMenu { Style = (Style)FindResource("DarkContextMenuStyle"), PlacementTarget = TerminalTextBox };
+        var copy = new MenuItem { Header = "_Copy", IsEnabled = TerminalTextBox.HasSelection };
+        copy.Click += (_, _) => CopySelection();
+        var paste = new MenuItem { Header = "_Paste", IsEnabled = _session is not null };
+        paste.Click += (_, _) => PasteClipboard();
+        var select = new MenuItem { Header = "Select _all" };
+        select.Click += (_, _) => TerminalTextBox.SelectAll();
+        menu.Items.Add(copy); menu.Items.Add(paste); menu.Items.Add(new Separator()); menu.Items.Add(select);
+        return menu;
     }
 
     private void TerminalTextBox_PreviewMouseDown(
         object sender,
         MouseButtonEventArgs e)
     {
+        if (e.ChangedButton == MouseButton.Right && TerminalTextBox.HasSelection) return;
         var button = GetMouseButtonCode(e.ChangedButton);
 
         if (button < 0 || !SendMouseEvent(e, button, released: false))
@@ -415,6 +441,12 @@ public partial class MainWindow : Window
         object sender,
         MouseButtonEventArgs e)
     {
+        if (e.ChangedButton == MouseButton.Right && _suppressRightMouseUp)
+        {
+            _suppressRightMouseUp = false;
+            e.Handled = true;
+            return;
+        }
         var button = GetMouseButtonCode(e.ChangedButton);
 
         if (button < 0 || !SendMouseEvent(e, button, released: true))
@@ -485,6 +517,7 @@ public partial class MainWindow : Window
         object sender,
         KeyboardFocusChangedEventArgs e)
     {
+        _pendingContextMenuKey = null;
         if (_lastRenderedSnapshot?.Modes.FocusReporting == true)
             _session?.Write("\x1b[O");
     }
@@ -494,6 +527,8 @@ public partial class MainWindow : Window
         int button,
         bool released)
     {
+        if (button == 0 && (Keyboard.Modifiers & ModifierKeys.Control) != 0 && TerminalTextBox.IsLinkAt(e))
+            return false;
         if (!IsSgrMouseTrackingEnabled() ||
             !TryGetMouseCell(e, out var x, out var y))
         {
@@ -521,29 +556,11 @@ public partial class MainWindow : Window
         _session.Write($"\x1b[<{button};{x};{y}{(released ? 'm' : 'M')}");
     }
 
-    private bool TryGetMouseCell(MouseEventArgs e, out int x, out int y)
-    {
-        var position = e.GetPosition(TerminalTextBox);
-        var scrollViewer = FindVisualChild<ScrollViewer>(TerminalTextBox);
-        var verticalOffset = scrollViewer?.VerticalOffset ?? 0;
-        x = (int)Math.Floor(
-            Math.Max(0, position.X - TerminalTextBox.Padding.Left) /
-            _cellWidth) + 1;
-        y = (int)Math.Floor(
-            Math.Max(
-                0,
-                position.Y - TerminalTextBox.Padding.Top + verticalOffset) /
-            _lineHeight) + 1;
-        x = Math.Clamp(x, 1, GetColumns());
-        y = Math.Clamp(y, 1, GetRows());
-        return position.X >= 0 &&
-            position.Y >= 0 &&
-            position.X <= TerminalTextBox.ActualWidth &&
-            position.Y <= TerminalTextBox.ActualHeight;
-    }
+    private bool TryGetMouseCell(MouseEventArgs e, out int x, out int y) =>
+        TerminalTextBox.TryGetGridCell(e, out x, out y);
 
     private bool IsSgrMouseTrackingEnabled() =>
-        _lastRenderedSnapshot?.Modes is
+        (Keyboard.Modifiers & ModifierKeys.Shift) == 0 && _lastRenderedSnapshot?.Modes is
         {
             MouseTrackingMode: > 0,
             SgrMouse: true
@@ -911,15 +928,15 @@ public partial class MainWindow : Window
         {
             TerminalProfile.PowerShell =>
                 """
-                C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -NoLogo -NoExit -Command "$lines=@('+--------------------------------------------------------+','| RtlTerminal v1.0.4                                     |','|                                                        |','| Author : Behnam Tajadini                               |','| Source : github.com/mirbehnam/RtlTerminal              |','| YouTube: @aka_techno                                   |','+--------------------------------------------------------+','','  پشتیبانی کامل از زبان فارسی و راست‌به‌چپ',''); $lines | ForEach-Object { Write-Host $_ }"
+                C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -NoLogo -NoExit -Command "$lines=@('+--------------------------------------------------------+','| RtlTerminal v1.0.5                                     |','|                                                        |','| Author : Behnam Tajadini                               |','| Source : github.com/mirbehnam/RtlTerminal              |','| YouTube: @aka_techno                                   |','+--------------------------------------------------------+','','  پشتیبانی کامل از زبان فارسی و راست‌به‌چپ',''); $lines | ForEach-Object { Write-Host $_ }"
                 """,
             TerminalProfile.Wsl =>
                 """
-                C:\Windows\System32\wsl.exe --exec sh -lc "printf '%s\n' '+--------------------------------------------------------+' '| RtlTerminal v1.0.4                                     |' '|                                                        |' '| Author : Behnam Tajadini                               |' '| Source : github.com/mirbehnam/RtlTerminal              |' '| YouTube: @aka_techno                                   |' '+--------------------------------------------------------+' '' '  پشتیبانی کامل از زبان فارسی و راست‌به‌چپ' ''; exec \"${SHELL:-/bin/bash}\" -l"
+                C:\Windows\System32\wsl.exe --exec sh -lc "printf '%s\n' '+--------------------------------------------------------+' '| RtlTerminal v1.0.5                                     |' '|                                                        |' '| Author : Behnam Tajadini                               |' '| Source : github.com/mirbehnam/RtlTerminal              |' '| YouTube: @aka_techno                                   |' '+--------------------------------------------------------+' '' '  پشتیبانی کامل از زبان فارسی و راست‌به‌چپ' ''; exec \"${SHELL:-/bin/bash}\" -l"
                 """,
             _ =>
                 """
-                C:\Windows\System32\cmd.exe /D /Q /K "chcp 65001>nul & echo +--------------------------------------------------------+& echo ^| RtlTerminal v1.0.4                                     ^|& echo ^|                                                        ^|& echo ^| Author : Behnam Tajadini                               ^|& echo ^| Source : github.com/mirbehnam/RtlTerminal              ^|& echo ^| YouTube: @aka_techno                                   ^|& echo +--------------------------------------------------------+& echo.& echo   پشتیبانی کامل از زبان فارسی و راست‌به‌چپ& echo."
+                C:\Windows\System32\cmd.exe /D /Q /K "chcp 65001>nul & echo +--------------------------------------------------------+& echo ^| RtlTerminal v1.0.5                                     ^|& echo ^|                                                        ^|& echo ^| Author : Behnam Tajadini                               ^|& echo ^| Source : github.com/mirbehnam/RtlTerminal              ^|& echo ^| YouTube: @aka_techno                                   ^|& echo +--------------------------------------------------------+& echo.& echo   پشتیبانی کامل از زبان فارسی و راست‌به‌چپ& echo."
                 """
         };
 
@@ -956,14 +973,9 @@ public partial class MainWindow : Window
         _activeTab.RenderStartQueued = _renderStartQueued;
         _activeTab.LatestQueuedRevision = _latestQueuedRevision;
         _activeTab.LastRenderedSnapshot = _lastRenderedSnapshot;
-        _activeTab.Document = _terminalDocument;
-        _activeTab.RenderedScrollbackCount = _renderedScrollbackCount;
-        _activeTab.RenderedScrollbackStartIndex =
-            _renderedScrollbackStartIndex;
-        _activeTab.RenderedSmartRtlEnabled = _renderedSmartRtlEnabled;
+        _activeTab.Selection = TerminalTextBox.SelectionState;
+_activeTab.RenderedSmartRtlEnabled = _renderedSmartRtlEnabled;
         _activeTab.FollowOutput = _followOutput;
-        _activeTab.RenderedLines.Clear();
-        _activeTab.RenderedLines.AddRange(_renderedLines);
 
         var scrollViewer = FindVisualChild<ScrollViewer>(TerminalTextBox);
         _activeTab.VerticalOffset = scrollViewer?.VerticalOffset ?? 0;
@@ -982,25 +994,16 @@ public partial class MainWindow : Window
         }
 
         _lastRenderedSnapshot = tab.LastRenderedSnapshot;
-        _terminalDocument = tab.Document;
-        _renderedScrollbackCount = tab.RenderedScrollbackCount;
-        _renderedScrollbackStartIndex = tab.RenderedScrollbackStartIndex;
         _renderedSmartRtlEnabled = tab.RenderedSmartRtlEnabled;
         _followOutput = tab.FollowOutput;
-        _renderedLines.Clear();
-        _renderedLines.AddRange(tab.RenderedLines);
 
-        if (_terminalDocument is null)
+        TerminalTextBox.Clear();
+        if (tab.LastRenderedSnapshot is { } snapshot)
         {
-            TerminalTextBox.Document = new FlowDocument();
-        }
-        else
-        {
-            TerminalTextBox.Document = _terminalDocument;
-            ScheduleScrollRestore(
-                _terminalDocument,
-                followOutput: false,
-                verticalOffset: tab.VerticalOffset);
+            TerminalTextBox.Present(snapshot, SmartRtlMenuItem.IsChecked,
+                _cellWidth, _lineHeight, false);
+            TerminalTextBox.ScrollToVerticalOffset(tab.VerticalOffset);
+            TerminalTextBox.SelectionState = tab.Selection;
         }
     }
 
@@ -1017,8 +1020,7 @@ public partial class MainWindow : Window
         if (_pendingSnapshot is not null)
             StartRenderTimer();
         else if (_lastRenderedSnapshot is not null &&
-            (_terminalDocument is null ||
-                _renderedSmartRtlEnabled != SmartRtlMenuItem.IsChecked))
+            (_renderedSmartRtlEnabled != SmartRtlMenuItem.IsChecked))
         {
             Render(_lastRenderedSnapshot);
         }
@@ -1077,86 +1079,84 @@ public partial class MainWindow : Window
     private void RebuildTabStrip()
     {
         TabStrip.Children.Clear();
-
         foreach (var tab in _tabs)
         {
             var isActive = ReferenceEquals(tab, _activeTab);
-            var panel = new DockPanel
-            {
-                Width = 210,
-                Height = 34
-            };
-
+            var accent = new SolidColorBrush(Color.FromRgb(114, 214, 197));
+            var panel = new DockPanel { Height = 34 };
             var closeButton = new Button
             {
-                Width = 32,
-                Content = "×",
-                FontSize = 16,
-                Foreground = Brushes.White,
-                Background = Brushes.Transparent,
-                BorderThickness = new Thickness(0),
-                Tag = tab,
-                Style = (Style)FindResource("DarkTitleButtonStyle")
+                Width = 26, Height = 24, Margin = new Thickness(0, 0, 5, 0),
+                Content = "×", FontSize = 15,
+                HorizontalContentAlignment = HorizontalAlignment.Center,
+                ToolTip = $"Close {tab.Title}", Tag = tab,
+                Style = (Style)FindResource("ChromeRoundButtonStyle")
             };
+            System.Windows.Automation.AutomationProperties.SetName(closeButton, $"Close {tab.Title}");
             closeButton.Click += TabCloseButton_Click;
             DockPanel.SetDock(closeButton, Dock.Right);
             panel.Children.Add(closeButton);
-
+            var label = new DockPanel();
+            var icon = new TextBlock
+            {
+                Text = tab.Profile == TerminalProfile.PowerShell ? "›_" :
+                    tab.Profile == TerminalProfile.Wsl ? "$_" : ">_",
+                FontFamily = new FontFamily("Consolas"), FontSize = 13,
+                Foreground = isActive ? accent : new SolidColorBrush(Color.FromRgb(139, 148, 158)),
+                VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 10, 0)
+            };
+            DockPanel.SetDock(icon, Dock.Left);
+            label.Children.Add(icon);
+            label.Children.Add(new TextBlock
+            {
+                Text = tab.Title, FontFamily = new FontFamily("Segoe UI"), FontSize = 12,
+                FontWeight = isActive ? FontWeights.SemiBold : FontWeights.Normal,
+                TextTrimming = TextTrimming.CharacterEllipsis,
+                VerticalAlignment = VerticalAlignment.Center
+            });
             var selectButton = new Button
             {
-                Content = tab.Title,
-                HorizontalContentAlignment = HorizontalAlignment.Left,
-                Padding = new Thickness(18, 0, 6, 0),
-                Foreground = Brushes.White,
-                Background = isActive
-                    ? new SolidColorBrush(Color.FromRgb(24, 24, 24))
-                    : Brushes.Transparent,
-                BorderThickness = new Thickness(0),
-                Tag = tab,
-                Style = (Style)FindResource("DarkTitleButtonStyle")
+                Content = label, HorizontalContentAlignment = HorizontalAlignment.Stretch,
+                Padding = new Thickness(12, 0, 4, 0), ToolTip = tab.Title, Tag = tab,
+                Foreground = new SolidColorBrush(isActive
+                    ? Color.FromRgb(240, 244, 248) : Color.FromRgb(165, 174, 184)),
+                Style = (Style)FindResource("ChromeTabButtonStyle")
             };
+            System.Windows.Automation.AutomationProperties.SetName(selectButton, tab.Title);
             selectButton.Click += TabButton_Click;
             panel.Children.Add(selectButton);
-            var tabBorder = new Border
+            var grid = new Grid { Width = 220, Height = 38, Margin = new Thickness(0, 8, 0, 0) };
+            var activeBrush = new SolidColorBrush(Color.FromRgb(48, 49, 52));
+            var shape = new System.Windows.Shapes.Path
             {
-                Width = 210,
-                Height = 34,
-                Margin = new Thickness(4, 3, 0, 3),
-                CornerRadius = new CornerRadius(9),
-                Background = isActive
-                    ? new SolidColorBrush(Color.FromRgb(24, 24, 24))
-                    : Brushes.Transparent,
-                ClipToBounds = true,
-                Child = panel
+                Data = Geometry.Parse("M0,38 Q8,38 8,30 L8,12 Q8,0 20,0 L200,0 Q212,0 212,12 L212,30 Q212,38 220,38 Z"),
+                Fill = isActive ? activeBrush : Brushes.Transparent, IsHitTestVisible = false
             };
-            TabStrip.Children.Add(tabBorder);
+            grid.Children.Add(shape);
+            if (!isActive) grid.Children.Add(new Border
+            {
+                Width = 1, Height = 18, Background = new SolidColorBrush(Color.FromRgb(78, 80, 84)),
+                HorizontalAlignment = HorizontalAlignment.Right, IsHitTestVisible = false
+            });
+            panel.Margin = new Thickness(8, 0, 8, 0);
+            grid.Children.Add(panel);
+            grid.MouseEnter += (_, _) => shape.Fill = isActive ? activeBrush : new SolidColorBrush(Color.FromRgb(42, 43, 47));
+            grid.MouseLeave += (_, _) => shape.Fill = isActive ? activeBrush : Brushes.Transparent;
+            TabStrip.Children.Add(grid);
+            if (isActive)
+                Dispatcher.BeginInvoke(DispatcherPriority.Loaded, () => grid.BringIntoView());
         }
+    }
 
-        var addButton = new Button
-        {
-            Width = 38,
-            Height = 32,
-            Margin = new Thickness(5, 4, 0, 4),
-            Content = "+",
-            FontSize = 20,
-            ToolTip = "New terminal (Ctrl+Shift+T)",
-            Style = (Style)FindResource("DarkTitleButtonStyle")
-        };
-        addButton.Click += NewTabButton_Click;
-        TabStrip.Children.Add(addButton);
+    private void TitleTabsHost_SizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        TabScroller.MaxWidth = Math.Max(0, e.NewSize.Width - 66);
+    }
 
-        var profileButton = new Button
-        {
-            Width = 30,
-            Height = 32,
-            Margin = new Thickness(2, 4, 0, 4),
-            Content = "⌄",
-            FontSize = 13,
-            ToolTip = "Terminal profiles",
-            Style = (Style)FindResource("DarkTitleButtonStyle")
-        };
-        profileButton.Click += ProfileMenuButton_Click;
-        TabStrip.Children.Add(profileButton);
+    private void TabScroller_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
+    {
+        TabScroller.ScrollToHorizontalOffset(TabScroller.HorizontalOffset - e.Delta);
+        e.Handled = true;
     }
 
     private void TabButton_Click(object sender, RoutedEventArgs e)
@@ -1175,6 +1175,15 @@ public partial class MainWindow : Window
 
     private void TerminalTextBox_PreviewKeyDown(object sender, KeyEventArgs e)
     {
+        if (GetEffectiveKey(e) == Key.Apps ||
+            GetEffectiveKey(e) == Key.F10 && (Keyboard.Modifiers & ModifierKeys.Shift) != 0)
+        {
+            // Do not transfer focus into the popup while its opening key is held:
+            // ContextMenu handles Apps key-up itself and would immediately close.
+            _pendingContextMenuKey = GetEffectiveKey(e);
+            e.Handled = true;
+            return;
+        }
         if (_session is null)
             return;
 
@@ -1197,7 +1206,7 @@ public partial class MainWindow : Window
 
         if (controlPressed && e.Key == Key.C)
         {
-            if (!TerminalTextBox.Selection.IsEmpty)
+            if (TerminalTextBox.HasSelection)
                 CopySelection();
             else
                 _session.Write("\x03");
@@ -1216,6 +1225,13 @@ public partial class MainWindow : Window
         if (controlPressed && GetEffectiveKey(e) == Key.Space)
         {
             _session.Write("\0");
+            e.Handled = true;
+            return;
+        }
+
+        if (controlPressed && shiftPressed && e.Key == Key.A)
+        {
+            TerminalTextBox.SelectAll();
             e.Handled = true;
             return;
         }
@@ -1262,6 +1278,21 @@ public partial class MainWindow : Window
             Key.ImeProcessed => e.ImeProcessedKey,
             _ => e.Key
         };
+
+    private void TerminalTextBox_PreviewKeyUp(object sender, KeyEventArgs e)
+    {
+        if (_pendingContextMenuKey != GetEffectiveKey(e)) return;
+        _pendingContextMenuKey = null;
+        e.Handled = true;
+        Dispatcher.BeginInvoke(DispatcherPriority.Input, () =>
+        {
+            if (!TerminalTextBox.IsKeyboardFocusWithin) return;
+            var menu = CreateTerminalContextMenu();
+            menu.Placement = System.Windows.Controls.Primitives.PlacementMode.Center;
+            menu.Closed += (_, _) => TerminalTextBox.Focus();
+            menu.IsOpen = true;
+        });
+    }
 
     private static string? GetTerminalKeySequence(
         Key key,
@@ -1345,18 +1376,26 @@ public partial class MainWindow : Window
 
     private void CopySelection()
     {
-        if (TerminalTextBox.Selection.IsEmpty)
+        if (!TerminalTextBox.HasSelection)
             return;
 
-        var selectionEnd = TerminalTextBox.Selection.End;
-        TerminalTextBox.Copy();
-        TerminalTextBox.Selection.Select(
-            selectionEnd,
-            selectionEnd);
-        TerminalTextBox.CaretPosition = selectionEnd;
+        try { TerminalTextBox.CopySelection(); }
+        catch (System.Runtime.InteropServices.ExternalException)
+        {
+            MessageBox.Show(this, "The clipboard is busy. Please try copying again.", "Clipboard", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
     }
 
     private void PasteClipboard()
+    {
+        try { PasteClipboardCore(); }
+        catch (System.Runtime.InteropServices.ExternalException)
+        {
+            MessageBox.Show(this, "The clipboard is busy. Please try pasting again.", "Clipboard", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+    }
+
+    private void PasteClipboardCore()
     {
         if (_session is null)
             return;
@@ -1625,279 +1664,11 @@ public partial class MainWindow : Window
     private void Render(TerminalSnapshot snapshot)
     {
         _lastRenderedSnapshot = snapshot;
-        TerminalTextBox.IsReadOnlyCaretVisible = false;
-        var smartRtlEnabled = SmartRtlMenuItem.IsChecked;
-        var scrollViewer = FindVisualChild<ScrollViewer>(TerminalTextBox);
-        var verticalOffset = scrollViewer?.VerticalOffset ?? 0;
-        var shouldFollowOutput = _followOutput;
-
-        if (_terminalDocument is null)
-        {
-            _terminalDocument = new FlowDocument
-            {
-                PagePadding = new Thickness(0),
-                ColumnWidth = double.PositiveInfinity,
-                LineHeight = _lineHeight,
-                LineStackingStrategy = LineStackingStrategy.BlockLineHeight,
-                FontFamily = TerminalTextBox.FontFamily,
-                FontSize = TerminalTextBox.FontSize,
-                FontWeight = TerminalTextBox.FontWeight,
-                FontStyle = TerminalTextBox.FontStyle,
-                Foreground = ToBrush(DefaultForeground),
-                Background = ToBrush(DefaultBackground)
-            };
-            TerminalTextBox.Document = _terminalDocument;
-            _renderedScrollbackCount = 0;
-            _renderedScrollbackStartIndex = snapshot.ScrollbackStartIndex;
-        }
-
-        if (snapshot.ScrollbackStartIndex <
-            _renderedScrollbackStartIndex)
-        {
-            _terminalDocument.Blocks.Clear();
-            _renderedLines.Clear();
-            _renderedScrollbackCount = 0;
-            _renderedScrollbackStartIndex =
-                snapshot.ScrollbackStartIndex;
-        }
-
-        var trimmedRowCount = (int)Math.Min(
-            snapshot.ScrollbackStartIndex -
-                _renderedScrollbackStartIndex,
-            _renderedLines.Count);
-
-        for (var row = 0; row < trimmedRowCount; row++)
-            _terminalDocument.Blocks.Remove(_renderedLines[row].Paragraph);
-
-        if (trimmedRowCount > 0)
-        {
-            _renderedLines.RemoveRange(0, trimmedRowCount);
-            _renderedScrollbackCount = Math.Max(
-                0,
-                _renderedScrollbackCount - trimmedRowCount);
-        }
-
-        _renderedScrollbackStartIndex = snapshot.ScrollbackStartIndex;
-
-        while (_renderedLines.Count > snapshot.Lines.Count)
-        {
-            var lastLine = _renderedLines[^1];
-            _terminalDocument.Blocks.Remove(lastLine.Paragraph);
-            _renderedLines.RemoveAt(_renderedLines.Count - 1);
-        }
-
-        var firstRowToRender =
-            _renderedSmartRtlEnabled == smartRtlEnabled
-                ? Math.Min(
-                    Math.Min(
-                        _renderedScrollbackCount,
-                        snapshot.ScrollbackCount),
-                    _renderedLines.Count)
-                : 0;
-
-        for (var row = firstRowToRender;
-             row < snapshot.Lines.Count;
-             row++)
-        {
-            var line = snapshot.Lines[row];
-            var containsRightToLeft =
-                smartRtlEnabled && SmartRtl.IsRightToLeft(line);
-            var preserveTerminalGrid = snapshot.Modes.AlternateScreen;
-            var isRightToLeft = SmartRtl.ShouldRightAlign(
-                line,
-                smartRtlEnabled,
-                preserveTerminalGrid);
-            int? cursorColumn = snapshot.CursorVisible &&
-                row == snapshot.CursorRow
-                    ? snapshot.CursorColumn
-                    : null;
-
-            var key = CreateLineKey(
-                line,
-                isRightToLeft,
-                containsRightToLeft,
-                cursorColumn);
-
-            if (row < _renderedLines.Count &&
-                _renderedLines[row].Key == key)
-            {
-                continue;
-            }
-
-            var paragraph = new Paragraph
-            {
-                Margin = new Thickness(0),
-                Padding = new Thickness(0),
-                LineHeight = _lineHeight,
-                LineStackingStrategy = LineStackingStrategy.BlockLineHeight,
-                FlowDirection = isRightToLeft
-                    ? FlowDirection.RightToLeft
-                    : FlowDirection.LeftToRight,
-                TextAlignment = isRightToLeft
-                    ? TextAlignment.Right
-                    : TextAlignment.Left
-            };
-
-            var runPositions = new List<RunPosition>();
-            var renderSegments = CreateRenderSegments(line, cursorColumn);
-            var lineText = string.Concat(
-                renderSegments.Select(segment => segment.Text));
-            IReadOnlyList<DirectionalSpan> directionalSpans = containsRightToLeft
-                ? SmartRtl.GetDirectionalSpans(lineText, isRightToLeft)
-                : string.IsNullOrEmpty(lineText)
-                    ? []
-                    : [new DirectionalSpan(0, lineText.Length, false)];
-
-            foreach (var directionalSpan in directionalSpans)
-            {
-                var inlineSpan = new Span
-                {
-                    FlowDirection = directionalSpan.IsRightToLeft
-                        ? FlowDirection.RightToLeft
-                        : FlowDirection.LeftToRight
-                };
-                var directionalEnd =
-                    directionalSpan.Start + directionalSpan.Length;
-
-                foreach (var segment in renderSegments)
-                {
-                    var segmentEnd = segment.Start + segment.Text.Length;
-
-                    if (segmentEnd <= directionalSpan.Start)
-                        continue;
-
-                    if (segment.Start >= directionalEnd)
-                        break;
-
-                    var overlapStart = Math.Max(
-                        segment.Start,
-                        directionalSpan.Start);
-                    var overlapEnd = Math.Min(segmentEnd, directionalEnd);
-                    var text = segment.Text.Substring(
-                        overlapStart - segment.Start,
-                        overlapEnd - overlapStart);
-                    var run = CreateRun(
-                        text,
-                        segment.Style,
-                        segment.IsCursor);
-
-                    if (segment.Uri is not null)
-                    {
-                        var hyperlink = new Hyperlink(run)
-                        {
-                            Foreground = segment.IsCursor
-                                ? run.Foreground
-                                : ToBrush(LinkForeground),
-                            TextDecorations = TextDecorations.Underline,
-                            Cursor = Cursors.Hand,
-                            ToolTip = "Ctrl را نگه دارید و کلیک کنید"
-                        };
-                        hyperlink.Click += Link_Click;
-                        hyperlink.Tag = segment.Uri;
-                        inlineSpan.Inlines.Add(hyperlink);
-                    }
-                    else
-                    {
-                        inlineSpan.Inlines.Add(run);
-                    }
-
-                    runPositions.Add(
-                        new RunPosition(run, overlapStart, text.Length));
-                }
-
-                paragraph.Inlines.Add(inlineSpan);
-            }
-
-            var renderedLine = new RenderedLine(
-                paragraph,
-                key,
-                runPositions,
-                line,
-                isRightToLeft);
-
-            if (row < _renderedLines.Count)
-            {
-                var oldParagraph = _renderedLines[row].Paragraph;
-                _terminalDocument.Blocks.InsertBefore(oldParagraph, paragraph);
-                _terminalDocument.Blocks.Remove(oldParagraph);
-                _renderedLines[row] = renderedLine;
-            }
-            else
-            {
-                _terminalDocument.Blocks.Add(paragraph);
-                _renderedLines.Add(renderedLine);
-            }
-        }
-
-        _renderedScrollbackCount = snapshot.ScrollbackCount;
-        _renderedSmartRtlEnabled = smartRtlEnabled;
-
-        if (_renderedLines.Count == 0)
-        {
-            var paragraph = new Paragraph();
-            _terminalDocument.Blocks.Add(paragraph);
-            _renderedLines.Add(
-                new RenderedLine(
-                    paragraph,
-                    string.Empty,
-                    [],
-                    null,
-                    false));
-        }
-
-        if (shouldFollowOutput)
-        {
-            var cursorRow = Math.Clamp(
-                snapshot.CursorRow,
-                0,
-                _renderedLines.Count - 1);
-            var cursorLine = _renderedLines[cursorRow];
-            TerminalTextBox.CaretPosition =
-                FindCaretPosition(cursorLine, snapshot.CursorColumn);
-        }
-
-        ScheduleScrollRestore(
-            _terminalDocument,
-            shouldFollowOutput,
-            verticalOffset);
-    }
-
-    private void ScheduleScrollRestore(
-        FlowDocument document,
-        bool followOutput,
-        double verticalOffset)
-    {
-        var requestVersion = ++_scrollRequestVersion;
-
-        Dispatcher.BeginInvoke(
-            DispatcherPriority.Background,
-            () =>
-            {
-                if (requestVersion != _scrollRequestVersion ||
-                    !ReferenceEquals(TerminalTextBox.Document, document))
-                {
-                    return;
-                }
-
-                _restoringScrollPosition = true;
-
-                try
-                {
-                    if (followOutput)
-                    {
-                        TerminalTextBox.ScrollToEnd();
-                    }
-                    else
-                    {
-                        FindVisualChild<ScrollViewer>(TerminalTextBox)?
-                            .ScrollToVerticalOffset(verticalOffset);
-                    }
-                }
-                finally
-                {
-                    _restoringScrollPosition = false;
-                }
-            });
+        _renderedSmartRtlEnabled = SmartRtlMenuItem.IsChecked;
+        _restoringScrollPosition = true;
+        TerminalTextBox.Present(snapshot, SmartRtlMenuItem.IsChecked,
+            _cellWidth, _lineHeight, _followOutput);
+        _restoringScrollPosition = false;
     }
 
     private void ApplySavedFontSettings()
@@ -1920,15 +1691,11 @@ public partial class MainWindow : Window
             : FontStyles.Normal;
         UpdateFontMetrics();
 
-        _terminalDocument = null;
-        _renderedLines.Clear();
 
         if (_session is not null && _terminalBuffer is not null)
         {
-            var columns = GetColumns();
-            var rows = GetRows();
-            _session.Resize(columns, rows);
-            QueueRender(_terminalBuffer.Resize(columns, rows));
+            QueueViewportResize();
+            if (_lastRenderedSnapshot is not null) Render(_lastRenderedSnapshot);
             return;
         }
 
@@ -1953,395 +1720,26 @@ public partial class MainWindow : Window
             Brushes.White,
             pixelsPerDip);
 
-        _cellWidth = Math.Max(4, measurement.WidthIncludingTrailingWhitespace);
-        _lineHeight = Math.Max(
+        _cellWidth = Math.Ceiling(Math.Max(4, measurement.WidthIncludingTrailingWhitespace) * pixelsPerDip) / pixelsPerDip;
+        _lineHeight = Math.Ceiling(Math.Max(
             TerminalTextBox.FontSize + 3,
-            measurement.Height + 2);
-    }
-
-    private static string CreateLineKey(
-        TerminalLine line,
-        bool isRightToLeft,
-        bool containsRightToLeft,
-        int? cursorColumn)
-    {
-        var key = new StringBuilder(isRightToLeft ? "R|" : "L|")
-            .Append(containsRightToLeft ? "B|" : "N|")
-            .Append(cursorColumn?.ToString() ?? "-")
-            .Append('|');
-
-        foreach (var run in line.Runs)
-        {
-            key.Append(run.Text)
-                .Append('\u001f')
-                .Append(run.Style.Foreground)
-                .Append(run.Style.Background)
-                .Append(run.Style.Bold)
-                .Append(run.Style.Italic)
-                .Append(run.Style.Dim)
-                .Append(run.Style.Underline)
-                .Append(run.Style.Strikethrough)
-                .Append(run.Style.Inverse)
-                .Append(run.Style.Hidden)
-                .Append('\u001e');
-        }
-
-        return key.ToString();
-    }
-
-    private static TextPointer FindCaretPosition(
-        RenderedLine line,
-        int cursorColumn)
-    {
-        var textOffset = GetTextOffsetForColumn(line, cursorColumn);
-        TextPointer? lastRunEnd = null;
-
-        foreach (var position in line.Runs)
-        {
-            if (textOffset >= position.Start + position.Length)
-            {
-                lastRunEnd = position.Run.ContentEnd;
-                continue;
-            }
-
-            var offset = Math.Clamp(
-                textOffset - position.Start,
-                0,
-                position.Length);
-            var positionAtOffset =
-                position.Run.ContentStart.GetPositionAtOffset(
-                    offset,
-                    LogicalDirection.Forward);
-            return positionAtOffset?.GetInsertionPosition(
-                    LogicalDirection.Forward) ??
-                position.Run.ContentEnd.GetInsertionPosition(
-                    LogicalDirection.Backward);
-        }
-
-        return (lastRunEnd ?? line.Paragraph.ContentEnd)
-            .GetInsertionPosition(LogicalDirection.Backward);
-    }
-
-    private static int GetTextOffsetForColumn(
-        RenderedLine line,
-        int cursorColumn)
-    {
-        if (line.Source is null || cursorColumn <= 0)
-            return 0;
-
-        var column = 0;
-        var textOffset = 0;
-
-        foreach (var run in line.Source.Runs)
-        {
-            foreach (var element in EnumerateTerminalTextElements(run.Text))
-            {
-                if (element.Width > 0 && column >= cursorColumn)
-                    return textOffset + element.Start;
-
-                column += element.Width;
-            }
-
-            textOffset += run.Text.Length;
-        }
-
-        return textOffset;
-    }
-
-    private Run CreateRun(
-        string text,
-        TerminalStyle style,
-        bool isCursor = false)
-    {
-        var foreground = GetForeground(style);
-        var background = GetBackground(style);
-
-        if (style.Hidden)
-            foreground = background;
-
-        if (isCursor)
-            (foreground, background) = (background, foreground);
-
-        return new Run(text)
-        {
-            Foreground = ToBrush(foreground),
-            Background = ToBrush(background),
-            FontWeight = style.Bold ||
-                TerminalTextBox.FontWeight >= FontWeights.Bold
-                    ? FontWeights.Bold
-                    : FontWeights.Normal,
-            FontStyle = style.Italic ||
-                TerminalTextBox.FontStyle != FontStyles.Normal
-                    ? FontStyles.Italic
-                    : FontStyles.Normal,
-            TextDecorations = GetTextDecorations(style)
-        };
-    }
-
-    private static IReadOnlyList<RenderSegment> CreateRenderSegments(
-        TerminalLine line,
-        int? cursorColumn)
-    {
-        var segments = new List<RenderSegment>();
-        var start = 0;
-
-        foreach (var terminalRun in line.Runs)
-        {
-            foreach (var linkSegment in SplitLinks(terminalRun.Text))
-            {
-                segments.Add(new RenderSegment(
-                    linkSegment.Text,
-                    terminalRun.Style,
-                    linkSegment.Uri,
-                    start,
-                    false));
-                start += linkSegment.Text.Length;
-            }
-        }
-
-        if (cursorColumn is null)
-            return segments;
-
-        var cursorRange = FindTextRangeForCell(line, cursorColumn.Value);
-
-        if (cursorRange.Length <= 0)
-            return segments;
-
-        var splitSegments = new List<RenderSegment>(segments.Count + 2);
-        var cursorEnd = cursorRange.Start + cursorRange.Length;
-
-        foreach (var segment in segments)
-        {
-            var segmentEnd = segment.Start + segment.Text.Length;
-            var overlapStart = Math.Max(segment.Start, cursorRange.Start);
-            var overlapEnd = Math.Min(segmentEnd, cursorEnd);
-
-            if (overlapStart >= overlapEnd)
-            {
-                splitSegments.Add(segment);
-                continue;
-            }
-
-            if (segment.Start < overlapStart)
-            {
-                splitSegments.Add(segment with
-                {
-                    Text = segment.Text[..(overlapStart - segment.Start)]
-                });
-            }
-
-            splitSegments.Add(segment with
-            {
-                Text = segment.Text.Substring(
-                    overlapStart - segment.Start,
-                    overlapEnd - overlapStart),
-                Start = overlapStart,
-                IsCursor = true
-            });
-
-            if (overlapEnd < segmentEnd)
-            {
-                splitSegments.Add(segment with
-                {
-                    Text = segment.Text[(overlapEnd - segment.Start)..],
-                    Start = overlapEnd
-                });
-            }
-        }
-
-        return splitSegments;
-    }
-
-    private static (int Start, int Length) FindTextRangeForCell(
-        TerminalLine line,
-        int targetColumn)
-    {
-        var column = 0;
-        var textOffset = 0;
-
-        foreach (var run in line.Runs)
-        {
-            foreach (var element in EnumerateTerminalTextElements(run.Text))
-            {
-                if (element.Width > 0 &&
-                    targetColumn >= column &&
-                    targetColumn < column + element.Width)
-                {
-                    return (
-                        textOffset + element.Start,
-                        element.Length);
-                }
-
-                column += element.Width;
-            }
-
-            textOffset += run.Text.Length;
-        }
-
-        return (textOffset, 0);
-    }
-
-    private static IEnumerable<TerminalTextElement>
-        EnumerateTerminalTextElements(string text)
-    {
-        var enumerator = StringInfo.GetTextElementEnumerator(text);
-
-        while (enumerator.MoveNext())
-        {
-            var start = enumerator.ElementIndex;
-            var value = enumerator.GetTextElement();
-            var firstRune = Rune.GetRuneAt(value, 0);
-            yield return new TerminalTextElement(
-                start,
-                value.Length,
-                TerminalBuffer.GetCellWidth(firstRune));
-        }
-    }
-
-    private static TextDecorationCollection? GetTextDecorations(
-        TerminalStyle style)
-    {
-        if (!style.Underline && !style.Strikethrough)
-            return null;
-
-        var decorations = new TextDecorationCollection();
-
-        if (style.Underline)
-            decorations.Add(TextDecorations.Underline[0]);
-
-        if (style.Strikethrough)
-            decorations.Add(TextDecorations.Strikethrough[0]);
-
-        return decorations;
-    }
-
-    private static IEnumerable<LinkSegment> SplitLinks(string text)
-    {
-        var start = 0;
-
-        foreach (Match match in LinkPattern.Matches(text))
-        {
-            if (match.Index > start)
-                yield return new LinkSegment(text[start..match.Index], null);
-
-            var linkText = match.Value.TrimEnd('.', ',', ';', ':', '!', '?', ')');
-            var trailingText = match.Value[linkText.Length..];
-            var uriText = linkText.StartsWith(
-                "www.",
-                StringComparison.OrdinalIgnoreCase)
-                ? $"https://{linkText}"
-                : linkText;
-
-            if (Uri.TryCreate(uriText, UriKind.Absolute, out var uri) &&
-                uri.Scheme is "http" or "https")
-            {
-                yield return new LinkSegment(linkText, uri);
-            }
-            else
-            {
-                yield return new LinkSegment(linkText, null);
-            }
-
-            if (trailingText.Length > 0)
-                yield return new LinkSegment(trailingText, null);
-
-            start = match.Index + match.Length;
-        }
-
-        if (start < text.Length)
-            yield return new LinkSegment(text[start..], null);
-    }
-
-    private void Link_Click(object sender, RoutedEventArgs e)
-    {
-        e.Handled = true;
-
-        if ((Keyboard.Modifiers & ModifierKeys.Control) == 0 ||
-            sender is not Hyperlink { Tag: Uri uri })
-        {
-            return;
-        }
-
-        try
-        {
-            Process.Start(new ProcessStartInfo(uri.AbsoluteUri)
-            {
-                UseShellExecute = true
-            });
-        }
-        catch (Exception exception)
-        {
-            MessageBox.Show(
-                this,
-                "بازکردن لینک انجام نشد." +
-                Environment.NewLine +
-                exception.Message,
-                "Rtl Terminal",
-                MessageBoxButton.OK,
-                MessageBoxImage.Error);
-        }
-    }
-
-    private static SolidColorBrush ToBrush(TerminalColor color)
-    {
-        if (BrushCache.TryGetValue(color, out var cachedBrush))
-            return cachedBrush;
-
-        var brush = new SolidColorBrush(
-            Color.FromRgb(color.Red, color.Green, color.Blue));
-        brush.Freeze();
-        BrushCache[color] = brush;
-        return brush;
-    }
-
-    private static TerminalColor GetForeground(TerminalStyle style)
-    {
-        var foreground = style.Inverse
-            ? style.Background ?? DefaultBackground
-            : style.Foreground ?? DefaultForeground;
-
-        if (!style.Dim)
-            return foreground;
-
-        var background = GetBackground(style);
-        return new TerminalColor(
-            Blend(foreground.Red, background.Red),
-            Blend(foreground.Green, background.Green),
-            Blend(foreground.Blue, background.Blue));
-    }
-
-    private static TerminalColor GetBackground(TerminalStyle style) =>
-        style.Inverse
-            ? style.Foreground ?? DefaultForeground
-            : style.Background ?? DefaultBackground;
-
-    private static byte Blend(byte foreground, byte background)
-    {
-        return (byte)((foreground * 0.55) + (background * 0.45));
+            measurement.Height + 2) * pixelsPerDip) / pixelsPerDip;
     }
 
     private short GetColumns()
     {
-        var scrollViewer = FindVisualChild<ScrollViewer>(TerminalTextBox);
-        var viewportWidth = scrollViewer?.ViewportWidth ?? 0;
-        var width = viewportWidth > 0
-            ? viewportWidth
-            : TerminalTextBox.ActualWidth;
-        var horizontalPadding =
-            TerminalTextBox.Padding.Left +
-            TerminalTextBox.Padding.Right +
-            6;
-        var usableWidth = Math.Max(80, width - horizontalPadding);
-        return (short)Math.Clamp(
-            (int)Math.Floor(usableWidth / _cellWidth),
-            10,
-            300);
+        var width = TerminalTextBox.ViewportWidth > 0
+            ? TerminalTextBox.ViewportWidth
+            : TerminalTextBox.ActualWidth - TerminalTextBox.Padding.Left - TerminalTextBox.Padding.Right - 18;
+        return (short)Math.Clamp((int)Math.Floor(Math.Max(80, width) / _cellWidth), 10, 300);
     }
 
     private short GetRows()
     {
-        var height = Math.Max(120, TerminalTextBox.ActualHeight - 25);
-        return (short)Math.Clamp((int)(height / _lineHeight), 10, 100);
+        var height = TerminalTextBox.ViewportHeight > 0
+            ? TerminalTextBox.ViewportHeight
+            : TerminalTextBox.ActualHeight - TerminalTextBox.Padding.Top - TerminalTextBox.Padding.Bottom;
+        return (short)Math.Clamp((int)Math.Floor(Math.Max(120, height) / _lineHeight), 10, 100);
     }
 
     private static T? FindVisualChild<T>(DependencyObject parent)
@@ -2364,32 +1762,6 @@ public partial class MainWindow : Window
 
         return null;
     }
-
-    private readonly record struct LinkSegment(string Text, Uri? Uri);
-
-    private sealed record RenderedLine(
-        Paragraph Paragraph,
-        string Key,
-        IReadOnlyList<RunPosition> Runs,
-        TerminalLine? Source,
-        bool IsRightToLeft);
-
-    private readonly record struct RunPosition(
-        Run Run,
-        int Start,
-        int Length);
-
-    private readonly record struct RenderSegment(
-        string Text,
-        TerminalStyle Style,
-        Uri? Uri,
-        int Start,
-        bool IsCursor);
-
-    private readonly record struct TerminalTextElement(
-        int Start,
-        int Length,
-        int Width);
 
     private enum TerminalProfile
     {
@@ -2415,12 +1787,10 @@ public partial class MainWindow : Window
         public bool RenderStartQueued { get; set; }
         public long LatestQueuedRevision { get; set; }
         public TerminalSnapshot? LastRenderedSnapshot { get; set; }
-        public FlowDocument? Document { get; set; }
-        public int RenderedScrollbackCount { get; set; }
-        public long RenderedScrollbackStartIndex { get; set; }
+        public ((int Row, int Offset)? Anchor, (int Row, int Offset)? End) Selection { get; set; }
         public bool RenderedSmartRtlEnabled { get; set; } = true;
-        public List<RenderedLine> RenderedLines { get; } = [];
         public bool FollowOutput { get; set; } = true;
+        public (short Columns, short Rows) GridSize { get; set; }
         public double VerticalOffset { get; set; }
 
         public Task DisposeAsync()

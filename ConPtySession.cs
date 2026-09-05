@@ -22,7 +22,7 @@ public sealed class ConPtySession : IDisposable
 
     private const uint EXTENDED_STARTUPINFO_PRESENT = 0x00080000;
 
-    private const int PROC_THREAD_ATTRIBUTE_PSEUDOCONSOLE = 0x00020016;
+private const int PROC_THREAD_ATTRIBUTE_PSEUDOCONSOLE = 0x00020016;
 
 
 
@@ -140,37 +140,15 @@ public sealed class ConPtySession : IDisposable
 
 
 
-        var success = CreateProcess(
-
-            null,
-
-            command,
-
-            IntPtr.Zero,
-
-            IntPtr.Zero,
-
-            false,
-
-            EXTENDED_STARTUPINFO_PRESENT,
-
-            IntPtr.Zero,
-
-            workingDirectory,
-
-            ref startupInfo,
-
-            out _processInfo);
-
-
+        var success = CreateProcess(null, command, IntPtr.Zero, IntPtr.Zero, false,
+            EXTENDED_STARTUPINFO_PRESENT, IntPtr.Zero, workingDirectory,
+            ref startupInfo, out _processInfo);
 
         if (!success)
 
             throw new Win32Exception(Marshal.GetLastWin32Error());
 
     }
-
-
 
     public int Read(byte[] buffer)
 

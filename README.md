@@ -19,9 +19,9 @@
 
   **Latest Windows 10/11 installer — no separate .NET installation required**
 
-  ### [⬇️ دانلود Rtl Terminal Setup v1.0.4](https://github.com/mirbehnam/RtlTerminal/releases/download/v1.0.4/RtlTerminal-Setup-1.0.4-x64.exe)
+  ### [⬇️ دانلود Rtl Terminal Setup v1.0.5](https://github.com/mirbehnam/RtlTerminal/releases/download/v1.0.5/RtlTerminal-Setup-1.0.5-x64.exe)
 
-  ### [⬇️ Download Rtl Terminal Setup v1.0.4](https://github.com/mirbehnam/RtlTerminal/releases/download/v1.0.4/RtlTerminal-Setup-1.0.4-x64.exe)
+  ### [⬇️ Download Rtl Terminal Setup v1.0.5](https://github.com/mirbehnam/RtlTerminal/releases/download/v1.0.5/RtlTerminal-Setup-1.0.5-x64.exe)
 
   [وب‌سایت رسمی · Official website](https://mirbehnam.github.io/RtlTerminal/) · [مشاهده همه نسخه‌ها · View all releases](https://github.com/mirbehnam/RtlTerminal/releases)
 
@@ -147,7 +147,7 @@ To publish the application and build the installer with Inno Setup:
 The installer is created in:
 
 ```text
-release\RtlTerminal-Setup-1.0.4-x64.exe
+release\RtlTerminal-Setup-1.0.5-x64.exe
 ```
 
 ### Automatic GitHub Releases
@@ -155,16 +155,16 @@ release\RtlTerminal-Setup-1.0.4-x64.exe
 The repository includes a GitHub Actions workflow that creates a self-contained, single-file Windows x64 build. Push a version tag to create a GitHub Release automatically:
 
 ```powershell
-git tag v1.0.4
-git push origin v1.0.4
+git tag v1.0.5
+git push origin v1.0.5
 ```
 
 The workflow publishes these downloadable release assets:
 
 ```text
-RtlTerminal-1.0.4-win-x64.exe
-RtlTerminal-1.0.4-win-x64.zip
-RtlTerminal-Setup-1.0.4-x64.exe
+RtlTerminal-1.0.5-win-x64.exe
+RtlTerminal-1.0.5-win-x64.zip
+RtlTerminal-Setup-1.0.5-x64.exe
 ```
 
 The portable executable and installer include the self-contained .NET runtime and do not require a separate .NET installation. The Setup file provides installation shortcuts and standard Windows uninstall support. The workflow can also be started manually from the GitHub **Actions** page; manual runs create downloadable workflow artifacts without creating a GitHub Release.
@@ -331,8 +331,8 @@ dotnet publish RtlTerminal.csproj `
 این مخزن دارای GitHub Actions است که نسخه مستقل و تک‌فایلی ویندوز ۶۴ بیتی را می‌سازد. برای ایجاد Release خودکار، یک تگ نسخه ایجاد و Push کنید:
 
 ```powershell
-git tag v1.0.4
-git push origin v1.0.4
+git tag v1.0.5
+git push origin v1.0.5
 ```
 
 پس از پایان Workflow، فایل‌های Portable، فایل `ZIP` و فایل Setup دارای Uninstall در بخش Releases قرار می‌گیرند و برای اجرا به نصب جداگانه .NET نیاز ندارند. اجرای دستی Workflow از بخش Actions فقط Artifact قابل دانلود می‌سازد.
@@ -451,8 +451,8 @@ dotnet publish RtlTerminal.csproj `
 يتضمن المستودع GitHub Actions لبناء إصدار Windows x64 مستقل وذي ملف واحد. أنشئ وادفع وسم إصدار لإنشاء GitHub Release تلقائياً:
 
 ```powershell
-git tag v1.0.4
-git push origin v1.0.4
+git tag v1.0.5
+git push origin v1.0.5
 ```
 
 بعد اكتمال Workflow ستظهر ملفات `EXE` و`ZIP` المحمولة وملف Setup الذي يدعم إزالة التثبيت في صفحة Releases. لا تحتاج هذه الملفات إلى تثبيت .NET بشكل منفصل. التشغيل اليدوي من صفحة Actions ينشئ Artifact قابلاً للتنزيل فقط.

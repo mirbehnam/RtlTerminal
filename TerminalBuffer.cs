@@ -91,7 +91,6 @@ public sealed class TerminalBuffer
     private int _scrollBottom;
     private long _revision;
     private bool _wrapPending;
-    private bool _carriageReturnPending;
     private bool _alternateScreenActive;
     private bool _cursorVisible = true;
     private bool _applicationCursorKeys;
@@ -198,22 +197,6 @@ public sealed class TerminalBuffer
 
     private void ProcessCharacter(char character)
     {
-        if (_state == ParserState.Normal && _carriageReturnPending)
-        {
-            _carriageReturnPending = false;
-
-            if (character == '\n')
-            {
-                _cursorColumn = 0;
-                _wrapPending = false;
-                LineFeed(wrapped: false);
-                return;
-            }
-
-            _cursorColumn = 0;
-            _wrapPending = false;
-        }
-
         if (_state == ParserState.Normal && _pendingHighSurrogate is { } highSurrogate)
         {
             _pendingHighSurrogate = null;
@@ -304,12 +287,12 @@ public sealed class TerminalBuffer
         {
             case '\x1b':
                 ResetClusterState();
-                _wrapPending = false;
                 _state = ParserState.Escape;
                 break;
             case '\r':
                 ResetClusterState();
-                _carriageReturnPending = true;
+                _cursorColumn = 0;
+                _wrapPending = false;
                 break;
             case '\n':
                 ResetClusterState();
@@ -368,15 +351,18 @@ public sealed class TerminalBuffer
                 _state = ParserState.Normal;
                 break;
             case 'D':
+                _wrapPending = false;
                 LineFeed(wrapped: false);
                 _state = ParserState.Normal;
                 break;
             case 'E':
+                _wrapPending = false;
                 _cursorColumn = 0;
                 LineFeed(wrapped: false);
                 _state = ParserState.Normal;
                 break;
             case 'M':
+                _wrapPending = false;
                 ReverseIndex();
                 _state = ParserState.Normal;
                 break;
@@ -491,7 +477,11 @@ public sealed class TerminalBuffer
     {
         var privateMode = parameterText.Length > 0 && parameterText[0] == '?';
         var parameters = ParseParameters(parameterText);
-        _wrapPending = false;
+        // Styling and capability queries do not move the cursor. In particular,
+        // SGR after the last column must not make the next glyph overwrite it.
+        if (command is 'A' or 'B' or 'C' or 'D' or 'E' or 'F' or 'G' or '`' or
+            'd' or 'H' or 'f' or 'J' or 'K' or 'P' or '@' or 'X' or 'L' or 'M' or 'S' or 'T' or 'r')
+            _wrapPending = false;
 
         switch (command)
         {
@@ -598,7 +588,7 @@ public sealed class TerminalBuffer
                 if (parameterText.StartsWith(">0", StringComparison.Ordinal))
                 {
                     QueueResponse(
-                        "\x1bP>|RtlTerminal(1.0.4)\x1b\\");
+                        "\x1bP>|RtlTerminal(1.0.5)\x1b\\");
                 }
                 break;
             case 'h':
@@ -1155,6 +1145,7 @@ public sealed class TerminalBuffer
 
     private void RestoreCursor()
     {
+        _wrapPending = false;
         _cursorColumn = _savedColumn;
         _cursorRow = _savedRow;
         ClampCursor();

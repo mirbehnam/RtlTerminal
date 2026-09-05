@@ -10,7 +10,11 @@ var tests = new (string Name, Action Run)[]
     ("OpenTUI capability handshake does not leak", OpenTuiHandshakeDoesNotLeak),
     ("modern TUI modes are tracked", ModernTuiModesAreTracked),
     ("emoji grapheme clusters keep terminal width", EmojiClustersKeepWidth),
-    ("Persian text remains detectable for Smart RTL", PersianTextRemainsSmartRtl)
+    ("Persian text remains detectable for Smart RTL", PersianTextRemainsSmartRtl),
+    ("carriage return is immediate across reads", CarriageReturnIsImmediate),
+    ("style changes preserve pending autowrap", StylePreservesWrap),
+    ("status redraw clears old characters across reads", StatusRedraw),
+    ("wide characters can be erased and overwritten", WideErase)
 };
 
 var failures = new List<string>();
@@ -183,6 +187,49 @@ static void PersianTextRemainsSmartRtl()
     Assert(spans.Any(span => span.IsRightToLeft) &&
         spans.Any(span => !span.IsRightToLeft),
         "mixed Persian/Latin direction spans were not preserved");
+}
+
+static void CarriageReturnIsImmediate()
+{
+    var buffer = new TerminalBuffer(30, 6);
+    var snapshot = buffer.Process("Working\r");
+    Assert(snapshot.CursorColumn == 0, "CR left the snapshot cursor at the old column");
+    Assert(Text(buffer.Process("\x1b[KDone")).TrimEnd() == "Done", "CR + erase left old text");
+}
+
+static void StylePreservesWrap()
+{
+    var buffer = new TerminalBuffer(10, 6);
+    var snapshot = buffer.Process("1234567890\x1b[31mW");
+    Assert(string.Concat(snapshot.Lines[0].Runs.Select(run => run.Text)) == "1234567890",
+        "SGR cancelled pending wrap and overwrote the last column");
+    Assert(snapshot.CursorRow == 1 && snapshot.CursorColumn == 1, "cursor did not wrap");
+}
+
+static void StatusRedraw()
+{
+    const string stream = "Working (0s - esc to interrupt)\r\nold footer" +
+        "\x1b[1A\r\x1b[2KWorking 3\x1b[1B\r\x1b[2Knew footer";
+    var expected = new TerminalBuffer(40, 6).Process(stream);
+    for (var split = 0; split <= stream.Length; split++)
+    {
+        var buffer = new TerminalBuffer(40, 6);
+        buffer.Process(stream[..split]);
+        var actual = buffer.Process(stream[split..]);
+        Assert(Text(actual) == Text(expected), $"read boundary {split} changed redraw");
+    }
+    Assert(Text(expected).TrimEnd() == "Working 3\nnew footer", "old status or footer survived redraw");
+    var shortUpdate = new TerminalBuffer(30, 6);
+    shortUpdate.Process("WWorking\r\x1b[P");
+    Assert(Text(shortUpdate.CaptureSnapshot()).TrimEnd() == "Working", "DCH left duplicate W");
+}
+
+static void WideErase()
+{
+    var buffer = new TerminalBuffer(30, 6);
+    buffer.Process("👨‍💻Working\r\x1b[2X");
+    Assert(Text(buffer.CaptureSnapshot()).TrimEnd() == "  Working", "wide glyph was not erased");
+    Assert(Text(buffer.Process("\rOK\x1b[K")).TrimEnd() == "OK", "wide redraw left stale text");
 }
 
 static string Text(TerminalSnapshot snapshot) => string.Join(
