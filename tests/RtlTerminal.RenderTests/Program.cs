@@ -10,6 +10,11 @@ internal static class Program
     [STAThread]
     private static void Main()
     {
+        if (Environment.GetCommandLineArgs().Contains("--screenshots"))
+        {
+            ScreenshotCapture.Run();
+            return;
+        }
         if (Environment.GetCommandLineArgs().Contains("--window-smoke"))
         {
             WindowStateSmoke.Run();

@@ -19,17 +19,17 @@
 
   **Latest Windows 10/11 installer — no separate .NET installation required**
 
-  ### [⬇️ دانلود Rtl Terminal Setup v1.0.5](https://github.com/mirbehnam/RtlTerminal/releases/download/v1.0.5/RtlTerminal-Setup-1.0.5-x64.exe)
+  ### [⬇️ دریافت آخرین نسخهٔ منتشرشده](https://github.com/mirbehnam/RtlTerminal/releases/latest)
 
-  ### [⬇️ Download Rtl Terminal Setup v1.0.5](https://github.com/mirbehnam/RtlTerminal/releases/download/v1.0.5/RtlTerminal-Setup-1.0.5-x64.exe)
+  ### [⬇️ Get the latest published release](https://github.com/mirbehnam/RtlTerminal/releases/latest)
 
   [وب‌سایت رسمی · Official website](https://mirbehnam.github.io/RtlTerminal/) · [مشاهده همه نسخه‌ها · View all releases](https://github.com/mirbehnam/RtlTerminal/releases)
 
   <br>
 
-  <img src="screenshots/rtl-terminal-main-window.png"
+  <img src="screenshots/main.png"
        width="900"
-       alt="Rtl Terminal main window on Windows with Persian RTL text, ANSI colors, GitHub link and Command Prompt">
+       alt="Rtl Terminal running OpenAI Codex with English, Persian and Arabic output">
 
   **نمای اصلی Rtl Terminal در ویندوز · Rtl Terminal main window on Windows**
 </div>
@@ -46,6 +46,9 @@ Rtl Terminal uses the Windows ConPTY API and works with command-line environment
 
 ### Features
 
+- Custom WPF cell renderer with cached visible rows and seamless block/box graphics.
+- Chrome-style tabs, adjacent new-tab button, dark menus and vector window controls.
+- Default terminal font size of 14; existing saved font preferences are retained.
 - Apply Smart RTL per line while keeping English fragments, numbers and punctuation in their correct direction.
 - Display Persian, Arabic, English and mixed Unicode terminal output.
 - Support ANSI standard colors, bright colors, dim text, 256 colors and RGB colors.
@@ -58,7 +61,7 @@ Rtl Terminal uses the Windows ConPTY API and works with command-line environment
 - Detect `http://`, `https://` and `www.` links and open them with `Ctrl + Click`.
 - Copy selected text with `Ctrl+C` or `Ctrl+Shift+C`.
 - Paste text, copied file paths and clipboard images with `Ctrl+V`, `Ctrl+Shift+V` or right-click.
-- Convert copied Windows paths to `/mnt/<drive>/...` automatically inside WSL tabs.
+- Clipboard paths retain their Windows form; convert paths manually when needed in WSL.
 - Send `Ctrl+C` as an interrupt when no text is selected.
 - Select any installed Windows font, font size, weight and italic style.
 - Render ANSI bold and italic styles produced by terminal applications.
@@ -75,9 +78,18 @@ Rtl Terminal uses the Windows ConPTY API and works with command-line environment
 
 ### Screenshots
 
+#### Main application — OpenAI Codex
+
+The main screenshot shows a real Codex session rendering English, Persian and Arabic
+inside Rtl Terminal with Smart RTL enabled.
+
+![Rtl Terminal running OpenAI Codex with English, Persian and Arabic text](screenshots/main.png)
+
+#### Renderer test scenarios
+
 ![Rtl Terminal Windows terminal emulator with Persian and Arabic RTL support](screenshots/rtl-terminal-main-window.png)
 
-![Rtl Terminal displaying Persian RTL interactive CLI output](screenshots/rtl-terminal-persian-rtl-cli.png)
+![Rtl Terminal displaying Persian and Arabic mixed-direction demo output](screenshots/rtl-terminal-persian-rtl-cli.png)
 
 ### System Requirements
 
@@ -177,7 +189,11 @@ The portable executable and installer include the self-contained .NET runtime an
 | Paste clipboard text | `Ctrl+V` or `Ctrl+Shift+V` |
 | Paste copied files or images as paths | `Ctrl+V` or `Ctrl+Shift+V` |
 | Paste with mouse | Right-click when no text is selected |
-| Create a Command Prompt tab | `Ctrl+Shift+T` |
+| Copy with mouse | Right-click selected text; the selection clears after copying |
+| Open Copy/Paste menu | Context Menu (Apps) key or `Shift+F10`; opens after key release |
+| Select all retained text | `Ctrl+Shift+A` |
+| Bypass application mouse capture | Hold `Shift` while selecting or right-clicking |
+| Create a tab using the default profile | `Ctrl+Shift+T` |
 | Switch to the next or previous tab | `Ctrl+Tab` or `Ctrl+Shift+Tab` |
 | Close the active tab | `Ctrl+W` |
 | Interrupt the active command | `Ctrl+C` when no text is selected |
@@ -219,7 +235,28 @@ On Windows 11, the current registry integration may appear under **Show more opt
 - The current terminal backend requires Windows ConPTY.
 - Windows 7 is not supported.
 - The Windows 11 modern context menu is not directly extended by the current registry integration.
-- Terminal rendering is implemented with WPF rather than the GPU renderer used by Windows Terminal.
+- The custom WPF renderer is not the Windows Terminal rendering engine; CLI/TUI compatibility still needs application-specific testing.
+- Color emoji, flags and font fallback depend on the Windows text renderer and installed fonts.
+- Smart RTL uses directional spans, not a complete new Unicode bidi implementation; full-screen layouts preserve the terminal grid.
+
+### Validation and screenshot capture
+
+```powershell
+dotnet build RtlTerminal.sln -c Release
+dotnet run --project tests/RtlTerminal.BufferTests -c Release
+dotnet run --project tests/RtlTerminal.RenderTests -c Release
+dotnet run --project tests/RtlTerminal.RenderTests -c Release -- --window-smoke
+```
+
+The optional `--window-smoke` check briefly opens a shell-free test window and
+checks context-menu key down/up, maximized work-area bounds and minimize/restore.
+To regenerate the two renderer-test screenshots with deterministic demo content:
+
+```powershell
+dotnet run --project tests/RtlTerminal.RenderTests -c Release -- --screenshots
+```
+
+See [renderer architecture and verification notes](docs/renderer.md).
 
 ### Project Information
 
@@ -250,7 +287,7 @@ No license file is currently included. Add a `LICENSE` file before accepting ext
 
 ### ترمینال راست‌به‌چپ برای ویندوز
 
-**Rtl Terminal** یک شبیه‌ساز ترمینال متن‌باز برای ویندوز است که توسط برند **behnamapps** برای کاربران فارسی‌زبان، عربی‌زبان و زبان‌های راست‌به‌چپ ساخته شده است. این برنامه امکان تغییر کل محیط ترمینال بین حالت چپ‌به‌راست و راست‌به‌چپ را فراهم می‌کند و در کنار آن از رنگ‌های ANSI، برنامه‌های تعاملی خط فرمان، نوارهای پیشرفت، لینک‌ها و متن Unicode پشتیبانی می‌کند.
+**Rtl Terminal** یک شبیه‌ساز ترمینال متن‌باز برای ویندوز است که توسط برند **behnamapps** برای کاربران فارسی‌زبان، عربی‌زبان و زبان‌های راست‌به‌چپ ساخته شده است. این برنامه با Smart RTL جهت متن فارسی و ترکیبی را خودکار مدیریت می‌کند و شبکهٔ برنامه‌های تمام‌صفحه را حفظ می‌کند و در کنار آن از رنگ‌های ANSI، برنامه‌های تعاملی خط فرمان، نوارهای پیشرفت، لینک‌ها و متن Unicode پشتیبانی می‌کند.
 
 این برنامه با استفاده از Windows ConPTY می‌تواند محیط‌هایی مانند Command Prompt، PowerShell، WSL، Bash، ابزارهای توسعه، package managerها و برنامه‌های تعاملی ترمینال را اجرا کند.
 
@@ -268,7 +305,7 @@ No license file is currently included. Add a `LICENSE` file before accepting ext
 - تشخیص لینک و بازکردن آن با `Ctrl + Click`
 - کپی متن با `Ctrl+C` یا `Ctrl+Shift+C`
 - Paste متن، مسیر فایل‌های کپی‌شده و تصویر Clipboard با `Ctrl+V`، `Ctrl+Shift+V` یا راست‌کلیک
-- تبدیل خودکار مسیرهای ویندوز به فرمت `/mnt/<drive>/...` در تب‌های WSL
+- حفظ مسیرهای ویندوز هنگام Paste؛ در WSL تبدیل مسیر در صورت نیاز دستی است
 - ارسال Interrupt با `Ctrl+C` در صورتی که متنی انتخاب نشده باشد
 - انتخاب همه فونت‌های نصب‌شده ویندوز
 - تنظیم اندازه، ضخامت و حالت ایتالیک فونت
@@ -345,7 +382,11 @@ git push origin v1.0.5
 | چسباندن متن | `Ctrl+V` یا `Ctrl+Shift+V` |
 | چسباندن فایل یا تصویر کپی‌شده به‌صورت مسیر | `Ctrl+V` یا `Ctrl+Shift+V` |
 | چسباندن با ماوس | راست‌کلیک در صورتی که متنی انتخاب نشده باشد |
-| ساخت تب Command Prompt | `Ctrl+Shift+T` |
+| کپی با ماوس | راست‌کلیک روی متن انتخاب‌شده؛ سپس انتخاب پاک می‌شود |
+| بازکردن منوی کپی و Paste | کلید Context Menu یا `Shift+F10`؛ پس از رهاکردن کلید |
+| انتخاب همهٔ متن | `Ctrl+Shift+A` |
+| انتخاب متن در برنامه‌های دریافت‌کنندهٔ ماوس | نگه‌داشتن `Shift` |
+| ساخت تب با پروفایل پیش‌فرض | `Ctrl+Shift+T` |
 | جابه‌جایی بین تب‌ها | `Ctrl+Tab` یا `Ctrl+Shift+Tab` |
 | بستن تب فعال | `Ctrl+W` |
 | متوقف‌کردن فرمان جاری | `Ctrl+C` در صورتی که متنی انتخاب نشده باشد |
@@ -370,7 +411,7 @@ git push origin v1.0.5
 
 ### طرفية تدعم العربية واتجاه RTL لنظام Windows
 
-**Rtl Terminal** هو محاكي طرفية مفتوح المصدر لنظام Windows، طوّرته علامة **behnamapps** لمستخدمي اللغة العربية والفارسية واللغات التي تُكتب من اليمين إلى اليسار. يتيح البرنامج تحويل واجهة الطرفية بالكامل بين اتجاهي LTR وRTL مع دعم ألوان ANSI والنصوص Unicode والروابط وأشرطة التقدم وتطبيقات سطر الأوامر التفاعلية.
+**Rtl Terminal** هو محاكي طرفية مفتوح المصدر لنظام Windows، طوّرته علامة **behnamapps** لمستخدمي اللغة العربية والفارسية واللغات التي تُكتب من اليمين إلى اليسار. يدير البرنامج اتجاه النص العربي والفارسي والمختلط باستخدام Smart RTL مع الحفاظ على شبكة التطبيقات بملء الشاشة مع دعم ألوان ANSI والنصوص Unicode والروابط وأشرطة التقدم وتطبيقات سطر الأوامر التفاعلية.
 
 يعتمد البرنامج على Windows ConPTY، ويمكنه تشغيل Command Prompt وPowerShell وWSL وBash وأدوات المطورين ومديري الحزم وتطبيقات CLI وTUI.
 
@@ -388,7 +429,7 @@ git push origin v1.0.5
 - اكتشاف الروابط وفتحها باستخدام `Ctrl + Click`
 - نسخ النص باستخدام `Ctrl+C` أو `Ctrl+Shift+C`
 - لصق النص ومسارات الملفات المنسوخة وصور Clipboard باستخدام `Ctrl+V` أو `Ctrl+Shift+V` أو زر الفأرة الأيمن
-- تحويل مسارات Windows تلقائياً إلى `/mnt/<drive>/...` داخل علامات WSL
+- تبقى المسارات الملصقة بصيغة Windows؛ حوّلها يدوياً عند الحاجة في WSL
 - إرسال أمر المقاطعة عند الضغط على `Ctrl+C` دون تحديد نص
 - اختيار جميع الخطوط المثبتة في Windows
 - تخصيص حجم الخط ووزنه ونمطه المائل
@@ -465,7 +506,11 @@ git push origin v1.0.5
 | لصق النص | `Ctrl+V` أو `Ctrl+Shift+V` |
 | لصق ملف أو صورة منسوخة كمسار | `Ctrl+V` أو `Ctrl+Shift+V` |
 | اللصق بالفأرة | زر الفأرة الأيمن عند عدم تحديد نص |
-| إنشاء علامة Command Prompt | `Ctrl+Shift+T` |
+| النسخ بالفأرة | النقر الأيمن على النص المحدد ثم إلغاء التحديد |
+| فتح قائمة النسخ واللصق | مفتاح Context Menu أو `Shift+F10` بعد تحرير المفتاح |
+| تحديد كل النص | `Ctrl+Shift+A` |
+| تجاوز التقاط الفأرة | اضغط باستمرار على `Shift` |
+| إنشاء علامة بالبيئة الافتراضية | `Ctrl+Shift+T` |
 | التنقل بين علامات التبويب | `Ctrl+Tab` أو `Ctrl+Shift+Tab` |
 | إغلاق علامة التبويب النشطة | `Ctrl+W` |
 | مقاطعة الأمر الحالي | `Ctrl+C` عند عدم تحديد نص |
