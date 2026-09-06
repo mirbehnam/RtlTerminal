@@ -183,9 +183,23 @@ private const int PROC_THREAD_ATTRIBUTE_PSEUDOCONSOLE = 0x00020016;
             if (_inputWriter is null)
                 return;
 
-            _inputWriter.Write(bytes, 0, bytes.Length);
-
-            _inputWriter.Flush();
+            try
+            {
+                _inputWriter.Write(bytes, 0, bytes.Length);
+                _inputWriter.Flush();
+            }
+            catch (IOException)
+            {
+                // The child can exit between an input event and the write. A
+                // closed ConPTY pipe is a normal session condition, not an app
+                // fatal error (especially when Ctrl+C stops a TUI).
+                _inputWriter?.Dispose();
+                _inputWriter = null;
+            }
+            catch (ObjectDisposedException)
+            {
+                _inputWriter = null;
+            }
         }
 
     }

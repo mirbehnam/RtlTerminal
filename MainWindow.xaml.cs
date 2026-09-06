@@ -924,7 +924,7 @@ ApplySavedFontSettings();
         };
 
     private static string GetProfileCommand(TerminalProfile profile) =>
-        profile switch
+        (profile switch
         {
             TerminalProfile.PowerShell =>
                 """
@@ -938,7 +938,7 @@ ApplySavedFontSettings();
                 """
                 C:\Windows\System32\cmd.exe /D /Q /K "chcp 65001>nul & echo +--------------------------------------------------------+& echo ^| RtlTerminal v1.0.5                                     ^|& echo ^|                                                        ^|& echo ^| Author : Behnam Tajadini                               ^|& echo ^| Source : github.com/mirbehnam/RtlTerminal              ^|& echo ^| YouTube: @aka_techno                                   ^|& echo +--------------------------------------------------------+& echo.& echo   پشتیبانی کامل از زبان فارسی و راست‌به‌چپ& echo."
                 """
-        };
+        }).Replace("v1.0.5", "v1.0.6");
 
     private static bool IsWslAvailable()
     {
@@ -1001,7 +1001,7 @@ _activeTab.RenderedSmartRtlEnabled = _renderedSmartRtlEnabled;
         if (tab.LastRenderedSnapshot is { } snapshot)
         {
             TerminalTextBox.Present(snapshot, SmartRtlMenuItem.IsChecked,
-                _cellWidth, _lineHeight, false);
+                _cellWidth, _lineHeight, false, RowRtlMenuItem.IsChecked);
             TerminalTextBox.ScrollToVerticalOffset(tab.VerticalOffset);
             TerminalTextBox.SelectionState = tab.Selection;
         }
@@ -1667,7 +1667,7 @@ _activeTab.RenderedSmartRtlEnabled = _renderedSmartRtlEnabled;
         _renderedSmartRtlEnabled = SmartRtlMenuItem.IsChecked;
         _restoringScrollPosition = true;
         TerminalTextBox.Present(snapshot, SmartRtlMenuItem.IsChecked,
-            _cellWidth, _lineHeight, _followOutput);
+            _cellWidth, _lineHeight, _followOutput, RowRtlMenuItem.IsChecked);
         _restoringScrollPosition = false;
     }
 

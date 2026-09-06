@@ -14,7 +14,8 @@ var tests = new (string Name, Action Run)[]
     ("carriage return is immediate across reads", CarriageReturnIsImmediate),
     ("style changes preserve pending autowrap", StylePreservesWrap),
     ("status redraw clears old characters across reads", StatusRedraw),
-    ("wide characters can be erased and overwritten", WideErase)
+    ("wide characters can be erased and overwritten", WideErase),
+    ("snapshot rows are reused without hiding edits", SnapshotReuse)
 };
 
 var failures = new List<string>();
@@ -230,6 +231,24 @@ static void WideErase()
     buffer.Process("👨‍💻Working\r\x1b[2X");
     Assert(Text(buffer.CaptureSnapshot()).TrimEnd() == "  Working", "wide glyph was not erased");
     Assert(Text(buffer.Process("\rOK\x1b[K")).TrimEnd() == "OK", "wide redraw left stale text");
+}
+
+static void SnapshotReuse()
+{
+    var buffer = new TerminalBuffer(40, 8);
+    var first = buffer.Process("\x1b[?1049hسلام English\r\nunchanged\x1b[1;1H");
+    var second = buffer.Process("\x1b[0m");
+    Assert(first.Lines.Zip(second.Lines).All(pair => ReferenceEquals(pair.First, pair.Second)), "unchanged rows were allocated again");
+    var edited = buffer.Process("\x1b[1;1H\x1b[31mX");
+    Assert(!ReferenceEquals(second.Lines[0], edited.Lines[0]), "cell edit did not invalidate snapshot");
+    Assert(ReferenceEquals(second.Lines[1], edited.Lines[1]), "unrelated row was rebuilt");
+    var erased = buffer.Process("\x1b[1;1H\x1b[2K");
+    Assert(!Text(erased).Contains("سلام"), "erased text survived cache");
+    buffer.Resize(60, 10);
+    var resized = buffer.Process("\x1b[1;1Hnew");
+    Assert(Text(resized).StartsWith("new"), "resize reused stale cells");
+    var restored = buffer.Process("\x1b[?1049l");
+    Assert(!Text(restored).Contains("unchanged"), "alternate screen cache leaked into main screen");
 }
 
 static string Text(TerminalSnapshot snapshot) => string.Join(

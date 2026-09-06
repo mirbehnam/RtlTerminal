@@ -80,6 +80,8 @@ public sealed class TerminalBuffer
     private int _maximumScrollbackRows;
     private long _scrollbackStartIndex;
     private Cell[,] _cells;
+    private Cell[,]? _snapshotCells;
+    private TerminalLine?[] _snapshotLines = [];
     private bool[] _wrappedFromPrevious;
     private int _columns;
     private int _rows;
@@ -588,7 +590,7 @@ public sealed class TerminalBuffer
                 if (parameterText.StartsWith(">0", StringComparison.Ordinal))
                 {
                     QueueResponse(
-                        "\x1bP>|RtlTerminal(1.0.5)\x1b\\");
+                        "\x1bP>|RtlTerminal(1.0.6)\x1b\\");
                 }
                 break;
             case 'h':
@@ -1404,6 +1406,12 @@ public sealed class TerminalBuffer
 
     private TerminalSnapshot CreateSnapshot()
     {
+        if (_snapshotCells is null || _snapshotCells.GetLength(0) != _rows ||
+            _snapshotCells.GetLength(1) != _columns)
+        {
+            _snapshotCells = new Cell[_rows, _columns];
+            _snapshotLines = new TerminalLine?[_rows];
+        }
         var lastVisibleRow = _alternateScreenActive
             ? _rows - 1
             : _cursorRow;
@@ -1434,7 +1442,18 @@ public sealed class TerminalBuffer
             if (row == _cursorRow)
                 cellLength = Math.Max(cellLength, _cursorColumn + 1);
 
-            lines.Add(CreateLine(_cells, row, cellLength));
+            var cached = _snapshotLines[row];
+            var unchanged = cached is not null && cached.CellLength == cellLength;
+            for (var column = 0; unchanged && column < cellLength; column++)
+                unchanged = _snapshotCells[row, column] == _cells[row, column];
+            if (!unchanged)
+            {
+                cached = CreateLine(_cells, row, cellLength);
+                _snapshotLines[row] = cached;
+                for (var column = 0; column < cellLength; column++)
+                    _snapshotCells[row, column] = _cells[row, column];
+            }
+            lines.Add(cached!);
         }
 
         var scrollbackCount = _alternateScreenActive ? 0 : _scrollback.Count;

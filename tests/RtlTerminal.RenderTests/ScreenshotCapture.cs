@@ -36,7 +36,7 @@ internal static class ScreenshotCapture
             var rows = (int)(view.ViewportHeight / line);
             Capture("rtl-terminal-main-window.png",
                 "\x1b[?25l\r\n\x1b[38;2;114;214;197m" +
-                "  RTL TERMINAL  /  v1.0.5\x1b[0m\r\n" +
+                "  RTL TERMINAL  /  v1.0.6\x1b[0m\r\n" +
                 "  Windows terminal · ConPTY · Smart RTL\r\n\r\n" +
                 "به ترمینال فارسی خوش آمدید\r\n" +
                 "نمایش متن فارسی و English در کنار یکدیگر\r\n" +
@@ -53,7 +53,7 @@ internal static class ScreenshotCapture
                 "این یک نمونهٔ نمایشی از خروجی فارسی ترمینال است\r\n\r\n" +
                 "وضعیت پروژه: آماده برای اجرا\r\n" +
                 "فایل README.md با موفقیت ذخیره شد\r\n" +
-                "نتیجه build: موفق — نسخه 1.0.5\r\n\r\n" +
+                "نتیجه build: موفق — نسخه 1.0.6\r\n\r\n" +
                 "العربية والفارسية مع English والأرقام 123\r\n\r\n" +
                 "  \x1b[32mPASS\x1b[0m  Persian and Arabic text shaping\r\n" +
                 "  \x1b[32mPASS\x1b[0m  ANSI colors and mixed-direction text\r\n\r\n" +

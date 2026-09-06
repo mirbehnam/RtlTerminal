@@ -159,7 +159,7 @@ To publish the application and build the installer with Inno Setup:
 The installer is created in:
 
 ```text
-release\RtlTerminal-Setup-1.0.5-x64.exe
+release\RtlTerminal-Setup-1.0.6-x64.exe
 ```
 
 ### Automatic GitHub Releases
@@ -167,16 +167,16 @@ release\RtlTerminal-Setup-1.0.5-x64.exe
 The repository includes a GitHub Actions workflow that creates a self-contained, single-file Windows x64 build. Push a version tag to create a GitHub Release automatically:
 
 ```powershell
-git tag v1.0.5
-git push origin v1.0.5
+git tag v1.0.6
+git push origin v1.0.6
 ```
 
 The workflow publishes these downloadable release assets:
 
 ```text
-RtlTerminal-1.0.5-win-x64.exe
-RtlTerminal-1.0.5-win-x64.zip
-RtlTerminal-Setup-1.0.5-x64.exe
+RtlTerminal-1.0.6-win-x64.exe
+RtlTerminal-1.0.6-win-x64.zip
+RtlTerminal-Setup-1.0.6-x64.exe
 ```
 
 The portable executable and installer include the self-contained .NET runtime and do not require a separate .NET installation. The Setup file provides installation shortcuts and standard Windows uninstall support. The workflow can also be started manually from the GitHub **Actions** page; manual runs create downloadable workflow artifacts without creating a GitHub Release.
@@ -199,6 +199,7 @@ The portable executable and installer include the self-contained .NET runtime an
 | Interrupt the active command | `Ctrl+C` when no text is selected |
 | Open a detected link | Hold `Ctrl` and click the blue link |
 | Toggle automatic RTL detection | `View` → `Smart RTL` |
+| Force RTL paragraph direction and right alignment (off by default) | `View` → `Row RTL` |
 | Change terminal font or history size | `Edit` → `Font settings` |
 | Export the current session | `File` → `Export session` |
 | Check for updates | `Help` → `Check for updates` |
@@ -237,7 +238,7 @@ On Windows 11, the current registry integration may appear under **Show more opt
 - The Windows 11 modern context menu is not directly extended by the current registry integration.
 - The custom WPF renderer is not the Windows Terminal rendering engine; CLI/TUI compatibility still needs application-specific testing.
 - Color emoji, flags and font fallback depend on the Windows text renderer and installed fonts.
-- Smart RTL uses directional spans, not a complete new Unicode bidi implementation; full-screen layouts preserve the terminal grid.
+- Smart RTL uses directional spans, not a complete Unicode bidi implementation. Persian/Arabic shaping remains active when Smart RTL is off. Full-screen layouts retain their grid alignment unless **Row RTL** is enabled; this override can move application borders and does not change the application's own cursor/mouse coordinates.
 
 ### Validation and screenshot capture
 
@@ -368,8 +369,8 @@ dotnet publish RtlTerminal.csproj `
 این مخزن دارای GitHub Actions است که نسخه مستقل و تک‌فایلی ویندوز ۶۴ بیتی را می‌سازد. برای ایجاد Release خودکار، یک تگ نسخه ایجاد و Push کنید:
 
 ```powershell
-git tag v1.0.5
-git push origin v1.0.5
+git tag v1.0.6
+git push origin v1.0.6
 ```
 
 پس از پایان Workflow، فایل‌های Portable، فایل `ZIP` و فایل Setup دارای Uninstall در بخش Releases قرار می‌گیرند و برای اجرا به نصب جداگانه .NET نیاز ندارند. اجرای دستی Workflow از بخش Actions فقط Artifact قابل دانلود می‌سازد.
@@ -392,6 +393,7 @@ git push origin v1.0.5
 | متوقف‌کردن فرمان جاری | `Ctrl+C` در صورتی که متنی انتخاب نشده باشد |
 | بازکردن لینک | نگه‌داشتن `Ctrl` و کلیک روی لینک آبی |
 | فعال‌کردن تشخیص خودکار RTL | منوی `View` و گزینه `Smart RTL` |
+| راست‌به‌چپ‌کردن جهت و تراز کل سطر؛ پیش‌فرض خاموش | منوی `View` و گزینه `Row RTL` |
 | تغییر فونت یا ظرفیت History | منوی `Edit` و گزینه `Font settings` |
 | خروجی‌گرفتن از جلسه | منوی `File` و گزینه `Export session` |
 | بررسی آپدیت | منوی `Help` و گزینه `Check for updates` |
@@ -492,8 +494,8 @@ dotnet publish RtlTerminal.csproj `
 يتضمن المستودع GitHub Actions لبناء إصدار Windows x64 مستقل وذي ملف واحد. أنشئ وادفع وسم إصدار لإنشاء GitHub Release تلقائياً:
 
 ```powershell
-git tag v1.0.5
-git push origin v1.0.5
+git tag v1.0.6
+git push origin v1.0.6
 ```
 
 بعد اكتمال Workflow ستظهر ملفات `EXE` و`ZIP` المحمولة وملف Setup الذي يدعم إزالة التثبيت في صفحة Releases. لا تحتاج هذه الملفات إلى تثبيت .NET بشكل منفصل. التشغيل اليدوي من صفحة Actions ينشئ Artifact قابلاً للتنزيل فقط.
@@ -516,6 +518,7 @@ git push origin v1.0.5
 | مقاطعة الأمر الحالي | `Ctrl+C` عند عدم تحديد نص |
 | فتح رابط | اضغط باستمرار على `Ctrl` ثم انقر على الرابط الأزرق |
 | تفعيل اكتشاف RTL تلقائياً | قائمة `View` ثم `Smart RTL` |
+| فرض اتجاه ومحاذاة السطر إلى اليمين؛ معطّل افتراضياً | قائمة `View` ثم `Row RTL` |
 | تغيير الخط أو حجم السجل | قائمة `Edit` ثم `Font settings` |
 | تصدير الجلسة الحالية | قائمة `File` ثم `Export session` |
 | التحقق من التحديثات | قائمة `Help` ثم `Check for updates` |

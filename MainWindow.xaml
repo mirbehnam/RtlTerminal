@@ -505,6 +505,9 @@
                           ToolTip="Use right-to-left layout only for lines containing RTL letters"
                           Checked="SmartRtlMenuItem_Changed"
                           Unchecked="SmartRtlMenuItem_Changed" />
+                <MenuItem x:Name="RowRtlMenuItem" Header="Row RTL" IsCheckable="True" IsChecked="False"
+                          ToolTip="Force right-to-left direction and right alignment for every row, including full-screen applications. This may move application borders."
+                          Checked="SmartRtlMenuItem_Changed" Unchecked="SmartRtlMenuItem_Changed" />
             </MenuItem>
             <MenuItem Header="_Tools">
                 <MenuItem x:Name="ContextMenuIntegrationMenuItem"

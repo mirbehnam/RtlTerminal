@@ -10,6 +10,15 @@ internal static class Program
     [STAThread]
     private static void Main()
     {
+        try { Run(); }
+        catch (Exception exception)
+        {
+            Console.Error.WriteLine(exception);
+            Environment.ExitCode = 1;
+        }
+    }
+    private static void Run()
+    {
         if (Environment.GetCommandLineArgs().Contains("--screenshots"))
         {
             ScreenshotCapture.Run();
@@ -72,6 +81,86 @@ internal static class Program
         CheckGraphicsAndRedraw();
         CheckWindowHeader();
         CheckLinksAndMenu();
+        CheckRtlModes();
+        CheckGlyphReuse();
+        CheckDialogRedraw();
+    }
+    private static void CheckDialogRedraw()
+    {
+        var view = new TerminalView { Width = 800, Height = 420, FontFamily = new FontFamily("Consolas"), FontSize = 18, Background = Brushes.Black };
+        var buffer = new TerminalBuffer(70, 16);
+        Render(view, buffer.Process("\x1b[?1049h\x1b[?2026h\x1b[2J\x1b[HWorking\r\nold question\r\nold answer\x1b[?2026l"), "dialog-before.png");
+        var updated = buffer.Process("\x1b[?2026h\x1b[H\x1b[JChoose an option:\r\n> Yes\r\n  No\x1b[?2026l");
+        var incremental = Render(view, updated, "dialog-after.png");
+        view.Clear();
+        var fresh = Render(view, updated, "dialog-fresh.png");
+        var first = new byte[incremental.PixelWidth * incremental.PixelHeight * 4];
+        var second = new byte[first.Length];
+        incremental.CopyPixels(first, incremental.PixelWidth * 4, 0);
+        fresh.CopyPixels(second, fresh.PixelWidth * 4, 0);
+        if (!first.SequenceEqual(second)) throw new Exception("Question redraw retained previous frame pixels");
+        Console.WriteLine("PASS synchronized question redraw clears the previous Working frame");
+    }
+    private static void CheckGlyphReuse()
+    {
+        const System.Reflection.BindingFlags flags = System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance;
+        var view = new TerminalView { Width = 800, Height = 420, FontFamily = new FontFamily("Consolas"), FontSize = 18, Background = Brushes.Black };
+        var buffer = new TerminalBuffer(70, 16);
+        Render(view, buffer.Process("ABC      \x1b[4m   \x1b[0m\r\nABC"), "glyph-cache.png");
+        var cache = (System.Collections.IDictionary)typeof(TerminalView).GetField("_glyphCache", flags)!.GetValue(view)!;
+        var values = cache.Values.Cast<object>().ToArray();
+        Render(view, buffer.Process("\x1b[1;1HABC"), "glyph-cache-repeat.png");
+        if (values.Length == 0 || !values.All(value => cache.Values.Cast<object>().Any(current => ReferenceEquals(value, current))))
+            throw new Exception("Repeated glyph formatting was not retained");
+        var layouts = (System.Collections.IDictionary)typeof(TerminalView).GetField("_layouts", flags)!.GetValue(view)!;
+        var layout = layouts[0]!;
+        var glyphs = ((System.Collections.IEnumerable)layout.GetType().GetProperty("Glyphs")!.GetValue(layout)!).Cast<object>();
+        foreach (var glyph in glyphs)
+        {
+            if ((string)glyph.GetType().GetProperty("Text")!.GetValue(glyph)! != " ") continue;
+            var style = (TerminalStyle)glyph.GetType().GetProperty("Style")!.GetValue(glyph)!;
+            var formatted = glyph.GetType().GetProperty("Formatted")!.GetValue(glyph);
+            if (style.Underline ? formatted is null : formatted is not null)
+                throw new Exception("Blank optimization lost decorations or shaped plain spaces");
+        }
+        view.FontSize = 20;
+        Render(view, buffer.CaptureSnapshot(), "glyph-cache-font.png");
+        if (cache.Values.Cast<object>().Any(value => values.Any(old => ReferenceEquals(value, old))))
+            throw new Exception("Font change retained old glyph metrics");
+        Console.WriteLine("PASS shared glyph cache, unformatted plain spaces, decorated spaces and font invalidation");
+    }
+    private static void CheckRtlModes()
+    {
+        const System.Reflection.BindingFlags flags = System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance;
+        var view = new TerminalView { Width = 800, Height = 420, FontFamily = new FontFamily("Consolas"), FontSize = 18, Background = Brushes.Black };
+        var buffer = new TerminalBuffer(70, 16);
+        var snapshot = buffer.Process("سلام English دنیا");
+        object Layout() => ((System.Collections.IDictionary)typeof(TerminalView).GetField("_layouts", flags)!.GetValue(view)!)[0]!;
+        object[] Items(string name) => ((System.Collections.IEnumerable)Layout().GetType().GetProperty(name)!.GetValue(Layout())!).Cast<object>().ToArray();
+        double X(object cell) => (double)cell.GetType().GetProperty("X")!.GetValue(cell)!;
+        Render(view, snapshot, "rtl-off.png", smartRtl: false);
+        if (!Items("Glyphs").Any(g => (bool)g.GetType().GetProperty("Rtl")!.GetValue(g)! && ((string)g.GetType().GetProperty("Text")!.GetValue(g)!).Contains("سلام")))
+            throw new Exception("Smart RTL off must retain joined Persian glyph runs");
+        Render(view, snapshot, "rtl-smart.png");
+        var positions = Items("Cells").Select(X).ToArray();
+        var minimum = positions.Min();
+        var alternate = buffer.Process("\x1b[?1049hسلام English دنیا");
+        Render(view, alternate, "rtl-alternate.png");
+        var alternatePositions = Items("Cells").Select(X).ToArray();
+        if (!positions.Select(x => Math.Round(x - minimum, 3)).SequenceEqual(alternatePositions.Select(x => Math.Round(x - alternatePositions.Min(), 3))))
+            throw new Exception("Alternate screen changed mixed-text ordering");
+        Render(view, alternate, "rtl-row.png", smartRtl: false, rowRtl: true);
+        if (Items("Cells").Select(X).Min() < 100) throw new Exception("Row RTL did not right-align alternate screen text");
+        var surface = typeof(TerminalView).GetField("_surface", flags)!.GetValue(view)!;
+        int DrawCount() => (int)surface.GetType().GetProperty("RowDrawCount")!.GetValue(surface)!;
+        var before = DrawCount();
+        Render(view, alternate, "rtl-row-unchanged.png", smartRtl: false, rowRtl: true);
+        if (DrawCount() != before) throw new Exception("Unchanged rows were resubmitted to retained visuals");
+        var window = new MainWindow();
+        var menu = (System.Windows.Controls.MenuItem)window.FindName("RowRtlMenuItem");
+        if (menu.IsChecked || (string)menu.Header != "Row RTL") throw new Exception("Row RTL menu name/default incorrect");
+        window.Close();
+        Console.WriteLine("PASS Persian shaping with Smart RTL off, mixed alternate-screen ordering, opt-in Row RTL and retained visuals");
     }
     private static object RowDrawing(TerminalView view, int row)
     {
@@ -185,9 +274,9 @@ internal static class Program
         Console.WriteLine("PASS seamless blocks at 96/120/144 DPI, stale-pixel redraw and stable viewport width");
     }
 
-    private static RenderTargetBitmap Render(TerminalView view, TerminalSnapshot snapshot, string name, double dpi = 96)
+    private static RenderTargetBitmap Render(TerminalView view, TerminalSnapshot snapshot, string name, double dpi = 96, bool smartRtl = true, bool rowRtl = false)
     {
-        view.Present(snapshot, true, 10.8, 25, false);
+        view.Present(snapshot, smartRtl, 10.8, 25, false, rowRtl);
         view.Measure(new Size(800, 420)); view.Arrange(new Rect(0, 0, 800, 420));
         view.UpdateLayout();
         view.Dispatcher.Invoke(() => { }, DispatcherPriority.Render);
