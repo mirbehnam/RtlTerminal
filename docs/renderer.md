@@ -55,9 +55,3 @@ foreground/background mapping and a dark/light/dark round trip, and verify activ
 default-color replies to OSC 10/11/12. Palette indexes 16–255 and explicit RGB
 colors are preserved; applications that choose their own colors may need their
 own light theme.
-
-Language regressions switch existing and newly created CMD tabs in both
-directions, including accessibility labels. Delayed successful and failed update
-checks verify that changing the language preserves the pending state and never
-restores an old-language menu header. These checks do not contact GitHub or change
-registry preferences.

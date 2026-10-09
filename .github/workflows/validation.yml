@@ -28,5 +28,5 @@ jobs:
       - name: Verify terminal buffer
         run: dotnet run --project tests/RtlTerminal.BufferTests --configuration Release --no-build
 
-      - name: Verify rendering, themes and language changes
+      - name: Verify rendering and themes
         run: dotnet run --project tests/RtlTerminal.RenderTests --configuration Release --no-build

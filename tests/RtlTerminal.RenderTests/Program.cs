@@ -87,7 +87,6 @@ internal static partial class Program
         CheckCodexPersian();
         CheckItalic();
         CheckThemes();
-        CheckLanguageChanges();
     }
     private static void CheckItalic()
     {

@@ -54,10 +54,9 @@ public partial class MainWindow : Window
         {
             try { Process.Start(new ProcessStartInfo(uri.AbsoluteUri) { UseShellExecute = true }); }
             catch (Exception exception)
-            { MessageBox.Show(this, exception.Message, Ui.T("Open link"), MessageBoxButton.OK, MessageBoxImage.Error); }
+            { MessageBox.Show(this, exception.Message, "Open link", MessageBoxButton.OK, MessageBoxImage.Error); }
         };
         SmartRtlMenuItem.IsChecked = true;
-        ApplyLanguage();
         _renderTimer = new DispatcherTimer(DispatcherPriority.Background)
         {
             Interval = TimeSpan.FromMilliseconds(16)
@@ -210,11 +209,10 @@ ApplySavedFontSettings();
     {
         var menu = new ContextMenu
         {
-            Style = (Style)FindResource("DarkContextMenuStyle"),
-            FlowDirection = MainMenu.FlowDirection
+            Style = (Style)FindResource("DarkContextMenuStyle")
         };
 
-        AddProfileMenuItem(menu, Ui.T("Command Prompt"), TerminalProfile.CommandPrompt);
+        AddProfileMenuItem(menu, "Command Prompt", TerminalProfile.CommandPrompt);
         AddProfileMenuItem(menu, "PowerShell", TerminalProfile.PowerShell);
 
         if (IsWslAvailable())
@@ -271,8 +269,8 @@ ApplySavedFontSettings();
         {
             MessageBox.Show(
                 this,
-                Ui.T("There is no active terminal session to export."),
-                Ui.T("Export session"),
+                "There is no active terminal session to export.",
+                "Export session",
                 MessageBoxButton.OK,
                 MessageBoxImage.Information);
             return;
@@ -280,8 +278,8 @@ ApplySavedFontSettings();
 
         var dialog = new SaveFileDialog
         {
-            Title = Ui.T("Export terminal session"),
-            Filter = Ui.T("Text files (*.txt)|*.txt|All files (*.*)|*.*"),
+            Title = "Export terminal session",
+            Filter = "Text files (*.txt)|*.txt|All files (*.*)|*.*",
             DefaultExt = ".txt",
             AddExtension = true,
             FileName = $"RtlTerminal-{DateTime.Now:yyyyMMdd-HHmmss}.txt"
@@ -305,8 +303,8 @@ ApplySavedFontSettings();
         {
             MessageBox.Show(
                 this,
-                Ui.T("The session could not be exported.") + Environment.NewLine + exception.Message,
-                Ui.T("Export session"),
+                $"The session could not be exported.{Environment.NewLine}{exception.Message}",
+                "Export session",
                 MessageBoxButton.OK,
                 MessageBoxImage.Error);
         }
@@ -359,7 +357,7 @@ ApplySavedFontSettings();
         {
             LastDirectoriesMenuItem.Items.Add(new MenuItem
             {
-                Header = Ui.T("No recent directories"),
+                Header = "No recent directories",
                 IsEnabled = false
             });
         }
@@ -413,12 +411,12 @@ ApplySavedFontSettings();
 
     private ContextMenu CreateTerminalContextMenu()
     {
-        var menu = new ContextMenu { Style = (Style)FindResource("DarkContextMenuStyle"), PlacementTarget = TerminalTextBox, FlowDirection = MainMenu.FlowDirection };
-        var copy = new MenuItem { Header = Ui.T("_Copy"), IsEnabled = TerminalTextBox.HasSelection };
+        var menu = new ContextMenu { Style = (Style)FindResource("DarkContextMenuStyle"), PlacementTarget = TerminalTextBox };
+        var copy = new MenuItem { Header = "_Copy", IsEnabled = TerminalTextBox.HasSelection };
         copy.Click += (_, _) => CopySelection();
-        var paste = new MenuItem { Header = Ui.T("_Paste"), IsEnabled = _session is not null };
+        var paste = new MenuItem { Header = "_Paste", IsEnabled = _session is not null };
         paste.Click += (_, _) => PasteClipboard();
-        var select = new MenuItem { Header = Ui.T("Select _all") };
+        var select = new MenuItem { Header = "Select _all" };
         select.Click += (_, _) => TerminalTextBox.SelectAll();
         menu.Items.Add(copy); menu.Items.Add(paste); menu.Items.Add(new Separator()); menu.Items.Add(select);
         return menu;
@@ -671,7 +669,7 @@ ApplySavedFontSettings();
         await CheckForUpdatesAsync(manual: false);
     }
 
-    private async Task CheckForUpdatesAsync(bool manual, Func<Task<UpdateCheckResult>>? checkForUpdates = null)
+    private async Task CheckForUpdatesAsync(bool manual)
     {
         if (_updateCheckInProgress)
         {
@@ -679,8 +677,8 @@ ApplySavedFontSettings();
             {
                 MessageBox.Show(
                     this,
-                    Ui.T("An update check is already in progress."),
-                    Ui.T("Check for updates"),
+                    "An update check is already in progress.",
+                    "Check for updates",
                     MessageBoxButton.OK,
                     MessageBoxImage.Information);
             }
@@ -690,11 +688,14 @@ ApplySavedFontSettings();
 
         _updateCheckInProgress = true;
         CheckForUpdatesMenuItem.IsEnabled = false;
-        RefreshUpdateMenuHeader();
+        var originalHeader = CheckForUpdatesMenuItem.Header;
+
+        if (manual)
+            CheckForUpdatesMenuItem.Header = "Checking for updates...";
 
         try
         {
-            var result = await (checkForUpdates?.Invoke() ?? UpdateService.CheckAsync());
+            var result = await UpdateService.CheckAsync();
 
             if (!result.IsUpdateAvailable)
             {
@@ -702,8 +703,8 @@ ApplySavedFontSettings();
                 {
                     MessageBox.Show(
                         this,
-                        Ui.T("Rtl Terminal {0} is up to date.", result.CurrentVersion.ToString(3)),
-                        Ui.T("Check for updates"),
+                        $"Rtl Terminal {result.CurrentVersion.ToString(3)} is up to date.",
+                        "Check for updates",
                         MessageBoxButton.OK,
                         MessageBoxImage.Information);
                 }
@@ -731,25 +732,20 @@ ApplySavedFontSettings();
             {
                 MessageBox.Show(
                     this,
-                    Ui.T("Rtl Terminal could not check GitHub for updates.") + "\n\n" +
+                    "Rtl Terminal could not check GitHub for updates.\n\n" +
                     exception.Message,
-                    Ui.T("Check for updates"),
+                    "Check for updates",
                     MessageBoxButton.OK,
                     MessageBoxImage.Warning);
             }
         }
         finally
         {
-            _updateCheckInProgress = false;
+            CheckForUpdatesMenuItem.Header = originalHeader;
             CheckForUpdatesMenuItem.IsEnabled = true;
-            RefreshUpdateMenuHeader();
+            _updateCheckInProgress = false;
         }
     }
-
-    private void RefreshUpdateMenuHeader() =>
-        CheckForUpdatesMenuItem.Header = Ui.T(_updateCheckInProgress
-            ? "Checking for updates..."
-            : "Check for _updates...");
 
     private void ShowUpdateAvailable(UpdateCheckResult result)
     {
@@ -791,8 +787,8 @@ ApplySavedFontSettings();
         {
             MessageBox.Show(
                 this,
-                Ui.T("The update page could not be opened.") + "\n\n" + exception.Message,
-                Ui.T("Rtl Terminal update"),
+                "The update page could not be opened.\n\n" + exception.Message,
+                "Rtl Terminal update",
                 MessageBoxButton.OK,
                 MessageBoxImage.Warning);
         }
@@ -811,66 +807,10 @@ ApplySavedFontSettings();
 
             تقدیم به همه فارسی زبانان
             """,
-            Ui.T("About Rtl Terminal"),
+            "About Rtl Terminal",
             MessageBoxButton.OK,
             MessageBoxImage.Information);
     }
-
-    private void LanguageMenuItem_Click(object sender, RoutedEventArgs e)
-    {
-        Ui.Language = ReferenceEquals(sender, HebrewMenuItem)
-            ? UiLanguage.Hebrew
-            : UiLanguage.English;
-        AppSettings.SaveUiLanguage(Ui.Language);
-        ApplyLanguage();
-        RebuildTabStrip();
-        TerminalTextBox.Focus();
-    }
-
-    private void ApplyLanguage()
-    {
-        EnglishMenuItem.IsChecked = !Ui.IsRightToLeft;
-        HebrewMenuItem.IsChecked = Ui.IsRightToLeft;
-        var direction = Ui.IsRightToLeft
-            ? FlowDirection.RightToLeft
-            : FlowDirection.LeftToRight;
-        MainMenu.FlowDirection = direction;
-        if (MainMenu.Parent is FrameworkElement toolbar)
-            toolbar.FlowDirection = direction;
-
-        // The English header from XAML is kept in Tag and used as the lookup key.
-        foreach (var item in MenuItems(MainMenu.Items))
-        {
-            if (item.Tag is null && item.Header is string header)
-                item.Tag = header;
-            if (item.Tag is string text)
-                item.Header = Ui.T(text);
-        }
-        RefreshUpdateMenuHeader();
-
-        SmartRtlMenuItem.ToolTip = Ui.T("Use right-to-left layout only for lines containing RTL letters");
-        RowRtlMenuItem.ToolTip = Ui.T("Force right-to-left direction and right alignment for every row, including full-screen applications. This may move application borders.");
-        SmartRtlIndicator.ToolTip = Ui.T("Smart RTL automatically handles Persian and mixed-direction text");
-
-        foreach (var (button, toolTip, name) in new (Button, string, string)[]
-        {
-            (NewTabButton, "New terminal (Ctrl+Shift+T)", "New terminal"),
-            (ProfileMenuButton, "Terminal profiles", "Terminal profiles"),
-            (MinimizeButton, "Minimize", "Minimize"),
-            (MaximizeButton, "Maximize / Restore", "Maximize or restore"),
-            (CloseWindowButton, "Close window", "Close window")
-        })
-        {
-            button.ToolTip = Ui.T(toolTip);
-            System.Windows.Automation.AutomationProperties.SetName(button, Ui.T(name));
-        }
-
-        if (!_updatingContextMenuItem)
-            RefreshContextMenuIntegrationState();
-    }
-
-    private static IEnumerable<MenuItem> MenuItems(ItemCollection items) =>
-        items.OfType<MenuItem>().SelectMany(item => MenuItems(item.Items).Prepend(item));
 
     private void ContextMenuIntegrationMenuItem_Click(
         object sender,
@@ -890,7 +830,7 @@ ApplySavedFontSettings();
         {
             MessageBox.Show(
                 this,
-                Ui.T("تغییر منوی راست‌کلیک انجام نشد.") +
+                "تغییر منوی راست‌کلیک انجام نشد." +
                 Environment.NewLine +
                 exception.Message,
                 "RtlTerminal",
@@ -911,7 +851,7 @@ ApplySavedFontSettings();
 
         var result = MessageBox.Show(
             this,
-            Ui.T("آیا گزینه «Open in RtlTerminal» به منوی راست‌کلیک پوشه‌ها اضافه شود؟"),
+            "آیا گزینه «Open in RtlTerminal» به منوی راست‌کلیک پوشه‌ها اضافه شود؟",
             "RtlTerminal",
             MessageBoxButton.YesNo,
             MessageBoxImage.Question);
@@ -925,7 +865,7 @@ ApplySavedFontSettings();
         {
             MessageBox.Show(
                 this,
-                Ui.T("افزودن منوی راست‌کلیک انجام نشد.") +
+                "افزودن منوی راست‌کلیک انجام نشد." +
                 Environment.NewLine +
                 exception.Message,
                 "RtlTerminal",
@@ -946,8 +886,8 @@ ApplySavedFontSettings();
             ContextMenuIntegration.IsInstalled();
         ContextMenuIntegrationMenuItem.Header =
             ContextMenuIntegrationMenuItem.IsChecked
-                ? Ui.T("Remove _Open in RtlTerminal")
-                : Ui.T("Add _Open in RtlTerminal");
+                ? "Remove _Open in RtlTerminal"
+                : "Add _Open in RtlTerminal";
         _updatingContextMenuItem = false;
     }
 
@@ -1170,10 +1110,10 @@ _activeTab.RenderedSmartRtlEnabled = _renderedSmartRtlEnabled;
                 Width = 26, Height = 24, Margin = new Thickness(0, 0, 5, 0),
                 Content = "×", FontSize = 15,
                 HorizontalContentAlignment = HorizontalAlignment.Center,
-                ToolTip = Ui.T("Close {0}", tab.Title), Tag = tab,
+                ToolTip = $"Close {tab.Title}", Tag = tab,
                 Style = (Style)FindResource("ChromeRoundButtonStyle")
             };
-            System.Windows.Automation.AutomationProperties.SetName(closeButton, Ui.T("Close {0}", tab.Title));
+            System.Windows.Automation.AutomationProperties.SetName(closeButton, $"Close {tab.Title}");
             closeButton.Click += TabCloseButton_Click;
             DockPanel.SetDock(closeButton, Dock.Right);
             panel.Children.Add(closeButton);
@@ -1463,7 +1403,7 @@ _activeTab.RenderedSmartRtlEnabled = _renderedSmartRtlEnabled;
         try { TerminalTextBox.CopySelection(); }
         catch (System.Runtime.InteropServices.ExternalException)
         {
-            MessageBox.Show(this, Ui.T("The clipboard is busy. Please try copying again."), Ui.T("Clipboard"), MessageBoxButton.OK, MessageBoxImage.Information);
+            MessageBox.Show(this, "The clipboard is busy. Please try copying again.", "Clipboard", MessageBoxButton.OK, MessageBoxImage.Information);
         }
     }
 
@@ -1472,7 +1412,7 @@ _activeTab.RenderedSmartRtlEnabled = _renderedSmartRtlEnabled;
         try { PasteClipboardCore(); }
         catch (System.Runtime.InteropServices.ExternalException)
         {
-            MessageBox.Show(this, Ui.T("The clipboard is busy. Please try pasting again."), Ui.T("Clipboard"), MessageBoxButton.OK, MessageBoxImage.Information);
+            MessageBox.Show(this, "The clipboard is busy. Please try pasting again.", "Clipboard", MessageBoxButton.OK, MessageBoxImage.Information);
         }
     }
 
@@ -1860,7 +1800,7 @@ _activeTab.RenderedSmartRtlEnabled = _renderedSmartRtlEnabled;
 
         public int Number { get; } = number;
         public TerminalProfile Profile { get; } = profile;
-        public string Title => $"{Ui.T(profileTitle)} {Number}";
+        public string Title { get; } = $"{profileTitle} {number}";
         public ConPtySession? Session { get; set; }
         public TerminalBuffer? Buffer { get; set; }
         public CancellationTokenSource? CancellationTokenSource { get; set; }
