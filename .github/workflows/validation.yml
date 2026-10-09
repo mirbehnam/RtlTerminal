@@ -1,0 +1,32 @@
+name: Validate Windows build and regressions
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Build solution
+        run: dotnet build RtlTerminal.sln --configuration Release
+
+      - name: Verify terminal buffer
+        run: dotnet run --project tests/RtlTerminal.BufferTests --configuration Release --no-build
+
+      - name: Verify rendering, themes and language changes
+        run: dotnet run --project tests/RtlTerminal.RenderTests --configuration Release --no-build
