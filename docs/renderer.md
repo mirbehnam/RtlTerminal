@@ -9,7 +9,7 @@ scrollback does not create a document tree or a WPF element for every cell.
 Common box-drawing characters are drawn geometrically to join across cells.
 Block elements U+2580–U+259F use cell-relative rectangles (shades use blended
 foreground/background colors). Graphics have hard edges and font metrics are
-rounded to physical pixels. The dark scroll gutter remains allocated when empty,
+rounded to physical pixels. The themed scroll gutter remains allocated when empty,
 so history growth does not change the PTY's column count.
 Other characters use WPF text shaping and font fallback. Emoji use Segoe UI Emoji;
 color emoji and flag appearance depend on the platform's text renderer.
@@ -48,3 +48,16 @@ Buffer regressions cover immediate CR, pending autowrap across SGR, status
 redraw split at every input boundary, and wide-character erasure. These catch
 specific cursor/redraw defects but do not prove that every observed live duplicate
 line has the same cause; that requires reproducing the original output stream.
+
+Theme regressions distinguish indexed ANSI colors from identical explicit RGB
+values, including independent SGR resets. Pixel checks exercise light-mode
+foreground/background mapping and a dark/light/dark round trip, and verify active
+default-color replies to OSC 10/11/12. Palette indexes 16–255 and explicit RGB
+colors are preserved; applications that choose their own colors may need their
+own light theme.
+
+Language regressions switch existing and newly created CMD tabs in both
+directions, including accessibility labels. Delayed successful and failed update
+checks verify that changing the language preserves the pending state and never
+restores an old-language menu header. These checks do not contact GitHub or change
+registry preferences.

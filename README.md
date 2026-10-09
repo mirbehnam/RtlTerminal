@@ -46,6 +46,8 @@ Rtl Terminal uses the Windows ConPTY API and works with command-line environment
 
 ### Features
 
+- Choose a saved dark or light theme from `View` → `Theme`. Light mode adapts the 16 ANSI colors while preserving explicit RGB and extended palette colors.
+- Switch the main interface between English and Hebrew from `View` → `Language`, including existing tab labels and right-to-left Hebrew menus.
 - Custom WPF cell renderer with cached visible rows and seamless block/box graphics.
 - Chrome-style tabs, adjacent new-tab button, dark menus and vector window controls.
 - Default terminal font size of 14; existing saved font preferences are retained.
@@ -231,6 +233,7 @@ On Windows 11, the current registry integration may appear under **Show more opt
 
 ### Known Limitations
 
+- Theme and interface-language switching currently cover the main window; font, guide and update dialogs retain their existing styling and languages. Light mode preserves explicit RGB and extended palette colors, so applications may need their own light theme for readable output.
 - The current terminal backend requires Windows ConPTY.
 - Windows 7 is not supported.
 - The Windows 11 modern context menu is not directly extended by the current registry integration.
@@ -292,6 +295,8 @@ No license file is currently included. Add a `LICENSE` file before accepting ext
 
 ### امکانات
 
+- انتخاب تم روشن یا تیره از `View` → `Theme` با ذخیرهٔ انتخاب؛ حفظ رنگ‌های RGB صریح برنامه‌ها
+- انتخاب رابط انگلیسی یا عبری از `View` → `Language` با تغییر عنوان تب‌های موجود؛ پنجره‌های فونت، راهنما و آپدیت فعلاً تم و زبان قبلی خود را دارند
 - اعمال Smart RTL برای هر خط با حفظ جهت درست بخش‌های انگلیسی، اعداد و علائم
 - نمایش متن فارسی، عربی، انگلیسی و متن‌های ترکیبی
 - پشتیبانی از رنگ‌های ANSI، رنگ‌های روشن، متن کم‌رنگ، ۲۵۶ رنگ و RGB
@@ -417,6 +422,8 @@ git push origin main
 
 ### المميزات
 
+- اختيار مظهر فاتح أو داكن من `View` → `Theme` مع حفظ الاختيار والحفاظ على ألوان RGB الصريحة
+- تبديل الواجهة الرئيسية بين الإنجليزية والعبرية من `View` → `Language`؛ تبقى نوافذ الخط والدليل والتحديث بمظهرها ولغاتها الحالية
 - تطبيق Smart RTL لكل سطر مع الحفاظ على اتجاه المقاطع الإنجليزية والأرقام وعلامات الترقيم
 - عرض النصوص العربية والفارسية والإنجليزية والنصوص المختلطة
 - دعم ألوان ANSI والألوان الساطعة والنص الخافت و256 لوناً وألوان RGB

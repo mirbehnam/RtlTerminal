@@ -1,7 +1,6 @@
 using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
-using System.Windows.Threading;
 using RtlTerminal;
 
 internal static partial class Program
@@ -19,7 +18,7 @@ internal static partial class Program
         var buffer = new TerminalBuffer(70, 16);
         var snapshot = buffer.Process("\x1b[?25l\x1b[31m█\x1b[38;2;197;15;31m█" +
             "\x1b[38;5;1m█\x1b[0m\r\n\x1b[41m \x1b[48;2;197;15;31m " +
-            "\x1b[48;5;1m \x1b[0m\r\nسلام English");
+            "\x1b[48;5;1m \x1b[0m\r\n\x1b[38;5;243m█\x1b[48;5;243m \x1b[0m\r\nسلام English");
         byte[] Pixels(RenderTargetBitmap bitmap)
         {
             var pixels = new byte[bitmap.PixelWidth * bitmap.PixelHeight * 4];
@@ -45,6 +44,8 @@ internal static partial class Program
             AssertPixel(light, 5, 37, new(255, 235, 233));
             AssertPixel(light, 16, 37, new(197, 15, 31));
             AssertPixel(light, 27, 37, new(255, 235, 233));
+            AssertPixel(light, 5, 62, new(118, 118, 118));
+            AssertPixel(light, 16, 62, new(118, 118, 118));
             var replies = buffer.Process("\x1b]10;?\a\x1b]11;?\a\x1b]12;?\a").Responses;
             if (!replies.Contains("\x1b]10;rgb:2424/2929/2f2f\x1b\\") ||
                 !replies.Contains("\x1b]11;rgb:ffff/ffff/ffff\x1b\\") ||

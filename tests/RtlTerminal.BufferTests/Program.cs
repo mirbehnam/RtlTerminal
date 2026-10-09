@@ -99,7 +99,7 @@ static void ColorOriginsArePreserved()
         "\x1b[38;5;1;48;5;1mC" +
         "\x1b[90;100mD" +
         "\x1b[38;5;231;48;5;231mE" +
-        "\x1b[39mF\x1b[49mG\x1b[31;41mH\x1b[0mI");
+        "\x1b[39mF\x1b[49mG\x1b[31;41mH\x1b[0mI\x1b[38;5;243;48;5;243mJ");
     TerminalStyle Style(char letter) => snapshot.Lines[0].Runs.Single(run => run.Text.Contains(letter)).Style;
     var ansi = Style('A');
     var rgb = Style('B');
@@ -119,6 +119,9 @@ static void ColorOriginsArePreserved()
     Assert(Style('G').Background is null && Style('G').BackgroundPaletteIndex is null,
         "SGR 49 retained its background palette index");
     Assert(Style('I') == default, "SGR 0 did not clear palette metadata");
+    Assert(Style('J').ForegroundPaletteIndex == 243 && Style('J').BackgroundPaletteIndex == 243 &&
+        Style('J').Foreground == Style('D').Foreground && Style('J').Background == Style('D').Background,
+        "an extended palette color was confused with an identical standard ANSI color");
 }
 
 static void CapabilityQueriesReceiveReplies()
