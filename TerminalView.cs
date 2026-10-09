@@ -385,8 +385,8 @@ public sealed class TerminalView : ContentControl
     }
     private static (TerminalColor Foreground, TerminalColor Background) Colors(TerminalStyle style)
     {
-        var fg = style.Foreground is { } foreground ? AppTheme.MapForeground(foreground) : AppTheme.DefaultForeground;
-        var bg = style.Background is { } background ? AppTheme.MapBackground(background) : AppTheme.DefaultBackground;
+        var fg = style.Foreground is { } foreground ? AppTheme.MapForeground(foreground, style.ForegroundPaletteIndex) : AppTheme.DefaultForeground;
+        var bg = style.Background is { } background ? AppTheme.MapBackground(background, style.BackgroundPaletteIndex) : AppTheme.DefaultBackground;
         if (style.Inverse) (fg, bg) = (bg, fg);
         if (style.Dim) fg = new((byte)(fg.Red * .55 + bg.Red * .45), (byte)(fg.Green * .55 + bg.Green * .45), (byte)(fg.Blue * .55 + bg.Blue * .45));
         if (style.Hidden) fg = bg;

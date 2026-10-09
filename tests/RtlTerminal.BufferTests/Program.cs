@@ -6,6 +6,7 @@ var tests = new (string Name, Action Run)[]
     ("styled trailing spaces remain visible", StyledTrailingSpacesRemainVisible),
     ("modern SGR attributes reset independently", SgrAttributesResetIndependently),
     ("colon truecolor is parsed", ColonTrueColorIsParsed),
+    ("indexed and explicit RGB colors stay distinct across resets", ColorOriginsArePreserved),
     ("terminal capability queries receive replies", CapabilityQueriesReceiveReplies),
     ("OpenTUI capability handshake does not leak", OpenTuiHandshakeDoesNotLeak),
     ("modern TUI modes are tracked", ModernTuiModesAreTracked),
@@ -88,6 +89,36 @@ static void ColonTrueColorIsParsed()
     var style = snapshot.Lines[0].Runs[0].Style;
     Assert(style.Foreground == new TerminalColor(91, 145, 255),
         "colon-form RGB foreground was parsed incorrectly");
+}
+
+static void ColorOriginsArePreserved()
+{
+    var snapshot = new TerminalBuffer(30, 5).Process(
+        "\x1b[31;41mA" +
+        "\x1b[38;2;197;15;31;48:2::197:15:31mB" +
+        "\x1b[38;5;1;48;5;1mC" +
+        "\x1b[90;100mD" +
+        "\x1b[38;5;231;48;5;231mE" +
+        "\x1b[39mF\x1b[49mG\x1b[31;41mH\x1b[0mI");
+    TerminalStyle Style(char letter) => snapshot.Lines[0].Runs.Single(run => run.Text.Contains(letter)).Style;
+    var ansi = Style('A');
+    var rgb = Style('B');
+    Assert(ansi.Foreground == rgb.Foreground && ansi.Background == rgb.Background,
+        "matching ANSI and truecolor RGB values differ");
+    Assert(ansi.ForegroundPaletteIndex == 1 && ansi.BackgroundPaletteIndex == 1 &&
+        rgb.ForegroundPaletteIndex is null && rgb.BackgroundPaletteIndex is null,
+        "truecolor inherited ANSI palette metadata or adjacent runs lost their origin");
+    Assert(Style('C').ForegroundPaletteIndex == 1 && Style('C').BackgroundPaletteIndex == 1,
+        "indexed SGR lost its palette index");
+    Assert(Style('D').ForegroundPaletteIndex == 8 && Style('D').BackgroundPaletteIndex == 8,
+        "bright ANSI colors lost their palette indexes");
+    Assert(Style('E').ForegroundPaletteIndex == 231 && Style('E').BackgroundPaletteIndex == 231,
+        "extended palette indexes were truncated");
+    Assert(Style('F').Foreground is null && Style('F').ForegroundPaletteIndex is null &&
+        Style('F').BackgroundPaletteIndex == 231, "SGR 39 did not reset only the foreground");
+    Assert(Style('G').Background is null && Style('G').BackgroundPaletteIndex is null,
+        "SGR 49 retained its background palette index");
+    Assert(Style('I') == default, "SGR 0 did not clear palette metadata");
 }
 
 static void CapabilityQueriesReceiveReplies()

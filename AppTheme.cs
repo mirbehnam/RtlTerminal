@@ -53,12 +53,6 @@ public static class AppTheme
         new(234, 238, 242)
     ];
 
-    private static readonly Dictionary<TerminalColor, int> PaletteIndexes =
-        TerminalBuffer.AnsiColors
-            .Select((color, index) => (color, index))
-            .GroupBy(entry => entry.color)
-            .ToDictionary(group => group.Key, group => group.First().index);
-
     public static AppThemeKind Current { get; private set; } = AppThemeKind.Dark;
 
     public static bool IsLight => Current == AppThemeKind.Light;
@@ -69,14 +63,14 @@ public static class AppTheme
     public static TerminalColor DefaultBackground =>
         IsLight ? new(255, 255, 255) : new(12, 12, 12);
 
-    public static TerminalColor MapForeground(TerminalColor color) =>
-        IsLight && PaletteIndexes.TryGetValue(color, out var index)
-            ? LightForegrounds[index]
+    public static TerminalColor MapForeground(TerminalColor color, int? paletteIndex = null) =>
+        IsLight && paletteIndex is >= 0 and < 16
+            ? LightForegrounds[paletteIndex.Value]
             : color;
 
-    public static TerminalColor MapBackground(TerminalColor color) =>
-        IsLight && PaletteIndexes.TryGetValue(color, out var index)
-            ? LightBackgrounds[index]
+    public static TerminalColor MapBackground(TerminalColor color, int? paletteIndex = null) =>
+        IsLight && paletteIndex is >= 0 and < 16
+            ? LightBackgrounds[paletteIndex.Value]
             : color;
 
     public static Color TabAccent => IsLight ? Rgb(15, 118, 110) : Rgb(114, 214, 197);

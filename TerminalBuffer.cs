@@ -16,7 +16,12 @@ public readonly record struct TerminalStyle(
     bool Underline,
     bool Strikethrough,
     bool Inverse,
-    bool Hidden);
+    bool Hidden)
+{
+    // Keep indexed colors distinct from an identical explicit RGB value.
+    public int? ForegroundPaletteIndex { get; init; }
+    public int? BackgroundPaletteIndex { get; init; }
+}
 
 public readonly record struct TerminalModes(
     bool AlternateScreen,
@@ -896,30 +901,30 @@ public sealed class TerminalBuffer
                     _currentStyle = _currentStyle with { Strikethrough = false };
                     break;
                 case 39:
-                    _currentStyle = _currentStyle with { Foreground = null };
+                    _currentStyle = _currentStyle with { Foreground = null, ForegroundPaletteIndex = null };
                     break;
                 case 49:
-                    _currentStyle = _currentStyle with { Background = null };
+                    _currentStyle = _currentStyle with { Background = null, BackgroundPaletteIndex = null };
                     break;
                 case >= 30 and <= 37:
-                    _currentStyle = _currentStyle with { Foreground = AnsiColors[code - 30] };
+                    _currentStyle = _currentStyle with { Foreground = AnsiColors[code - 30], ForegroundPaletteIndex = code - 30 };
                     break;
                 case >= 40 and <= 47:
-                    _currentStyle = _currentStyle with { Background = AnsiColors[code - 40] };
+                    _currentStyle = _currentStyle with { Background = AnsiColors[code - 40], BackgroundPaletteIndex = code - 40 };
                     break;
                 case >= 90 and <= 97:
-                    _currentStyle = _currentStyle with { Foreground = AnsiColors[code - 90 + 8] };
+                    _currentStyle = _currentStyle with { Foreground = AnsiColors[code - 90 + 8], ForegroundPaletteIndex = code - 90 + 8 };
                     break;
                 case >= 100 and <= 107:
-                    _currentStyle = _currentStyle with { Background = AnsiColors[code - 100 + 8] };
+                    _currentStyle = _currentStyle with { Background = AnsiColors[code - 100 + 8], BackgroundPaletteIndex = code - 100 + 8 };
                     break;
                 case 38:
-                    if (TryReadExtendedColor(parameters, ref index, out var foreground))
-                        _currentStyle = _currentStyle with { Foreground = foreground };
+                    if (TryReadExtendedColor(parameters, ref index, out var foreground, out var foregroundIndex))
+                        _currentStyle = _currentStyle with { Foreground = foreground, ForegroundPaletteIndex = foregroundIndex };
                     break;
                 case 48:
-                    if (TryReadExtendedColor(parameters, ref index, out var background))
-                        _currentStyle = _currentStyle with { Background = background };
+                    if (TryReadExtendedColor(parameters, ref index, out var background, out var backgroundIndex))
+                        _currentStyle = _currentStyle with { Background = background, BackgroundPaletteIndex = backgroundIndex };
                     break;
             }
         }
@@ -948,13 +953,16 @@ public sealed class TerminalBuffer
     private static bool TryReadExtendedColor(
         IReadOnlyList<int?> parameters,
         ref int index,
-        out TerminalColor color)
+        out TerminalColor color,
+        out int? paletteIndex)
     {
         color = default;
+        paletteIndex = null;
 
         if (index + 2 < parameters.Count && parameters[index + 1] == 5)
         {
-            color = Get256Color(parameters[index + 2] ?? 0);
+            paletteIndex = Math.Clamp(parameters[index + 2] ?? 0, 0, 255);
+            color = Get256Color(paletteIndex.Value);
             index += 2;
             return true;
         }

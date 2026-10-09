@@ -5,7 +5,7 @@ using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using RtlTerminal;
 
-internal static class Program
+internal static partial class Program
 {
     [STAThread]
     private static void Main()
@@ -86,6 +86,7 @@ internal static class Program
         CheckDialogRedraw();
         CheckCodexPersian();
         CheckItalic();
+        CheckThemes();
     }
     private static void CheckItalic()
     {
