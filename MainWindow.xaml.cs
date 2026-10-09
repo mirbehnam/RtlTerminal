@@ -671,7 +671,7 @@ ApplySavedFontSettings();
         await CheckForUpdatesAsync(manual: false);
     }
 
-    private async Task CheckForUpdatesAsync(bool manual)
+    private async Task CheckForUpdatesAsync(bool manual, Func<Task<UpdateCheckResult>>? checkForUpdates = null)
     {
         if (_updateCheckInProgress)
         {
@@ -690,14 +690,11 @@ ApplySavedFontSettings();
 
         _updateCheckInProgress = true;
         CheckForUpdatesMenuItem.IsEnabled = false;
-        var originalHeader = CheckForUpdatesMenuItem.Header;
-
-        if (manual)
-            CheckForUpdatesMenuItem.Header = Ui.T("Checking for updates...");
+        RefreshUpdateMenuHeader();
 
         try
         {
-            var result = await UpdateService.CheckAsync();
+            var result = await (checkForUpdates?.Invoke() ?? UpdateService.CheckAsync());
 
             if (!result.IsUpdateAvailable)
             {
@@ -743,11 +740,16 @@ ApplySavedFontSettings();
         }
         finally
         {
-            CheckForUpdatesMenuItem.Header = originalHeader;
-            CheckForUpdatesMenuItem.IsEnabled = true;
             _updateCheckInProgress = false;
+            CheckForUpdatesMenuItem.IsEnabled = true;
+            RefreshUpdateMenuHeader();
         }
     }
+
+    private void RefreshUpdateMenuHeader() =>
+        CheckForUpdatesMenuItem.Header = Ui.T(_updateCheckInProgress
+            ? "Checking for updates..."
+            : "Check for _updates...");
 
     private void ShowUpdateAvailable(UpdateCheckResult result)
     {
@@ -844,6 +846,7 @@ ApplySavedFontSettings();
             if (item.Tag is string text)
                 item.Header = Ui.T(text);
         }
+        RefreshUpdateMenuHeader();
 
         SmartRtlMenuItem.ToolTip = Ui.T("Use right-to-left layout only for lines containing RTL letters");
         RowRtlMenuItem.ToolTip = Ui.T("Force right-to-left direction and right alignment for every row, including full-screen applications. This may move application borders.");
@@ -998,7 +1001,7 @@ ApplySavedFontSettings();
         {
             TerminalProfile.PowerShell => "PowerShell",
             TerminalProfile.Wsl => "WSL",
-            _ => Ui.T("Command Prompt")
+            _ => "Command Prompt"
         };
 
     private static string GetProfileCommand(TerminalProfile profile) =>
@@ -1857,7 +1860,7 @@ _activeTab.RenderedSmartRtlEnabled = _renderedSmartRtlEnabled;
 
         public int Number { get; } = number;
         public TerminalProfile Profile { get; } = profile;
-        public string Title { get; } = $"{profileTitle} {number}";
+        public string Title => $"{Ui.T(profileTitle)} {Number}";
         public ConPtySession? Session { get; set; }
         public TerminalBuffer? Buffer { get; set; }
         public CancellationTokenSource? CancellationTokenSource { get; set; }
