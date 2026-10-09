@@ -3,7 +3,7 @@
     <!-- Scoped to TerminalView; no changes to menus or dialog scrollbars. -->
     <Style TargetType="ScrollBar">
         <Setter Property="Width" Value="12" />
-        <Setter Property="Background" Value="#111111" />
+        <Setter Property="Background" Value="{DynamicResource ScrollTrackBrush}" />
         <Setter Property="Focusable" Value="False" />
         <Setter Property="Template">
             <Setter.Value>
@@ -23,13 +23,13 @@
                                 <Thumb MinHeight="24">
                                     <Thumb.Template>
                                         <ControlTemplate TargetType="Thumb">
-                                            <Border x:Name="Grip" Margin="3,1" CornerRadius="3" Background="#555555" />
+                                            <Border x:Name="Grip" Margin="3,1" CornerRadius="3" Background="{DynamicResource ScrollThumbBrush}" />
                                             <ControlTemplate.Triggers>
                                                 <Trigger Property="IsMouseOver" Value="True">
-                                                    <Setter TargetName="Grip" Property="Background" Value="#888888" />
+                                                    <Setter TargetName="Grip" Property="Background" Value="{DynamicResource ScrollThumbHoverBrush}" />
                                                 </Trigger>
                                                 <Trigger Property="IsDragging" Value="True">
-                                                    <Setter TargetName="Grip" Property="Background" Value="#AAAAAA" />
+                                                    <Setter TargetName="Grip" Property="Background" Value="{DynamicResource ScrollThumbPressedBrush}" />
                                                 </Trigger>
                                             </ControlTemplate.Triggers>
                                         </ControlTemplate>

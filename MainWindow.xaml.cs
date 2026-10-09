@@ -67,6 +67,7 @@ public partial class MainWindow : Window
         _defaultProfile = LoadDefaultProfile();
         _historySize = AppSettings.LoadHistorySize();
 ApplySavedFontSettings();
+        UpdateThemeMenu();
         UpdateFontMetrics();
     }
 
@@ -631,6 +632,25 @@ ApplySavedFontSettings();
         guideWindow.Show();
     }
 
+    private void ThemeMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        var theme = ReferenceEquals(sender, LightThemeMenuItem)
+            ? AppThemeKind.Light
+            : AppThemeKind.Dark;
+        AppTheme.Apply(theme);
+        AppSettings.SaveTheme(theme);
+        UpdateThemeMenu();
+        RebuildTabStrip();
+        TerminalTextBox.RefreshTheme();
+        TerminalTextBox.Focus();
+    }
+
+    private void UpdateThemeMenu()
+    {
+        DarkThemeMenuItem.IsChecked = !AppTheme.IsLight;
+        LightThemeMenuItem.IsChecked = AppTheme.IsLight;
+    }
+
     private async void CheckForUpdatesMenuItem_Click(
         object sender,
         RoutedEventArgs e)
@@ -1083,7 +1103,7 @@ _activeTab.RenderedSmartRtlEnabled = _renderedSmartRtlEnabled;
         foreach (var tab in _tabs)
         {
             var isActive = ReferenceEquals(tab, _activeTab);
-            var accent = new SolidColorBrush(Color.FromRgb(114, 214, 197));
+            var accent = new SolidColorBrush(AppTheme.TabAccent);
             var panel = new DockPanel { Height = 34 };
             var closeButton = new Button
             {
@@ -1103,7 +1123,7 @@ _activeTab.RenderedSmartRtlEnabled = _renderedSmartRtlEnabled;
                 Text = tab.Profile == TerminalProfile.PowerShell ? "›_" :
                     tab.Profile == TerminalProfile.Wsl ? "$_" : ">_",
                 FontFamily = new FontFamily("Consolas"), FontSize = 13,
-                Foreground = isActive ? accent : new SolidColorBrush(Color.FromRgb(139, 148, 158)),
+                Foreground = isActive ? accent : new SolidColorBrush(AppTheme.TabIcon),
                 VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 10, 0)
             };
             DockPanel.SetDock(icon, Dock.Left);
@@ -1120,14 +1140,14 @@ _activeTab.RenderedSmartRtlEnabled = _renderedSmartRtlEnabled;
                 Content = label, HorizontalContentAlignment = HorizontalAlignment.Stretch,
                 Padding = new Thickness(12, 0, 4, 0), ToolTip = tab.Title, Tag = tab,
                 Foreground = new SolidColorBrush(isActive
-                    ? Color.FromRgb(240, 244, 248) : Color.FromRgb(165, 174, 184)),
+                    ? AppTheme.ActiveTabText : AppTheme.InactiveTabText),
                 Style = (Style)FindResource("ChromeTabButtonStyle")
             };
             System.Windows.Automation.AutomationProperties.SetName(selectButton, tab.Title);
             selectButton.Click += TabButton_Click;
             panel.Children.Add(selectButton);
             var grid = new Grid { Width = 220, Height = 38, Margin = new Thickness(0, 8, 0, 0) };
-            var activeBrush = new SolidColorBrush(Color.FromRgb(48, 49, 52));
+            var activeBrush = new SolidColorBrush(AppTheme.ActiveTab);
             var shape = new System.Windows.Shapes.Path
             {
                 Data = Geometry.Parse("M0,38 Q8,38 8,30 L8,12 Q8,0 20,0 L200,0 Q212,0 212,12 L212,30 Q212,38 220,38 Z"),
@@ -1136,12 +1156,12 @@ _activeTab.RenderedSmartRtlEnabled = _renderedSmartRtlEnabled;
             grid.Children.Add(shape);
             if (!isActive) grid.Children.Add(new Border
             {
-                Width = 1, Height = 18, Background = new SolidColorBrush(Color.FromRgb(78, 80, 84)),
+                Width = 1, Height = 18, Background = new SolidColorBrush(AppTheme.TabSeparator),
                 HorizontalAlignment = HorizontalAlignment.Right, IsHitTestVisible = false
             });
             panel.Margin = new Thickness(8, 0, 8, 0);
             grid.Children.Add(panel);
-            grid.MouseEnter += (_, _) => shape.Fill = isActive ? activeBrush : new SolidColorBrush(Color.FromRgb(42, 43, 47));
+            grid.MouseEnter += (_, _) => shape.Fill = isActive ? activeBrush : new SolidColorBrush(AppTheme.HoverTab);
             grid.MouseLeave += (_, _) => shape.Fill = isActive ? activeBrush : Brushes.Transparent;
             TabStrip.Children.Add(grid);
             if (isActive)

@@ -103,6 +103,20 @@ public static class AppSettings
                 RegistryValueKind.String);
     }
 
+    public static AppThemeKind LoadTheme()
+    {
+        using var key = Registry.CurrentUser.OpenSubKey(SettingsKey);
+        return Enum.TryParse(key?.GetValue("Theme") as string, out AppThemeKind theme)
+            ? theme
+            : AppThemeKind.Dark;
+    }
+
+    public static void SaveTheme(AppThemeKind theme)
+    {
+        using var key = Registry.CurrentUser.CreateSubKey(SettingsKey);
+        key.SetValue("Theme", theme.ToString(), RegistryValueKind.String);
+    }
+
     public static TerminalFontSettings? LoadFont()
     {
         using var key = Registry.CurrentUser.OpenSubKey(SettingsKey);

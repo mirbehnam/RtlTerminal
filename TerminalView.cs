@@ -42,6 +42,7 @@ public sealed class TerminalView : ContentControl
         {
             Source = new Uri("/RtlTerminal;component/TerminalScrollBar.xaml", UriKind.Relative)
         });
+        ApplyScrollBarColors();
         Focusable = true;
         HorizontalContentAlignment = HorizontalAlignment.Stretch;
         VerticalContentAlignment = VerticalAlignment.Stretch;
@@ -124,6 +125,23 @@ public sealed class TerminalView : ContentControl
         if (!sameFrame) _surface.InvalidateVisual();
         if (followOutput) _scroll.ScrollToEnd();
         else if (trimmed > 0) _scroll.ScrollToVerticalOffset(Math.Max(0, VerticalOffset - trimmed * lineHeight));
+    }
+
+    public void RefreshTheme()
+    {
+        ApplyScrollBarColors();
+        _layouts.Clear();
+        _glyphCache.Clear();
+        _surface.InvalidateVisual();
+    }
+
+    // Kept on the view itself so the scrollbar is themed without application resources.
+    private void ApplyScrollBarColors()
+    {
+        Resources["ScrollTrackBrush"] = new SolidColorBrush(AppTheme.ScrollTrack);
+        Resources["ScrollThumbBrush"] = new SolidColorBrush(AppTheme.ScrollThumb);
+        Resources["ScrollThumbHoverBrush"] = new SolidColorBrush(AppTheme.ScrollThumbHover);
+        Resources["ScrollThumbPressedBrush"] = new SolidColorBrush(AppTheme.ScrollThumbPressed);
     }
 
     public void Clear()
@@ -367,8 +385,8 @@ public sealed class TerminalView : ContentControl
     }
     private static (TerminalColor Foreground, TerminalColor Background) Colors(TerminalStyle style)
     {
-        var fg = style.Foreground ?? new TerminalColor(230, 230, 230);
-        var bg = style.Background ?? new TerminalColor(12, 12, 12);
+        var fg = style.Foreground is { } foreground ? AppTheme.MapForeground(foreground) : AppTheme.DefaultForeground;
+        var bg = style.Background is { } background ? AppTheme.MapBackground(background) : AppTheme.DefaultBackground;
         if (style.Inverse) (fg, bg) = (bg, fg);
         if (style.Dim) fg = new((byte)(fg.Red * .55 + bg.Red * .45), (byte)(fg.Green * .55 + bg.Green * .45), (byte)(fg.Blue * .55 + bg.Blue * .45));
         if (style.Hidden) fg = bg;
@@ -411,7 +429,7 @@ public sealed class TerminalView : ContentControl
                 foreach (var cell in layout.Cells.OrderBy(cell => cell.Start))
                 { if (_snapshot.CursorColumn >= column && _snapshot.CursorColumn < column + cell.GridWidth / _cellWidth) { cursor = cell; break; } column += (int)Math.Round(cell.GridWidth / _cellWidth); }
                 var rect = new Rect(cursor?.X ?? _snapshot.CursorColumn * _cellWidth, y, Math.Max(_cellWidth, cursor?.Width ?? _cellWidth), _lineHeight);
-                dc.DrawRectangle(new SolidColorBrush(Color.FromArgb(90, 230, 230, 230)), new Pen(Brushes.LightGray, 1), rect);
+                dc.DrawRectangle(new SolidColorBrush(AppTheme.CursorFill), new Pen(new SolidColorBrush(AppTheme.CursorBorder), 1), rect);
             }
         }
         dc.Pop();

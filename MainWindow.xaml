@@ -10,7 +10,7 @@
         MinWidth="480"
         MinHeight="300"
         UseLayoutRounding="True"
-        Background="#0c0c0c"
+        Background="{DynamicResource TerminalBackgroundBrush}"
         WindowStyle="None"
         ResizeMode="CanResize"
         Loaded="Window_Loaded"
@@ -35,7 +35,7 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Separator">
-                        <Border Height="1" Background="#45464A" Margin="10,5" />
+                        <Border Height="1" Background="{DynamicResource SeparatorBrush}" Margin="10,5" />
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
@@ -46,7 +46,7 @@
             <Setter Property="Background"
                     Value="Transparent" />
             <Setter Property="Foreground"
-                    Value="#f0f0f0" />
+                    Value="{DynamicResource ChromeForegroundBrush}" />
             <Setter Property="BorderBrush"
                     Value="Transparent" />
             <Setter Property="Padding"
@@ -97,8 +97,8 @@
                                    PopupAnimation="Fade">
                                 <Border MinWidth="180"
                                         Padding="3"
-                                        Background="#252526"
-                                        BorderBrush="#3f3f46"
+                                        Background="{DynamicResource MenuBackgroundBrush}"
+                                        BorderBrush="{DynamicResource MenuBorderBrush}"
                                         BorderThickness="1"
                                         CornerRadius="6">
                                     <ScrollViewer CanContentScroll="True" VerticalScrollBarVisibility="Auto"
@@ -125,9 +125,9 @@
                                      Value="True">
                                 <Setter TargetName="ItemBackground"
                                         Property="Background"
-                                        Value="#3a3a3a" />
+                                        Value="{DynamicResource MenuHighlightBrush}" />
                                 <Setter Property="Foreground"
-                                        Value="#ffffff" />
+                                        Value="{DynamicResource ChromeStrongForegroundBrush}" />
                             </Trigger>
                             <Trigger Property="IsEnabled"
                                      Value="False">
@@ -145,7 +145,7 @@
             <Setter Property="Background"
                     Value="Transparent" />
             <Setter Property="Foreground"
-                    Value="#f0f0f0" />
+                    Value="{DynamicResource ChromeForegroundBrush}" />
             <Setter Property="ItemContainerStyleSelector"
                     Value="{DynamicResource DarkMenuContainerSelector}" />
             <Setter Property="Template">
@@ -171,8 +171,8 @@
                                    PopupAnimation="Fade">
                                 <Border MinWidth="190"
                                         Padding="3"
-                                        Background="#252526"
-                                        BorderBrush="#3f3f46"
+                                        Background="{DynamicResource MenuBackgroundBrush}"
+                                        BorderBrush="{DynamicResource MenuBorderBrush}"
                                         BorderThickness="1"
                                         CornerRadius="6">
                                     <ScrollViewer CanContentScroll="True" VerticalScrollBarVisibility="Auto"
@@ -187,17 +187,17 @@
                                      Value="True">
                                 <Setter TargetName="HeaderBackground"
                                         Property="Background"
-                                        Value="#3a3a3a" />
+                                        Value="{DynamicResource MenuHighlightBrush}" />
                                 <Setter Property="Foreground"
-                                        Value="#ffffff" />
+                                        Value="{DynamicResource ChromeStrongForegroundBrush}" />
                             </Trigger>
                             <Trigger Property="IsSubmenuOpen"
                                      Value="True">
                                 <Setter TargetName="HeaderBackground"
                                         Property="Background"
-                                        Value="#414141" />
+                                        Value="{DynamicResource MenuOpenBrush}" />
                                 <Setter Property="Foreground"
-                                        Value="#ffffff" />
+                                        Value="{DynamicResource ChromeStrongForegroundBrush}" />
                             </Trigger>
                             <Trigger Property="IsEnabled"
                                      Value="False">
@@ -213,11 +213,11 @@
         <Style x:Key="DarkContextMenuStyle"
                TargetType="ContextMenu">
             <Setter Property="Background"
-                    Value="#252526" />
+                    Value="{DynamicResource MenuBackgroundBrush}" />
             <Setter Property="Foreground"
-                    Value="#f0f0f0" />
+                    Value="{DynamicResource ChromeForegroundBrush}" />
             <Setter Property="BorderBrush"
-                    Value="#3f3f46" />
+                    Value="{DynamicResource MenuBorderBrush}" />
             <Setter Property="BorderThickness"
                     Value="1" />
             <Setter Property="Padding"
@@ -246,7 +246,7 @@
         <Style x:Key="WindowCaptionButtonStyle"
                TargetType="Button">
             <Setter Property="Foreground"
-                    Value="#f0f0f0" />
+                    Value="{DynamicResource ChromeForegroundBrush}" />
             <Setter Property="Background"
                     Value="Transparent" />
             <Setter Property="BorderThickness"
@@ -268,13 +268,13 @@
                                      Value="True">
                                 <Setter TargetName="CaptionBackground"
                                         Property="Background"
-                                        Value="#404040" />
+                                        Value="{DynamicResource CaptionHoverBrush}" />
                             </Trigger>
                             <Trigger Property="IsPressed"
                                      Value="True">
                                 <Setter TargetName="CaptionBackground"
                                         Property="Background"
-                                        Value="#505050" />
+                                        Value="{DynamicResource CaptionPressedBrush}" />
                             </Trigger>
                             <MultiTrigger>
                                 <MultiTrigger.Conditions>
@@ -309,7 +309,7 @@
         <Style x:Key="DarkTitleButtonStyle"
                TargetType="Button">
             <Setter Property="Foreground"
-                    Value="#f0f0f0" />
+                    Value="{DynamicResource ChromeForegroundBrush}" />
             <Setter Property="Background"
                     Value="Transparent" />
             <Setter Property="BorderThickness"
@@ -330,20 +330,20 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsKeyboardFocused" Value="True">
-                                <Setter TargetName="ButtonBorder" Property="BorderBrush" Value="#72D6C5" />
+                                <Setter TargetName="ButtonBorder" Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
                                 <Setter TargetName="ButtonBorder" Property="BorderThickness" Value="1" />
                             </Trigger>
                             <Trigger Property="IsMouseOver"
                                      Value="True">
                                 <Setter TargetName="ButtonBorder"
                                         Property="Background"
-                                        Value="#3a3a3a" />
+                                        Value="{DynamicResource MenuHighlightBrush}" />
                             </Trigger>
                             <Trigger Property="IsPressed"
                                      Value="True">
                                 <Setter TargetName="ButtonBorder"
                                         Property="Background"
-                                        Value="#464646" />
+                                        Value="{DynamicResource ButtonPressedBrush}" />
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -362,7 +362,7 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsKeyboardFocused" Value="True">
-                                <Setter TargetName="FocusBorder" Property="BorderBrush" Value="#A8C7FA" />
+                                <Setter TargetName="FocusBorder" Property="BorderBrush" Value="{DynamicResource FocusBrush}" />
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -377,9 +377,9 @@
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
                         </Border>
                         <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Circle" Property="Background" Value="#404145" /></Trigger>
-                            <Trigger Property="IsPressed" Value="True"><Setter TargetName="Circle" Property="Background" Value="#515256" /></Trigger>
-                            <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Circle" Property="Background" Value="#454F60" /></Trigger>
+                            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Circle" Property="Background" Value="{DynamicResource RoundButtonHoverBrush}" /></Trigger>
+                            <Trigger Property="IsPressed" Value="True"><Setter TargetName="Circle" Property="Background" Value="{DynamicResource RoundButtonPressedBrush}" /></Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Circle" Property="Background" Value="{DynamicResource RoundButtonFocusBrush}" /></Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
@@ -399,10 +399,10 @@
                 </Style.Triggers>
             </Style>
         </Border.Style>
-    <DockPanel Background="#0c0c0c">
+    <DockPanel Background="{DynamicResource TerminalBackgroundBrush}">
         <Grid DockPanel.Dock="Top"
               Height="46"
-              Background="#202124">
+              Background="{DynamicResource TitleBarBrush}">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="138" />
@@ -459,18 +459,18 @@
             </StackPanel>
         </Grid>
 
-        <Border DockPanel.Dock="Top" Background="#303134" BorderBrush="#3C4043" BorderThickness="0,0,0,1">
+        <Border DockPanel.Dock="Top" Background="{DynamicResource ToolbarBrush}" BorderBrush="{DynamicResource ToolbarBorderBrush}" BorderThickness="0,0,0,1">
         <DockPanel Margin="8,0,14,3">
         <TextBlock DockPanel.Dock="Right" VerticalAlignment="Center" FontSize="10" Margin="14,0,0,0"
                    ToolTip="Smart RTL automatically handles Persian and mixed-direction text">
             <TextBlock.Style>
                 <Style TargetType="TextBlock">
                     <Setter Property="Text" Value="●  SMART RTL" />
-                    <Setter Property="Foreground" Value="#72D6C5" />
+                    <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
                     <Style.Triggers>
                         <DataTrigger Binding="{Binding IsChecked, ElementName=SmartRtlMenuItem}" Value="False">
                             <Setter Property="Text" Value="RTL OFF" />
-                            <Setter Property="Foreground" Value="#8B949E" />
+                            <Setter Property="Foreground" Value="{DynamicResource MutedForegroundBrush}" />
                         </DataTrigger>
                     </Style.Triggers>
                 </Style>
@@ -478,7 +478,7 @@
         </TextBlock>
         <Menu Height="28" FontFamily="Segoe UI" FontSize="12"
               Background="Transparent"
-              Foreground="#f0f0f0"
+              Foreground="{DynamicResource ChromeForegroundBrush}"
               ItemContainerStyle="{StaticResource DarkTopLevelMenuItemStyle}">
             <MenuItem Header="_File">
                 <MenuItem x:Name="LastDirectoriesMenuItem"
@@ -508,6 +508,13 @@
                 <MenuItem x:Name="RowRtlMenuItem" Header="Row RTL" IsCheckable="True" IsChecked="False"
                           ToolTip="Force right-to-left direction and right alignment for every row, including full-screen applications. This may move application borders."
                           Checked="SmartRtlMenuItem_Changed" Unchecked="SmartRtlMenuItem_Changed" />
+                <Separator />
+                <MenuItem x:Name="ThemeMenuItem" Header="_Theme">
+                    <MenuItem x:Name="DarkThemeMenuItem" Header="_Dark" IsCheckable="True"
+                              Click="ThemeMenuItem_Click" />
+                    <MenuItem x:Name="LightThemeMenuItem" Header="_Light" IsCheckable="True"
+                              Click="ThemeMenuItem_Click" />
+                </MenuItem>
             </MenuItem>
             <MenuItem Header="_Tools">
                 <MenuItem x:Name="ContextMenuIntegrationMenuItem"
@@ -530,8 +537,8 @@
         </Border>
 
         <local:TerminalView x:Name="TerminalTextBox"
-                     Background="#0c0c0c"
-                     Foreground="#e6e6e6"
+                     Background="{DynamicResource TerminalBackgroundBrush}"
+                     Foreground="{DynamicResource TerminalForegroundBrush}"
                      BorderThickness="0"
                      Padding="10"
                      FontFamily="Cascadia Mono, Consolas"

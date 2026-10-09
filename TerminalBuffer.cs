@@ -51,7 +51,7 @@ public sealed record TerminalSnapshot(
 public sealed class TerminalBuffer
 {
     private const int DefaultMaximumScrollbackRows = 2000;
-    private static readonly TerminalColor[] AnsiColors =
+    internal static readonly TerminalColor[] AnsiColors =
     [
         new(12, 12, 12),
         new(197, 15, 31),
@@ -70,6 +70,10 @@ public sealed class TerminalBuffer
         new(97, 214, 214),
         new(242, 242, 242)
     ];
+
+    // Reported to applications that query the default colors (OSC 10/11/12).
+    public static TerminalColor DefaultForeground { get; set; } = new(230, 230, 230);
+    public static TerminalColor DefaultBackground { get; set; } = new(12, 12, 12);
 
     private readonly object _syncRoot = new();
     private readonly StringBuilder _csi = new();
@@ -416,17 +420,17 @@ public sealed class TerminalBuffer
             case 10:
                 if (value != "?")
                     return;
-                QueueResponse($"\x1b]10;{FormatOscColor(AnsiColors[7])}\x1b\\");
+                QueueResponse($"\x1b]10;{FormatOscColor(DefaultForeground)}\x1b\\");
                 return;
             case 11:
                 if (value != "?")
                     return;
-                QueueResponse($"\x1b]11;{FormatOscColor(AnsiColors[0])}\x1b\\");
+                QueueResponse($"\x1b]11;{FormatOscColor(DefaultBackground)}\x1b\\");
                 return;
             case 12:
                 if (value != "?")
                     return;
-                QueueResponse($"\x1b]12;{FormatOscColor(AnsiColors[7])}\x1b\\");
+                QueueResponse($"\x1b]12;{FormatOscColor(DefaultForeground)}\x1b\\");
                 return;
         }
 

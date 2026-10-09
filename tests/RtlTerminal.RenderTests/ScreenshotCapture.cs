@@ -14,6 +14,8 @@ internal static class ScreenshotCapture
     public static void Run()
     {
         const BindingFlags flags = BindingFlags.Instance | BindingFlags.NonPublic;
+        if (Application.Current is null) _ = new Application();
+        AppTheme.Apply(AppThemeKind.Dark);
         var window = new MainWindow { Width = 1080, Height = 680 };
         var loaded = typeof(MainWindow).GetMethod("Window_Loaded", flags)!;
         window.Loaded -= (RoutedEventHandler)loaded.CreateDelegate(typeof(RoutedEventHandler), window);
@@ -64,6 +66,26 @@ internal static class ScreenshotCapture
                 "  └──────────────────────────────────────────────┘\r\n\r\n" +
                 "  Demo output · https://github.com/mirbehnam/RtlTerminal");
 
+            const string themeDemo =
+                "\x1b[?25l\r\n\x1b[36m  THEMES  /  ANSI palette\x1b[0m\r\n\r\n" +
+                "به ترمینال فارسی خوش آمدید\r\n\r\n" +
+                "  \x1b[30mblack\x1b[0m \x1b[31mred\x1b[0m \x1b[32mgreen\x1b[0m \x1b[33myellow\x1b[0m " +
+                "\x1b[34mblue\x1b[0m \x1b[35mmagenta\x1b[0m \x1b[36mcyan\x1b[0m \x1b[37mwhite\x1b[0m\r\n" +
+                "  \x1b[90mblack\x1b[0m \x1b[91mred\x1b[0m \x1b[92mgreen\x1b[0m \x1b[93myellow\x1b[0m " +
+                "\x1b[94mblue\x1b[0m \x1b[95mmagenta\x1b[0m \x1b[96mcyan\x1b[0m \x1b[97mwhite\x1b[0m\r\n\r\n" +
+                "  \x1b[41m red \x1b[42m green \x1b[43m yellow \x1b[44m blue \x1b[45m magenta \x1b[46m cyan \x1b[47m white \x1b[40m black \x1b[0m\r\n" +
+                "  \x1b[97;44m status bar \x1b[0m \x1b[7m inverse \x1b[0m \x1b[2mdim text\x1b[0m \x1b[1mbold\x1b[0m\r\n\r\n" +
+                "  \x1b[32m✓\x1b[0m  Light window chrome, menus and tabs\r\n" +
+                "  \x1b[32m✓\x1b[0m  Readable ANSI colors on a light background\r\n\r\n" +
+                "  https://github.com/mirbehnam/RtlTerminal";
+            Capture("rtl-terminal-dark-palette.png", themeDemo);
+
+            AppTheme.Apply(AppThemeKind.Light);
+            typeof(MainWindow).GetMethod("UpdateThemeMenu", flags)!.Invoke(window, null);
+            typeof(MainWindow).GetMethod("RebuildTabStrip", flags)!.Invoke(window, null);
+            view.RefreshTheme();
+            Capture("rtl-terminal-light.png", themeDemo);
+
             void Capture(string name, string output)
             {
                 view.Clear();
@@ -78,6 +100,10 @@ internal static class ScreenshotCapture
                 Console.WriteLine($"Captured screenshots/{name}");
             }
         }
-        finally { window.Close(); }
+        finally
+        {
+            window.Close();
+            AppTheme.Apply(AppThemeKind.Dark);
+        }
     }
 }
