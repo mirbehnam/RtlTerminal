@@ -84,6 +84,20 @@ public static class AppSettings
             RegistryValueKind.DWord);
     }
 
+    public static UiLanguage LoadUiLanguage()
+    {
+        using var key = Registry.CurrentUser.OpenSubKey(SettingsKey);
+        return Enum.TryParse(key?.GetValue("UiLanguage") as string, out UiLanguage language)
+            ? language
+            : UiLanguage.English;
+    }
+
+    public static void SaveUiLanguage(UiLanguage language)
+    {
+        using var key = Registry.CurrentUser.CreateSubKey(SettingsKey);
+        key.SetValue("UiLanguage", language.ToString(), RegistryValueKind.String);
+    }
+
     public static string? LoadSkippedUpdateVersion()
     {
         using var key = Registry.CurrentUser.OpenSubKey(SettingsKey);

@@ -36,6 +36,20 @@ internal static class ScreenshotCapture
             var line = (double)typeof(MainWindow).GetField("_lineHeight", flags)!.GetValue(window)!;
             var columns = (int)(view.ViewportWidth / cell);
             var rows = (int)(view.ViewportHeight / line);
+
+            Ui.Language = UiLanguage.Hebrew;
+            typeof(MainWindow).GetMethod("ApplyLanguage", flags)!.Invoke(window, null);
+            typeof(MainWindow).GetMethod("RebuildTabStrip", flags)!.Invoke(window, null);
+            Capture("rtl-terminal-hebrew-ui.png",
+                "\x1b[?25l\r\n\x1b[36m  ממשק בעברית  /  Hebrew UI\x1b[0m\r\n\r\n" +
+                "ברוכים הבאים לטרמינל — התפריטים וההודעות בעברית\r\n" +
+                "به ترمینال فارسی خوش آمدید\r\n\r\n" +
+                "  \x1b[32m✓\x1b[0m  View > Language > עברית\r\n" +
+                "  \x1b[32m✓\x1b[0m  Right-to-left menu bar and menus\r\n\r\n" +
+                "  https://github.com/mirbehnam/RtlTerminal");
+            Ui.Language = UiLanguage.English;
+            typeof(MainWindow).GetMethod("ApplyLanguage", flags)!.Invoke(window, null);
+            typeof(MainWindow).GetMethod("RebuildTabStrip", flags)!.Invoke(window, null);
             Capture("rtl-terminal-main-window.png",
                 "\x1b[?25l\r\n\x1b[38;2;114;214;197m" +
                 $"  RTL TERMINAL  /  v{AppVersion.Display}\x1b[0m\r\n" +

@@ -422,7 +422,7 @@
                             HorizontalContentAlignment="Center" ToolTip="New terminal (Ctrl+Shift+T)"
                             Style="{StaticResource ChromeRoundButtonStyle}" Click="NewTabButton_Click"
                             AutomationProperties.Name="New terminal" />
-                    <Button Width="26" Height="30" Content="⌄" FontSize="14"
+                    <Button x:Name="ProfileMenuButton" Width="26" Height="30" Content="⌄" FontSize="14"
                             HorizontalContentAlignment="Center" ToolTip="Terminal profiles"
                             Style="{StaticResource DarkTitleButtonStyle}" Click="ProfileMenuButton_Click"
                             AutomationProperties.Name="Terminal profiles" />
@@ -433,7 +433,8 @@
                         Orientation="Horizontal"
                         HorizontalAlignment="Right"
                         shell:WindowChrome.IsHitTestVisibleInChrome="True">
-                <Button Width="46"
+                <Button x:Name="MinimizeButton"
+                        Width="46"
                         Style="{StaticResource WindowCaptionButtonStyle}"
                         ToolTip="Minimize" AutomationProperties.Name="Minimize"
                         Click="MinimizeButton_Click">
@@ -448,7 +449,8 @@
                     <Path x:Name="MaximizeGlyph" Width="10" Height="10" Data="M0.5,0.5 L9.5,0.5 9.5,9.5 0.5,9.5 Z" StrokeThickness="1"
                           Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
                 </Button>
-                <Button Width="46"
+                <Button x:Name="CloseWindowButton"
+                        Width="46"
                         Style="{StaticResource WindowCaptionButtonStyle}"
                         Tag="Close"
                         ToolTip="Close window" AutomationProperties.Name="Close window"
@@ -461,7 +463,8 @@
 
         <Border DockPanel.Dock="Top" Background="{DynamicResource ToolbarBrush}" BorderBrush="{DynamicResource ToolbarBorderBrush}" BorderThickness="0,0,0,1">
         <DockPanel Margin="8,0,14,3">
-        <TextBlock DockPanel.Dock="Right" VerticalAlignment="Center" FontSize="10" Margin="14,0,0,0"
+        <TextBlock x:Name="SmartRtlIndicator" DockPanel.Dock="Right" VerticalAlignment="Center" FontSize="10" Margin="14,0,0,0"
+                   FlowDirection="LeftToRight"
                    ToolTip="Smart RTL automatically handles Persian and mixed-direction text">
             <TextBlock.Style>
                 <Style TargetType="TextBlock">
@@ -476,7 +479,7 @@
                 </Style>
             </TextBlock.Style>
         </TextBlock>
-        <Menu Height="28" FontFamily="Segoe UI" FontSize="12"
+        <Menu x:Name="MainMenu" Height="28" FontFamily="Segoe UI" FontSize="12"
               Background="Transparent"
               Foreground="{DynamicResource ChromeForegroundBrush}"
               ItemContainerStyle="{StaticResource DarkTopLevelMenuItemStyle}">
@@ -499,6 +502,13 @@
                           Click="FontSettingsMenuItem_Click" />
             </MenuItem>
             <MenuItem Header="_View">
+                <MenuItem Header="_Language">
+                    <MenuItem x:Name="EnglishMenuItem" Header="English" IsCheckable="True"
+                              Click="LanguageMenuItem_Click" />
+                    <MenuItem x:Name="HebrewMenuItem" Header="עברית" IsCheckable="True"
+                              Click="LanguageMenuItem_Click" />
+                </MenuItem>
+                <Separator />
                 <MenuItem x:Name="SmartRtlMenuItem"
                           Header="_Smart RTL"
                           IsCheckable="True"

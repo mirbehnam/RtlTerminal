@@ -13,6 +13,7 @@ public partial class App : Application
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+        Ui.Language = AppSettings.LoadUiLanguage();
 
         if (!OperatingSystem.IsWindowsVersionAtLeast(
                 major: 10,
