@@ -640,7 +640,7 @@
                 <MenuItem Header="{local:UiText Key='_Settings...'}"
                           Click="FontSettingsMenuItem_Click" />
             </MenuItem>
-            <MenuItem Header="{local:UiText Key='_View'}">
+            <MenuItem x:Name="ViewMenuItem" Header="{local:UiText Key='_View'}" SubmenuOpened="ViewMenu_Opened">
                 <MenuItem x:Name="SplitPaneMenuItem" Header="{local:UiText Key='_Split pane'}" InputGestureText="Ctrl+Shift+D"
                           Click="SplitPaneMenuItem_Click" />
                 <MenuItem x:Name="JoinTabMenuItem" Header="{local:UiText Key='Show _tab side by side'}"
@@ -664,10 +664,8 @@
                 <Separator />
                 <MenuItem x:Name="ThemeMenuItem" Header="{local:UiText Key='_Theme...'}" Click="ThemeMenuItem_Click" />
                 <Separator />
-                <MenuItem Header="{local:UiText Key='Zoom in'}" InputGestureText="Ctrl++" Click="ZoomInMenuItem_Click" />
-                <MenuItem Header="{local:UiText Key='Zoom out'}" InputGestureText="Ctrl+-" Click="ZoomOutMenuItem_Click" />
-                <MenuItem Header="{local:UiText Key='Reset zoom'}" InputGestureText="Ctrl+0" Click="ResetZoomMenuItem_Click" />
-                <Separator />
+                <MenuItem x:Name="ResetZoomMenuItem" Header="{local:UiText Key='Reset zoom'}" InputGestureText="Ctrl+0" Visibility="Collapsed" Click="ResetZoomMenuItem_Click" />
+                <Separator x:Name="ResetZoomSeparator" Visibility="Collapsed" />
                 <MenuItem Header="{local:UiText Key='Full screen'}" InputGestureText="F11" Click="FullScreenMenuItem_Click" />
             </MenuItem>
             <MenuItem Header="{local:UiText Key='_Tools'}">
@@ -693,6 +691,7 @@
                 <Separator/>
                 <MenuItem Header="{local:UiText Key='_Guide'}"
                           Click="GuideMenuItem_Click" />
+                <MenuItem Header="{local:UiText Key='Keyboard shortcuts'}" Click="KeyboardShortcutsMenuItem_Click" />
                 <MenuItem x:Name="CheckForUpdatesMenuItem"
                           Header="{local:UiText Key='Check for _updates...'}"
                           Click="CheckForUpdatesMenuItem_Click" />

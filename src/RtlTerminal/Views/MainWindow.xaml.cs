@@ -931,6 +931,7 @@ ApplySavedFontSettings();
         ApplyHistorySize(settingsWindow.SelectedHistorySize);
         ApplyFontSettings(settingsWindow.SelectedSettings);
         AppSettings.SaveFont(settingsWindow.SelectedSettings);
+        UpdateZoomMenuVisibility();
         AppSettings.SaveHistorySize(settingsWindow.SelectedHistorySize);
         _previewScope = settingsWindow.SelectedPreviewScope;
         AppSettings.SavePreviewScope(_previewScope);
@@ -2403,6 +2404,7 @@ ApplySavedFontSettings();
         }
 
         UpdateFontMetrics();
+        UpdateZoomMenuVisibility();
         // Hidden tabs get the new grid size when they are shown again.
         foreach (var pane in _tabs.SelectMany(tab => tab.Panes))
             pane.GridSize = default;

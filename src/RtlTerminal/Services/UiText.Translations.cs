@@ -10,6 +10,7 @@ _Tools|_ابزارها|_أدوات
 _Help|_راهنما|_مساعدة
 LANGUAGE|زبان|اللغة
 _Guide|_راهنما|_الدليل
+Keyboard shortcuts|کلیدهای میانبر|اختصارات لوحة المفاتيح
 _About Rtl Terminal|_دربارهٔ Rtl Terminal|_حول Rtl Terminal
 Check for _updates...|بررسی _به‌روزرسانی…|التحقق من _التحديثات…
 Checking for updates...|در حال بررسی به‌روزرسانی…|جارٍ التحقق من التحديثات…

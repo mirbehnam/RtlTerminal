@@ -207,8 +207,22 @@ public partial class MainWindow
     private System.Windows.Shell.WindowChrome? _previousWindowChrome;
     private bool _fullScreenTransitionPending;
 
-    private void ZoomInMenuItem_Click(object sender, RoutedEventArgs e) => ZoomFontSize(1);
-    private void ZoomOutMenuItem_Click(object sender, RoutedEventArgs e) => ZoomFontSize(-1);
+    private void ViewMenu_Opened(object sender, RoutedEventArgs e) => UpdateZoomMenuVisibility();
+
+    private void UpdateZoomMenuVisibility()
+    {
+        var baseline = Math.Clamp(AppSettings.LoadFont()?.Size ?? 14.0, 8, 48);
+        var visibility = Math.Abs(TerminalTextBox.FontSize - baseline) > .01 ? Visibility.Visible : Visibility.Collapsed;
+        ResetZoomMenuItem.Visibility = visibility;
+        ResetZoomSeparator.Visibility = visibility;
+    }
+
+    private void KeyboardShortcutsMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        var guide = new GuideWindow { Owner = this };
+        guide.ShowShortcuts();
+        guide.ShowDialog();
+    }
     private void ResetZoomMenuItem_Click(object sender, RoutedEventArgs e) => ResetFontSize();
     private void FullScreenMenuItem_Click(object sender, RoutedEventArgs e) => ToggleFullScreen();
 
