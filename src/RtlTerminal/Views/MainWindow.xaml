@@ -598,21 +598,6 @@
             </Style>
         </Border.Style>
         <DockPanel Margin="8,0,14,3">
-        <TextBlock DockPanel.Dock="Right" VerticalAlignment="Center" FontSize="10" Margin="14,0,0,0"
-                   ToolTip="{local:UiText Key='Smart RTL automatically handles Persian and mixed-direction text'}">
-            <TextBlock.Style>
-                <Style TargetType="TextBlock">
-                    <Setter Property="Text" Value="●  SMART RTL" />
-                    <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
-                    <Style.Triggers>
-                        <DataTrigger Binding="{Binding IsChecked, ElementName=SmartRtlMenuItem}" Value="False">
-                            <Setter Property="Text" Value="RTL OFF" />
-                            <Setter Property="Foreground" Value="{DynamicResource MutedForegroundBrush}" />
-                        </DataTrigger>
-                    </Style.Triggers>
-                </Style>
-            </TextBlock.Style>
-        </TextBlock>
         <Button x:Name="MacroStopButton" DockPanel.Dock="Right" Visibility="Collapsed" Width="26" Height="26" Content="■" Style="{StaticResource WindowCaptionButtonStyle}" Click="MacroStop_Click" ToolTip="{local:UiText Key='Stop playback (Ctrl+Shift+Alt+End)'}" AutomationProperties.Name="{local:UiText Key='Stop macro'}"/>
         <Button x:Name="MacroStepButton" DockPanel.Dock="Right" Visibility="Collapsed" Width="26" Height="26" Content="▸|" Style="{StaticResource WindowCaptionButtonStyle}" Click="MacroStep_Click" ToolTip="{local:UiText Key='Run one step, then pause'}" AutomationProperties.Name="{local:UiText Key='Run one macro step'}"/>
         <Button x:Name="MacroPauseButton" DockPanel.Dock="Right" Visibility="Collapsed" Width="26" Height="26" Content="Ⅱ" Style="{StaticResource WindowCaptionButtonStyle}" Click="MacroPause_Click" ToolTip="{local:UiText Key='Pause / resume (Ctrl+Shift+Alt+P)'}" AutomationProperties.Name="{local:UiText Key='Pause or resume macro'}"/>
@@ -625,31 +610,6 @@
                       Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" StrokeThickness="1.3" />
             </Viewbox>
         </Button>
-        <ToggleButton x:Name="DarkModeButton" DockPanel.Dock="Right" Width="30" Height="26" Margin="4,0,0,0"
-                      IsChecked="True" Click="DarkModeButton_Click" AutomationProperties.Name="{local:UiText Key='Dark mode'}">
-            <ToggleButton.Style>
-                <Style TargetType="ToggleButton">
-                    <Setter Property="Foreground" Value="{DynamicResource ChromeForegroundBrush}"/>
-                    <Setter Property="Background" Value="Transparent"/>
-                    <Setter Property="BorderBrush" Value="Transparent"/>
-                    <Setter Property="BorderThickness" Value="0"/>
-                    <Setter Property="Template"><Setter.Value>
-                        <ControlTemplate TargetType="ToggleButton">
-                            <Border x:Name="ButtonBorder" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="4">
-                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                            </Border>
-                            <ControlTemplate.Triggers>
-                                <Trigger Property="IsChecked" Value="True"><Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/></Trigger>
-                                <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="ButtonBorder" Property="Background" Value="{DynamicResource CaptionHoverBrush}"/></Trigger>
-                                <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="ButtonBorder" Property="Background" Value="{DynamicResource CaptionHoverBrush}"/></Trigger>
-                            </ControlTemplate.Triggers>
-                        </ControlTemplate>
-                    </Setter.Value></Setter>
-                </Style>
-            </ToggleButton.Style>
-            <Path Width="15" Height="15" Stretch="Uniform" Data="M12,1 A7,7 0 1 0 15,12 A7,7 0 0 1 12,1 Z"
-                  Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ToggleButton}}"/>
-        </ToggleButton>
         <Grid ClipToBounds="True">
         <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
         <Menu Grid.Column="0" Height="28" FontFamily="Segoe UI" FontSize="12"

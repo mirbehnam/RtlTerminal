@@ -9,6 +9,7 @@
   <ItemGroup>
     <Compile Include="../../src/RtlTerminal/AppVersion.cs" Link="AppVersion.cs" />
     <Compile Include="../../src/RtlTerminal/Terminal/TerminalBuffer.cs" Link="TerminalBuffer.cs" />
+    <Compile Include="../../src/RtlTerminal/Terminal/TerminalBuffer.Reflow.cs" Link="TerminalBuffer.Reflow.cs" />
     <Compile Include="../../src/RtlTerminal/Terminal/SmartRtl.cs" Link="SmartRtl.cs" />
     <Compile Include="../../src/RtlTerminal/Services/WslPath.cs" Link="WslPath.cs" />
     <Compile Include="../../src/RtlTerminal/Services/ShellPath.cs" Link="ShellPath.cs" />

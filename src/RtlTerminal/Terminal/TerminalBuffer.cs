@@ -61,7 +61,7 @@ public sealed record TerminalSnapshot(
     public string? WorkingDirectory { get; init; }
 }
 
-public sealed class TerminalBuffer
+public sealed partial class TerminalBuffer
 {
     private string? _workingDirectory;
     private const int DefaultMaximumScrollbackRows = 2000;
@@ -175,24 +175,38 @@ public sealed class TerminalBuffer
             if (columns == _columns && rows == _rows)
                 return CreateSnapshot();
 
-            var resized = ResizeCells(_cells, columns, rows);
-            var resizedWrapState = ResizeWrapState(
-                _wrappedFromPrevious,
-                rows);
-
-            _cells = resized;
-            _wrappedFromPrevious = resizedWrapState;
+            if (!_alternateScreenActive)
+            {
+                var reflow = ReflowMainScreen(_cells, _wrappedFromPrevious, _cursorRow, _cursorColumn,
+                    _wrapPending, _savedRow, _savedColumn, columns, rows);
+                _cells = reflow.Cells;
+                _wrappedFromPrevious = reflow.Wraps;
+                _cursorRow = reflow.CursorRow;
+                _cursorColumn = reflow.CursorColumn;
+                _savedRow = reflow.SavedRow;
+                _savedColumn = reflow.SavedColumn;
+                _wrapPending = reflow.WrapPending && _autoWrapMode;
+            }
+            else
+            {
+                // Full-screen applications own their grid and redraw after a resize.
+                _cells = ResizeCells(_cells, columns, rows);
+                _wrappedFromPrevious = ResizeWrapState(_wrappedFromPrevious, rows);
+                _wrapPending = false;
+            }
 
             if (_savedMainScreen is { } saved)
             {
+                var main = ReflowMainScreen(saved.Cells, saved.WrappedFromPrevious,
+                    saved.CursorRow, saved.CursorColumn, false, saved.SavedRow, saved.SavedColumn, columns, rows);
                 _savedMainScreen = saved with
                 {
-                    Cells = ResizeCells(saved.Cells, columns, rows),
-                    WrappedFromPrevious = ResizeWrapState(
-                        saved.WrappedFromPrevious,
-                        rows),
-                    CursorRow = Math.Clamp(saved.CursorRow, 0, rows - 1),
-                    CursorColumn = Math.Clamp(saved.CursorColumn, 0, columns - 1),
+                    Cells = main.Cells,
+                    WrappedFromPrevious = main.Wraps,
+                    CursorRow = main.CursorRow,
+                    CursorColumn = main.CursorColumn,
+                    SavedRow = main.SavedRow,
+                    SavedColumn = main.SavedColumn,
                     ScrollTop = 0,
                     ScrollBottom = rows - 1
                 };
@@ -204,7 +218,7 @@ public sealed class TerminalBuffer
             _scrollBottom = rows - 1;
             _cursorRow = Math.Clamp(_cursorRow, 0, rows - 1);
             _cursorColumn = Math.Clamp(_cursorColumn, 0, columns - 1);
-            _wrapPending = false;
+            _snapshotCells = null;
             return CreateSnapshot();
         }
     }
@@ -774,6 +788,8 @@ public sealed class TerminalBuffer
 
         if (width == 2 && _cursorColumn == _columns - 1)
         {
+            if (_cells[_cursorRow, _cursorColumn] == new Cell(" ", default, false))
+                _cells[_cursorRow, _cursorColumn] = new Cell(string.Empty, default, false);
             _cursorColumn = 0;
             LineFeed(wrapped: true);
         }

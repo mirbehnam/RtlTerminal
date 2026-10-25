@@ -19,6 +19,13 @@ Ctrl+wheel zoom and application mouse reporting retain priority over history scr
 Uniform Persian/Arabic words share formatted text and relative character-hit
 bounds across rows in a bounded, per-view cache. Mixed ANSI formatting and links
 are kept separate; font, DPI and theme changes invalidate cached shaping.
+
+Zoom changes the font immediately and waits 180 ms after the last zoom action
+before resizing the shell grid. Normal-screen resizing joins soft wraps and
+reflows text into the new columns, moving overflow into retained history instead
+of cropping it. Explicit newlines, styles and grapheme cells are preserved.
+Alternate-screen applications keep a fixed grid; their saved main screen is
+reflowed separately. The configured history limit still applies after reflow.
 Common box-drawing characters are drawn geometrically to join across cells.
 Block elements U+2580–U+259F use cell-relative rectangles (shades use blended
 foreground/background colors). Graphics have hard edges and font metrics are

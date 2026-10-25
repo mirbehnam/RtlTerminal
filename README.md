@@ -36,7 +36,7 @@ Download `RtlTerminal-Setup-…-x64.exe` from the [latest release](https://githu
 
 Use **+** to open a terminal and its adjacent arrow to choose a profile. Right-click a tab for split and color options; double-click its name to rename it.
 
-Open **Edit → Settings** for fonts, themes, history and macro preferences. **Help → LANGUAGE** changes the interface language. The eye button beside **Smart RTL** opens the browser preview.
+Open **Edit → Settings** for fonts, themes, history and macro preferences. **Help → LANGUAGE** changes the interface language. The eye button on the toolbar opens the browser preview.
 
 | Action | Shortcut |
 | --- | --- |
@@ -83,7 +83,7 @@ For rendering issues, include your Windows version, shell, command, expected res
 
 با دکمهٔ **+** یک ترمینال باز کنید و با فلش کنارش محیط موردنظر را انتخاب کنید. گزینه‌های تقسیم و رنگ در راست‌کلیک تب قرار دارند؛ برای تغییر نام، روی نام تب دوبار کلیک کنید.
 
-تنظیمات فونت، تم، تاریخچه و ماکرو در **Edit → Settings** قرار دارند. زبان رابط از **Help → LANGUAGE** تغییر می‌کند و دکمهٔ چشم کنار **Smart RTL** پیش‌نمایش مرورگر را باز می‌کند.
+تنظیمات فونت، تم، تاریخچه و ماکرو در **Edit → Settings** قرار دارند. زبان رابط از **Help → LANGUAGE** تغییر می‌کند و دکمهٔ چشم در نوار بالا پیش‌نمایش مرورگر را باز می‌کند.
 
 | کار | میان‌بر |
 | --- | --- |
@@ -130,7 +130,7 @@ For rendering issues, include your Windows version, shell, command, expected res
 
 استخدم زر **+** لفتح طرفية والسهم المجاور لاختيار البيئة. انقر بزر الفأرة الأيمن على علامة التبويب لخيارات التقسيم واللون، أو انقر مرتين على اسمها لإعادة تسميتها.
 
-توجد إعدادات الخط والسمات والسجل والماكرو في **Edit → Settings**. غيّر لغة الواجهة من **Help → LANGUAGE**، وافتح معاينة المتصفح بزر العين بجوار **Smart RTL**.
+توجد إعدادات الخط والسمات والسجل والماكرو في **Edit → Settings**. غيّر لغة الواجهة من **Help → LANGUAGE**، وافتح معاينة المتصفح بزر العين في شريط الأدوات.
 
 | الإجراء | الاختصار |
 | --- | --- |

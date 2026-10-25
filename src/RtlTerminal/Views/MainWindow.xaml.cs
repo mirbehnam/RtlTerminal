@@ -36,7 +36,6 @@ public partial class MainWindow : Window
     private TerminalProfile _defaultProfile = TerminalProfile.CommandPrompt;
     private string? _defaultWslDistribution;
     private int _historySize = 2000;
-    private ColorScheme? _lastDarkScheme = AppTheme.IsLight ? null : AppTheme.Scheme;
     private PaneShortcutSettings _paneShortcuts = AppSettings.LoadPaneShortcuts();
     private HtmlPreviewScope _previewScope = AppSettings.LoadPreviewScope();
     private bool _updateCheckInProgress;
@@ -66,7 +65,6 @@ public partial class MainWindow : Window
         _defaultWslDistribution = AppSettings.LoadWslDistribution() ?? WslProfiles.DefaultDistribution();
         _historySize = AppSettings.LoadHistorySize();
 ApplySavedFontSettings();
-        UpdateThemeMenu();
         UpdateFontMetrics();
         InitializeUiLanguage();
         InitializeWindowStatus();
@@ -313,11 +311,14 @@ ApplySavedFontSettings();
     {
         if (_resizeTimer is null) return;
         _resizeTimer.Stop();
+        _resizeTimer.Interval = TimeSpan.FromMilliseconds(Math.Max(80, _zoomReflowDue - Environment.TickCount64));
         if (WindowState != WindowState.Minimized) _resizeTimer.Start();
     }
 
     private void ApplyViewportResize()
     {
+        if (_zoomReflowDue > Environment.TickCount64) { QueueViewportResize(); return; }
+        _zoomReflowDue = 0;
         if (WindowState == WindowState.Minimized || _activeTab is null) return;
 
         foreach (var pane in _activeTab.Panes)
@@ -966,16 +967,9 @@ ApplySavedFontSettings();
 
     private void ThemeMenuItem_Click(object sender, RoutedEventArgs e) => ShowSettings(openThemeTab: true);
 
-    private void DarkModeButton_Click(object sender, RoutedEventArgs e)
-    {
-        var option = ThemeOption.QuickMode(DarkModeButton.IsChecked == true, _lastDarkScheme);
-        ApplyColors(option.Theme, option.Scheme);
-    }
-
     private void ApplyColors(AppThemeKind theme, ColorScheme? scheme)
     {
         AppTheme.Apply(theme, scheme);
-        if (!AppTheme.IsLight) _lastDarkScheme = scheme;
         AppSettings.SaveTheme(AppTheme.Current);
         AppSettings.SaveColorScheme(scheme?.Name);
         RefreshColorViews();
@@ -983,7 +977,6 @@ ApplySavedFontSettings();
 
     private void RefreshColorViews()
     {
-        UpdateThemeMenu();
         RebuildTabStrip();
         foreach (var view in AllViews())
         {
@@ -993,12 +986,6 @@ ApplySavedFontSettings();
             view.RefreshTheme();
         }
         ActiveView.Focus();
-    }
-
-    private void UpdateThemeMenu()
-    {
-        DarkModeButton.IsChecked = !AppTheme.IsLight;
-        DarkModeButton.ToolTip = UiText.Get(AppTheme.IsLight ? "Switch to dark mode" : "Switch to Gruvbox Light");
     }
 
     private async void CheckForUpdatesMenuItem_Click(
@@ -2410,6 +2397,8 @@ ApplySavedFontSettings();
             ApplyFontSettings(savedSettings);
     }
 
+    private long _zoomReflowDue;
+
     private void ApplyFontSettings(TerminalFontSettings settings)
     {
         foreach (var view in AllViews())
@@ -2429,8 +2418,8 @@ ApplySavedFontSettings();
         foreach (var pane in _tabs.SelectMany(tab => tab.Panes))
             pane.GridSize = default;
 
-        if (_activeTab is not null) { StorePaneSizes(); LayoutPanes(); }
-        else UpdatePaneSizing();
+        // Font changes need new measurements, not removal/recreation of pane views.
+        UpdatePaneSizing();
         QueueViewportResize();
         RenderVisiblePanes();
     }

@@ -99,6 +99,32 @@ internal static partial class Program
             sessions[0].Write("\r");WaitFor(()=>Text(panes[0]).Contains("clipboard-"));
             var images=(List<string>)typeof(MainWindow).GetField("_temporaryClipboardFiles",flags)!.GetValue(window)!;
             if(images.Count!=1 || !File.Exists(images[0]))throw new Exception("Dropped image was not saved as a temporary PNG");
+            for (var i = 0; i < panes.Count; i++)
+            {
+                Call("ShowTab", tabs[0]);
+                Call("ActivatePane", panes[i]);
+                Call("ApplyFontSettings", new TerminalFontSettings("Consolas", 14, false, false));
+                Pump();
+                var pane = panes[i];
+                WaitFor(() => ((TerminalBuffer)Get(pane, "Buffer")!).CaptureSnapshot().Columns > 0);
+                var prefix = i == 0 ? "RTL_ZOOM_CMD_" : "RTL_ZOOM_PS_";
+                var tail = new string('x', 90);
+                sessions[i].Write(i == 0
+                    ? $"for /L %i in (1,1,12) do @echo {prefix}%i_{tail}\r"
+                    : $"1..12 | ForEach-Object {{ Write-Output ('{prefix}'+$_+'_{tail}') }}\r");
+                WaitFor(() => Text(pane).Contains(prefix + "12_"));
+                var before = ((TerminalBuffer)Get(pane, "Buffer")!).CaptureSnapshot().Columns;
+                Call("ZoomFontSize", 3); Call("ZoomFontSize", 3); Pump();
+                Call("ApplyViewportResize");
+                if (((TerminalBuffer)Get(pane, "Buffer")!).CaptureSnapshot().Columns != before)
+                    throw new Exception("Zoom resized the buffer before the debounce interval elapsed");
+                WaitFor(() => ((TerminalBuffer)Get(pane, "Buffer")!).CaptureSnapshot().Columns < before &&
+                    Text(pane).Contains(prefix + "12_"));
+                var retained = Text(pane);
+                for (var line = 1; line <= 12; line++)
+                    if (!retained.Contains(prefix + line + "_")) throw new Exception($"Zoom lost {prefix}{line} history");
+            }
+            Console.WriteLine("PASS live CMD/PowerShell zoom debounce and retained output after narrower/wrapped grids");
             Console.WriteLine("PASS two live shells, target-pane text/file/image drops, literal paths and temporary image creation");
         }
         finally

@@ -17,6 +17,7 @@ var tests = new (string Name, Action Run)[]
     ("status redraw clears old characters across reads", StatusRedraw),
     ("wide characters can be erased and overwritten", WideErase),
     ("snapshot rows are reused without hiding edits", SnapshotReuse),
+    ("resize reflows shell history without losing text, styles or graphemes", ResizeReflow),
     ("dropped Windows paths become WSL paths", DroppedPathsBecomeWslPaths)
 };
 
@@ -39,6 +40,54 @@ foreach (var failure in failures)
     Console.Error.WriteLine(failure);
 
 return failures.Count == 0 ? 0 : 1;
+
+static void ResizeReflow()
+{
+    static string Logical(TerminalSnapshot snapshot)
+    {
+        var result = new System.Text.StringBuilder();
+        for (var i = 0; i < snapshot.Lines.Count; i++)
+        {
+            var text = string.Concat(snapshot.Lines[i].Runs.Select(r => r.Text));
+            var continues = i + 1 < snapshot.Lines.Count && snapshot.Lines[i + 1].WrappedFromPrevious;
+            result.Append(continues ? text : text.TrimEnd());
+            if (!continues && i + 1 < snapshot.Lines.Count) result.Append('\n');
+        }
+        return result.ToString();
+    }
+    var buffer = new TerminalBuffer(80, 10);
+    var original = buffer.Process(string.Join("\r\n", Enumerable.Range(0, 25)
+        .Select(i => $"ROW{i:D2}: سلام دنیا می‌خواهم آزمایش کنم 👨‍💻 中文 \x1b[31mcolored text\x1b[0m " + new string('x', 45))));
+    var expected = Logical(original);
+    foreach (var (columns, rows) in new[] { (20, 5), (120, 30), (11, 8), (80, 10), (13, 5), (100, 20) })
+    {
+        var resized = buffer.Resize(columns, rows);
+        Assert(Logical(resized) == expected, $"Resize {columns}x{rows} changed logical shell text");
+        Assert(resized.Lines.SelectMany(l => l.Runs).Any(r => r.Text.Contains("colored") && r.Style.Foreground is not null), "Resize lost ANSI style");
+    }
+    var final = buffer.Process("!");
+    Assert(Logical(final) == expected + "!", "Resize misplaced the cursor for subsequent output");
+
+    var edge = new TerminalBuffer(20, 8);
+    edge.Process("12345678901234567890");
+    edge.Resize(10, 5);
+    Assert(Logical(edge.Process("Z")) == "12345678901234567890Z", "Resize lost pending auto-wrap at the right edge");
+
+    var wide = new TerminalBuffer(11, 6);
+    var wideText = Logical(wide.Process("1234567890中文🙂 end"));
+    for (var i = 0; i < 5; i++)
+    {
+        Assert(Logical(wide.Resize(13, 5)) == wideText, "Widening added padding to wide glyphs");
+        Assert(Logical(wide.Resize(10, 7)) == wideText, "Narrowing split a wide glyph or inserted spaces");
+    }
+
+    var alt = new TerminalBuffer(40, 8);
+    var main = Logical(alt.Process("saved shell text with a long soft wrapped sentence سلام دنیا\r\nnext prompt"));
+    alt.Process("\x1b[?1049hTUI");
+    var alternate = alt.Resize(15, 5);
+    Assert(alternate.Modes.AlternateScreen && alternate.Lines.Count == 5 && alternate.ScrollbackCount == 0, "Resize reflowed an application-owned alternate grid");
+    Assert(Logical(alt.Process("\x1b[?1049l")) == main, "Resize lost the saved main screen behind a TUI");
+}
 
 static void AlternateScreenIsIsolated()
 {
