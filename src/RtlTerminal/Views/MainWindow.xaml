@@ -487,7 +487,7 @@
         </ResourceDictionary>
     </Window.Resources>
 
-    <Border>
+    <Border x:Name="WindowFrame">
         <Border.Style>
             <Style TargetType="Border">
                 <Setter Property="Padding" Value="0" />
@@ -495,13 +495,25 @@
                     <DataTrigger Binding="{Binding WindowState, RelativeSource={RelativeSource AncestorType=Window}}" Value="Maximized">
                         <Setter Property="Padding" Value="8,8,8,12" />
                     </DataTrigger>
+                    <DataTrigger Binding="{Binding IsFullScreen, RelativeSource={RelativeSource AncestorType=Window}}" Value="True">
+                        <Setter Property="Padding" Value="0" />
+                    </DataTrigger>
                 </Style.Triggers>
             </Style>
         </Border.Style>
     <DockPanel Background="{DynamicResource TerminalBackgroundBrush}">
-        <Grid DockPanel.Dock="Top"
+        <Grid x:Name="TitleBarArea" DockPanel.Dock="Top"
               Height="40"
               Background="{DynamicResource TitleBarBrush}">
+            <Grid.Style>
+                <Style TargetType="Grid">
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding IsFullScreen, RelativeSource={RelativeSource AncestorType=Window}}" Value="True">
+                            <Setter Property="Visibility" Value="Collapsed" />
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </Grid.Style>
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="138" />
@@ -575,7 +587,16 @@
             </StackPanel>
         </Grid>
 
-        <Border DockPanel.Dock="Top" Background="{DynamicResource ToolbarBrush}" BorderBrush="{DynamicResource ToolbarBorderBrush}" BorderThickness="0,0,0,1">
+        <Border x:Name="MenuBarArea" DockPanel.Dock="Top" Background="{DynamicResource ToolbarBrush}" BorderBrush="{DynamicResource ToolbarBorderBrush}" BorderThickness="0,0,0,1">
+        <Border.Style>
+            <Style TargetType="Border">
+                <Style.Triggers>
+                    <DataTrigger Binding="{Binding IsFullScreen, RelativeSource={RelativeSource AncestorType=Window}}" Value="True">
+                        <Setter Property="Visibility" Value="Collapsed" />
+                    </DataTrigger>
+                </Style.Triggers>
+            </Style>
+        </Border.Style>
         <DockPanel Margin="8,0,14,3">
         <TextBlock DockPanel.Dock="Right" VerticalAlignment="Center" FontSize="10" Margin="14,0,0,0"
                    ToolTip="{local:UiText Key='Smart RTL automatically handles Persian and mixed-direction text'}">

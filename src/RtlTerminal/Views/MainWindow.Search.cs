@@ -196,10 +196,15 @@ public partial class MainWindow
     }
 
     // Font Zoom and Fullscreen
-    private bool _isFullScreen;
+    private static readonly DependencyPropertyKey IsFullScreenPropertyKey = DependencyProperty.RegisterReadOnly(
+        nameof(IsFullScreen), typeof(bool), typeof(MainWindow), new PropertyMetadata(false));
+    public static readonly DependencyProperty IsFullScreenProperty = IsFullScreenPropertyKey.DependencyProperty;
+    public bool IsFullScreen => (bool)GetValue(IsFullScreenProperty);
     private WindowState _previousWindowState = WindowState.Normal;
     private WindowStyle _previousWindowStyle = WindowStyle.None;
     private ResizeMode _previousResizeMode = ResizeMode.CanResize;
+    private Rect _previousWindowBounds;
+    private System.Windows.Shell.WindowChrome? _previousWindowChrome;
 
     private void ZoomInMenuItem_Click(object sender, RoutedEventArgs e) => ZoomFontSize(1);
     private void ZoomOutMenuItem_Click(object sender, RoutedEventArgs e) => ZoomFontSize(-1);
@@ -243,23 +248,42 @@ public partial class MainWindow
 
     private void ToggleFullScreen()
     {
-        if (!_isFullScreen)
+        if (!IsFullScreen)
         {
             _previousWindowState = WindowState;
             _previousWindowStyle = WindowStyle;
             _previousResizeMode = ResizeMode;
-            _isFullScreen = true;
+            _previousWindowBounds = WindowState == WindowState.Normal
+                ? new Rect(Left, Top, Width, Height) : RestoreBounds;
+            _previousWindowChrome = System.Windows.Shell.WindowChrome.GetWindowChrome(this);
 
+            // Re-maximize even when invoked from a maximized window: its native
+            // bounds must change from the work area to the complete monitor.
+            WindowState = WindowState.Normal;
+            SetValue(IsFullScreenPropertyKey, true);
+            System.Windows.Shell.WindowChrome.SetWindowChrome(this, null);
             WindowStyle = WindowStyle.None;
             ResizeMode = ResizeMode.NoResize;
             WindowState = WindowState.Maximized;
         }
         else
         {
-            _isFullScreen = false;
+            WindowState = WindowState.Normal;
+            SetValue(IsFullScreenPropertyKey, false);
             WindowStyle = _previousWindowStyle;
             ResizeMode = _previousResizeMode;
+            System.Windows.Shell.WindowChrome.SetWindowChrome(this, _previousWindowChrome);
+            if (!_previousWindowBounds.IsEmpty &&
+                double.IsFinite(_previousWindowBounds.X) && double.IsFinite(_previousWindowBounds.Y))
+            {
+                Left = _previousWindowBounds.Left;
+                Top = _previousWindowBounds.Top;
+                Width = _previousWindowBounds.Width;
+                Height = _previousWindowBounds.Height;
+            }
             WindowState = _previousWindowState;
         }
+        ActiveView.Focus();
+        QueueViewportResize();
     }
 }

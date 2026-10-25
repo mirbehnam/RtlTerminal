@@ -298,7 +298,7 @@ ApplySavedFontSettings();
         CleanupTemporaryClipboardFiles();
     }
 
-    private void Window_SourceInitialized(object? sender, EventArgs e) => WindowWorkArea.Attach(this);
+    private void Window_SourceInitialized(object? sender, EventArgs e) => WindowWorkArea.Attach(this, () => IsFullScreen);
 
     private void Window_SizeChanged(object sender, SizeChangedEventArgs e)
     {
@@ -521,7 +521,7 @@ ApplySavedFontSettings();
 
     private void MaximizeButton_Click(object sender, RoutedEventArgs e)
     {
-        if (_isFullScreen)
+        if (IsFullScreen)
         {
             ToggleFullScreen();
             return;

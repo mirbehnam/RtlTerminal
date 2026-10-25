@@ -248,13 +248,24 @@ internal static partial class Program
             var prevWindowState = window.WindowState;
             var prevWindowStyle = window.WindowStyle;
             var prevResizeMode = window.ResizeMode;
+            var prevChrome = System.Windows.Shell.WindowChrome.GetWindowChrome(window);
 
             Call("ToggleFullScreen");
-            if (window.WindowState != WindowState.Maximized || window.WindowStyle != WindowStyle.None || window.ResizeMode != ResizeMode.NoResize)
+            window.Dispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.ContextIdle);
+            if (!window.IsFullScreen || window.WindowState != WindowState.Maximized || window.WindowStyle != WindowStyle.None || window.ResizeMode != ResizeMode.NoResize)
                 throw new Exception("Fullscreen did not apply borderless maximized state");
+            if (((FrameworkElement)window.FindName("TitleBarArea")).Visibility != Visibility.Collapsed ||
+                ((FrameworkElement)window.FindName("MenuBarArea")).Visibility != Visibility.Collapsed ||
+                ((Border)window.FindName("WindowFrame")).Padding != new Thickness(0) ||
+                System.Windows.Shell.WindowChrome.GetWindowChrome(window) is not null || window.Topmost)
+                throw new Exception($"Fullscreen chrome mismatch: title={((FrameworkElement)window.FindName("TitleBarArea")).Visibility}, menu={((FrameworkElement)window.FindName("MenuBarArea")).Visibility}, padding={((Border)window.FindName("WindowFrame")).Padding}");
 
             Call("ToggleFullScreen");
-            if (window.WindowState != prevWindowState || window.WindowStyle != prevWindowStyle || window.ResizeMode != prevResizeMode)
+            window.Dispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.ContextIdle);
+            if (window.IsFullScreen || window.WindowState != prevWindowState || window.WindowStyle != prevWindowStyle || window.ResizeMode != prevResizeMode ||
+                !ReferenceEquals(prevChrome, System.Windows.Shell.WindowChrome.GetWindowChrome(window)) ||
+                ((FrameworkElement)window.FindName("TitleBarArea")).Visibility != Visibility.Visible ||
+                ((FrameworkElement)window.FindName("MenuBarArea")).Visibility != Visibility.Visible)
                 throw new Exception("Fullscreen toggle did not restore previous window state/style");
 
             Console.WriteLine("PASS terminal search bar navigation, RTL/Arabic search, case sensitivity, font zoom/reset, fullscreen toggle and Arabic font recommendations");
