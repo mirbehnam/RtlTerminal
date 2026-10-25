@@ -109,6 +109,7 @@ internal static partial class Program
         CheckGraphicsAndRedraw();
         CheckWindowHeader();
         CheckLinksAndMenu();
+        CheckWrappedLinks();
         CheckRtlModes();
         CheckGlyphReuse();
         CheckDialogRedraw();

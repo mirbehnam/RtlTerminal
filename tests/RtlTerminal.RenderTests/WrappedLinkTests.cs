@@ -1,0 +1,74 @@
+using System.Collections;
+using System.Net;
+using System.Reflection;
+using System.Windows;
+using System.Windows.Media;
+using RtlTerminal;
+
+internal static partial class Program
+{
+    private static void CheckWrappedLinks()
+    {
+        const BindingFlags flags = BindingFlags.Instance | BindingFlags.NonPublic;
+        const string url = "https://github.com/mirbehnam/RtlTerminal/pull/17/commits";
+        var view = new TerminalView { Width = 800, Height = 420, FontFamily = new FontFamily("Consolas"), FontSize = 18, Background = Brushes.Black };
+        var hit = typeof(TerminalView).GetMethod("LinkAt", flags)!;
+        TerminalSnapshot Displayed() => (TerminalSnapshot)typeof(TerminalView).GetField("_snapshot", flags)!.GetValue(view)!;
+        Uri? At(int row, int offset)
+        {
+            var layouts = (IDictionary)typeof(TerminalView).GetField("_layouts", flags)!.GetValue(view)!;
+            var layout = layouts[row]!;
+            var cells = ((IEnumerable)layout.GetType().GetProperty("Cells")!.GetValue(layout)!).Cast<object>();
+            double Number(object c, string name) => Convert.ToDouble(c.GetType().GetProperty(name)!.GetValue(c));
+            var cell = cells.First(c => offset >= Number(c, "Start") && offset < Number(c, "Start") + Number(c, "Length"));
+            return (Uri?)hit.Invoke(view, [new Point(Number(cell, "X") + Number(cell, "Width") / 2, row * 25 + 12)]);
+        }
+        void CheckAddress(string text, string address)
+        {
+            var lines = Displayed().Lines;
+            var logical = string.Concat(lines.Select(l => l.Text));
+            var first = logical.IndexOf(text, StringComparison.Ordinal);
+            if (first < 0) throw new Exception("Wrapped URL text was lost");
+            var start = 0; var pieces = 0;
+            for (var row = 0; row < lines.Count; row++)
+            {
+                var from = Math.Max(first, start); var to = Math.Min(first + text.Length, start + lines[row].Text.Length);
+                if (to > from)
+                {
+                    pieces++;
+                    if (At(row, from - start)?.AbsoluteUri != address || At(row, to - start - 1)?.AbsoluteUri != address)
+                        throw new Exception($"Wrapped URL fragment on row {row} did not open the entire address");
+                }
+                start += lines[row].Text.Length;
+            }
+            if (pieces < 2) throw new Exception("Wrapped link fixture did not span multiple rows");
+            var html = view.CreateHtmlPreview(HtmlPreviewScope.EntireHistory);
+            if (html.Split("href=\"" + WebUtility.HtmlEncode(address) + "\"").Length - 1 < pieces)
+                throw new Exception("HTML preview lost full link targets on continuation rows");
+        }
+        foreach (var prefix in new[] { "", new string('x', 23) + " ", "متن فارسی قبل از لینک " })
+        {
+            var buffer = new TerminalBuffer(25, 16);
+            Render(view, buffer.Process(prefix + "\x1b[31m" + url[..45] + "\x1b[32m" + url[45..] + "\x1b[0m"), "wrapped-link.png");
+            view.ScrollToVerticalOffset(0); view.UpdateLayout();
+            view.Dispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.ContextIdle);
+            CheckAddress(url, url);
+        }
+        var web = new TerminalBuffer(15, 16);
+        const string www = "www.example.com/long-path?q=1&x=2";
+        Render(view, web.Process(www), "wrapped-www.png"); CheckAddress(www, "https://" + www);
+        var growing = new TerminalBuffer(20, 16);
+        Render(view, growing.Process(url[..45]), "wrapped-link-prefix.png");
+        Render(view, growing.Process(url[45..]), "wrapped-link-appended.png"); CheckAddress(url, url);
+        Render(view, growing.Resize(15, 16), "wrapped-link-resized.png"); CheckAddress(url, url);
+        var hard = new TerminalBuffer(80, 16);
+        Render(view, hard.Process("https://example.com/path\r\nsuffix"), "hard-link.png");
+        if (At(0, 1)?.AbsoluteUri != "https://example.com/path" || At(1, 1) is not null)
+            throw new Exception("Explicit line breaks were incorrectly joined into a link");
+        var hidden = new TerminalBuffer(20, 16);
+        Render(view, hidden.Process("https://example.com/\x1b[8msecret\x1b[0m"), "wrapped-hidden-link.png");
+        if (At(0, 1) is not null || view.CreateHtmlPreview(HtmlPreviewScope.EntireHistory).Contains("href="))
+            throw new Exception("A visible prefix exposed the concealed part of a link");
+        Console.WriteLine("PASS full URL hit targets across soft wraps, split schemes, Persian/ANSI text, appended tails, resize, HTML, hard breaks and hidden text");
+    }
+}

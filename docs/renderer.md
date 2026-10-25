@@ -20,6 +20,12 @@ Uniform Persian/Arabic words share formatted text and relative character-hit
 bounds across rows in a bounded, per-view cache. Mixed ANSI formatting and links
 are kept separate; font, DPI and theme changes invalidate cached shaping.
 
+HTTP/HTTPS and www links are detected across automatic line wraps, with each
+visible fragment opening the complete address in both the terminal and HTML
+preview. Explicit newlines remain boundaries. Concealed URL portions are not
+exposed through a clickable visible prefix. Visible-row link maps are cached
+and refreshed when output changes.
+
 Zoom changes the font immediately and waits 180 ms after the last zoom action
 before resizing the shell grid. Normal-screen resizing joins soft wraps and
 reflows text into the new columns, moving overflow into retained history instead

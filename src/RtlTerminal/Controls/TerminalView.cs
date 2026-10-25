@@ -1,6 +1,5 @@
 using System.Globalization;
 using System.Text;
-using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -27,7 +26,7 @@ public sealed class TerminalView : ContentControl
     private int _wheelDelta;
     private long _pendingWheelRows;
     private System.Windows.Threading.DispatcherOperation? _wheelOperation;
-    internal static readonly Regex Links = new(@"(?i)\b(?:https?://|www\.)[^\s<>{}\[\]""']+", RegexOptions.Compiled);
+    private readonly Dictionary<int, IReadOnlyList<TerminalLinkSpan>> _rowLinks = [];
     public event Action<Uri>? LinkRequested;
     public bool HasSelection => _anchor is not null && _end is not null && _anchor != _end;
     public bool IsSelecting => _dragging;
@@ -134,6 +133,7 @@ public sealed class TerminalView : ContentControl
             previous.CursorColumn == snapshot.CursorColumn && previous.Lines.Count == snapshot.Lines.Count &&
             previous.Lines.Zip(snapshot.Lines).All(pair => ReferenceEquals(pair.First, pair.Second) ||
                 pair.First.CellLength == pair.Second.CellLength && pair.First.WrappedFromPrevious == pair.Second.WrappedFromPrevious && pair.First.Runs.SequenceEqual(pair.Second.Runs));
+        if (!sameFrame) _rowLinks.Clear();
         if (trimmed != 0 || _smartRtl != smartRtl || _rowRtl != rowRtl || _cellWidth != cellWidth ||
             _lineHeight != lineHeight || _fontKey != fontKey ||
             _snapshot?.Modes.AlternateScreen != snapshot.Modes.AlternateScreen)
@@ -192,6 +192,7 @@ public sealed class TerminalView : ContentControl
     {
         CancelWheelScroll();
         _snapshot = null;
+        _rowLinks.Clear();
         _layouts.Clear();
         _surface.Height = _lineHeight;
         ClearSelection();
@@ -320,14 +321,26 @@ public sealed class TerminalView : ContentControl
         var layout = Layout(row);
         var cell = layout.Cells.FirstOrDefault(cell => point.X >= cell.X && point.X < cell.X + cell.Width);
         if (cell is null || cell.Style.Hidden) return null;
-        foreach (Match match in Links.Matches(layout.Text))
+        foreach (var link in GetRowLinks(row))
         {
-            var address = match.Value.TrimEnd('.', ',', ';', ':', '!', '?', ')');
-            if (cell.Start < match.Index || cell.Start >= match.Index + address.Length) continue;
-            if (address.StartsWith("www.", StringComparison.OrdinalIgnoreCase)) address = "https://" + address;
-            if (Uri.TryCreate(address, UriKind.Absolute, out var uri)) return uri;
+            if (cell.Start >= link.Start && cell.Start < link.Start + link.Length) return link.Uri;
         }
         return null;
+    }
+
+    private IReadOnlyList<TerminalLinkSpan> GetRowLinks(int row)
+    {
+        if (_rowLinks.TryGetValue(row, out var cached)) return cached;
+        var lines = _snapshot!.Lines;
+        var first = row;
+        while (first > 0 && lines[first].WrappedFromPrevious) first--;
+        var end = row + 1;
+        while (end < lines.Count && lines[end].WrappedFromPrevious) end++;
+        var links = TerminalLinks.ForParagraph(lines, first, end);
+        // Keep only a bounded neighbourhood when a single paragraph is very long.
+        for (var r = Math.Max(first, row - 128); r < Math.Min(end, row + 129); r++)
+            _rowLinks[r] = links.TryGetValue(r, out var spans) ? spans : [];
+        return _rowLinks[row];
     }
 
     private void BeginSelection(object sender, MouseButtonEventArgs e)
@@ -498,6 +511,7 @@ public sealed class TerminalView : ContentControl
         // The bounded cache avoids repeating Persian shaping on small scroll reversals.
         var cacheMargin = Math.Max(64, 3 * (last - first));
         foreach (var key in _layouts.Keys.Where(key => key < first - cacheMargin || key >= last + cacheMargin).ToArray()) _layouts.Remove(key);
+        foreach (var key in _rowLinks.Keys.Where(key => key < first - cacheMargin || key >= last + cacheMargin).ToArray()) _rowLinks.Remove(key);
         // Preserve the already-recorded WPF visuals too. Removing them at every
         // viewport edge makes small scroll reversals allocate and record rows again.
         // Only visited rows are cached, and the same bounded margin evicts both caches.
@@ -505,6 +519,13 @@ public sealed class TerminalView : ContentControl
         for (var row = first; row < last; row++)
         {
             var layout = Layout(row); var y = row * _lineHeight;
+            var links = GetRowLinks(row);
+            if (!layout.Links.SequenceEqual(links))
+            {
+                layout.Links = links;
+                layout.Drawing = null;
+                foreach (var glyph in layout.Glyphs) { glyph.Formatted = null; glyph.HighlightBounds = null; }
+            }
             if (layout.Drawing is null)
             {
                 var drawing = new DrawingGroup();
@@ -551,13 +572,13 @@ public sealed class TerminalView : ContentControl
             }
             dc.DrawRectangle(BrushFor(color), null, new Rect(cell.X, y, right - cell.X, _lineHeight));
         }
-        var links = Links.Matches(layout.Text);
+        var links = layout.Links;
         foreach (var glyph in layout.Glyphs)
         {
             // Spaces already have their backgrounds painted. Only decorated spaces
             // need a text drawing; TUI panels can contain thousands of plain spaces.
             if (glyph.Text == " " && !glyph.Style.Underline && !glyph.Style.Strikethrough &&
-                !links.Cast<Match>().Any(link => glyph.Start >= link.Index && glyph.Start < link.Index + link.Length))
+                !links.Any(link => glyph.Start >= link.Start && glyph.Start < link.Start + link.Length))
                 continue;
             if (DrawBlock(dc, glyph, y) || DrawBox(dc, glyph, y)) continue;
             var formatted = glyph.Formatted;
@@ -565,7 +586,7 @@ public sealed class TerminalView : ContentControl
             // A uniform Persian word can share shaping and character hit bounds
             // across rows. Mixed ANSI words and links retain their own formatting.
             var wordCacheable = glyph.Rtl && glyph.Text.Length <= 256 &&
-                !links.Cast<Match>().Any(link => link.Index < glyph.Start + glyph.Text.Length && link.Index + link.Length > glyph.Start) &&
+                !links.Any(link => link.Start < glyph.Start + glyph.Text.Length && link.Start + link.Length > glyph.Start) &&
                 HasUniformStyle(layout.Source, glyph.Start, glyph.Text.Length, glyph.Style);
             var wordKey = (glyph.Text, glyph.Style);
             if (formatted is null && wordCacheable && _wordCache.TryGetValue(wordKey, out var shaped))
@@ -573,7 +594,7 @@ public sealed class TerminalView : ContentControl
                 formatted = shaped.Formatted;
                 glyph.HighlightBounds = shaped.HighlightBounds;
             }
-            var isLink = links.Cast<Match>().Any(link => glyph.Start >= link.Index && glyph.Start < link.Index + link.Length);
+            var isLink = links.Any(link => glyph.Start >= link.Start && glyph.Start < link.Start + link.Length);
             var glyphKey = (glyph.Text, glyph.Style, isLink);
             if (formatted is null && cacheable) _glyphCache.TryGetValue(glyphKey, out formatted);
             if (formatted is null)
@@ -598,9 +619,9 @@ public sealed class TerminalView : ContentControl
                 formatted.SetTextDecorations(decorations, index, end - index);
                 index = end;
             }
-            foreach (Match link in links)
+            foreach (var link in links)
             {
-                var start = Math.Max(glyph.Start, link.Index); var end = Math.Min(glyph.Start + glyph.Text.Length, link.Index + link.Length);
+                var start = Math.Max(glyph.Start, link.Start); var end = Math.Min(glyph.Start + glyph.Text.Length, link.Start + link.Length);
                 if (end <= start) continue;
                 if (glyph.Style.Hidden) continue;
                 formatted.SetForegroundBrush(Brushes.CornflowerBlue, start - glyph.Start, end - start);
@@ -729,6 +750,7 @@ public sealed class TerminalView : ContentControl
     private sealed record RowLayout(TerminalLine Source, string Text, List<DrawCell> Cells, List<DrawGlyph> Glyphs)
     {
         public DrawingGroup? Drawing { get; set; }
+        public IReadOnlyList<TerminalLinkSpan> Links { get; set; } = [];
     }
 
     private bool DrawBlock(DrawingContext dc, DrawGlyph glyph, double y)
