@@ -2,12 +2,15 @@
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                     xmlns:sys="clr-namespace:System;assembly=mscorlib">
     <!-- Fluent-style indicator, with a fixed gutter to keep terminal columns stable. -->
+    <!-- ScrollViewer's system template sets a local Width from this resource,
+         which takes precedence over the ScrollBar style's Width setter. -->
+    <sys:Double x:Key="{x:Static SystemParameters.VerticalScrollBarWidthKey}">8</sys:Double>
     <Style TargetType="ScrollBar">
         <Style.Resources>
             <!-- WPF Track uses half this metric as its minimum thumb length. -->
             <sys:Double x:Key="{x:Static SystemParameters.VerticalScrollBarButtonHeightKey}">56</sys:Double>
         </Style.Resources>
-        <Setter Property="Width" Value="12" />
+        <Setter Property="Width" Value="8" />
         <Setter Property="Background" Value="{DynamicResource ScrollTrackBrush}" />
         <Setter Property="Focusable" Value="False" />
         <Setter Property="IsTabStop" Value="False" />
@@ -42,11 +45,11 @@
                                             </Grid>
                                             <ControlTemplate.Triggers>
                                                 <DataTrigger Binding="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType=ScrollBar}}" Value="True">
-                                                    <Setter TargetName="Grip" Property="Width" Value="6" />
+                                                    <Setter TargetName="Grip" Property="Width" Value="4" />
                                                     <Setter TargetName="Grip" Property="Background" Value="{DynamicResource ScrollThumbHoverBrush}" />
                                                 </DataTrigger>
                                                 <Trigger Property="IsDragging" Value="True">
-                                                    <Setter TargetName="Grip" Property="Width" Value="6" />
+                                                    <Setter TargetName="Grip" Property="Width" Value="4" />
                                                     <Setter TargetName="Grip" Property="Background" Value="{DynamicResource ScrollThumbPressedBrush}" />
                                                 </Trigger>
                                             </ControlTemplate.Triggers>

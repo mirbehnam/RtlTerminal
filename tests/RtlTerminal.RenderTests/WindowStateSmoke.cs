@@ -88,11 +88,27 @@ internal static class WindowStateSmoke
         // Exercise real F11 routing, including entry from an already maximized window.
         void F11()
         {
+            var nativeSource = HwndSource.FromHwnd(handle)!;
+            var redrawMessages = new List<bool>();
+            HwndSourceHook observer = (IntPtr hwnd, int message, IntPtr wParam, IntPtr lParam, ref bool handled) =>
+            {
+                if (message == 0x000B) redrawMessages.Add(wParam != IntPtr.Zero);
+                return IntPtr.Zero;
+            };
+            DwmGetWindowAttribute(handle, 3, out var previousTransitions, sizeof(int));
+            nativeSource.AddHook(observer);
             var key = new System.Windows.Input.KeyEventArgs(System.Windows.Input.Keyboard.PrimaryDevice,
                 PresentationSource.FromVisual(window), Environment.TickCount, System.Windows.Input.Key.F11)
                 { RoutedEvent = System.Windows.Input.Keyboard.PreviewKeyDownEvent };
-            window.RaiseEvent(key); Pump();
+            try { window.RaiseEvent(key); }
+            finally { nativeSource.RemoveHook(observer); }
+            Pump();
             if (!key.Handled) throw new Exception("F11 did not toggle fullscreen");
+            if (redrawMessages.Count < 2 || redrawMessages[0] || !redrawMessages[^1] || !IsWindowVisible(handle))
+                throw new Exception("F11 must freeze intermediate native frames and restore visible repainting");
+            DwmGetWindowAttribute(handle, 3, out var restoredTransitions, sizeof(int));
+            if (previousTransitions != restoredTransitions)
+                throw new Exception("F11 changed the normal Windows animation preference");
         }
         window.Left += 24; window.Top += 18; window.Width = 850; window.Height = 560; Pump();
         GetWindowRect(handle, out var originalRect);
@@ -147,6 +163,8 @@ internal static class WindowStateSmoke
     [StructLayout(LayoutKind.Sequential)] private struct RectI { public int Left, Top, Right, Bottom; }
     [StructLayout(LayoutKind.Sequential)] private struct MonitorInfo { public int Size; public RectI Monitor, Work; public int Flags; }
     [DllImport("user32.dll")] private static extern IntPtr MonitorFromWindow(IntPtr hwnd, uint flags);
+    [DllImport("dwmapi.dll")] private static extern int DwmGetWindowAttribute(IntPtr hwnd, int attribute, out int value, int size);
+    [DllImport("user32.dll")] [return: MarshalAs(UnmanagedType.Bool)] private static extern bool IsWindowVisible(IntPtr hwnd);
     private delegate bool MonitorEnumProc(IntPtr monitor, IntPtr dc, ref RectI rect, IntPtr data);
     [DllImport("user32.dll")] [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool EnumDisplayMonitors(IntPtr dc, IntPtr clip, MonitorEnumProc callback, IntPtr data);

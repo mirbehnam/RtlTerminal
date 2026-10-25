@@ -205,6 +205,7 @@ public partial class MainWindow
     private ResizeMode _previousResizeMode = ResizeMode.CanResize;
     private Rect _previousWindowBounds;
     private System.Windows.Shell.WindowChrome? _previousWindowChrome;
+    private bool _fullScreenTransitionPending;
 
     private void ZoomInMenuItem_Click(object sender, RoutedEventArgs e) => ZoomFontSize(1);
     private void ZoomOutMenuItem_Click(object sender, RoutedEventArgs e) => ZoomFontSize(-1);
@@ -247,6 +248,18 @@ public partial class MainWindow
     }
 
     private void ToggleFullScreen()
+    {
+        if (_fullScreenTransitionPending) return;
+        _fullScreenTransitionPending = true;
+        try
+        {
+            using var transition = new WindowTransition(this);
+            ApplyFullScreen();
+        }
+        finally { _fullScreenTransitionPending = false; }
+    }
+
+    private void ApplyFullScreen()
     {
         if (!IsFullScreen)
         {

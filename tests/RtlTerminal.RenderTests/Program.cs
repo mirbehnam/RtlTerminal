@@ -399,6 +399,16 @@ internal static partial class Program
         for (var i = 0; i < 50; i++) updated = status.Process("\r\nnext line");
         Render(view, updated, "stable-gutter.png");
         if (view.ViewportWidth != widthBefore) throw new Exception("History changed the terminal viewport width");
+        var scroll = (System.Windows.Controls.ScrollViewer)view.Content;
+        scroll.ApplyTemplate();
+        var scrollbar = (System.Windows.Controls.Primitives.ScrollBar)scroll.Template.FindName("PART_VerticalScrollBar", scroll);
+        if (Math.Abs(scrollbar.ActualWidth - 8) > 0.01 || Math.Abs(view.ActualWidth - view.ViewportWidth - 8) > 0.01)
+            throw new Exception($"Terminal scrollbar must reserve exactly 8 DIPs: bar={scrollbar.ActualWidth}, reserved={view.ActualWidth - view.ViewportWidth}");
+        var track = (System.Windows.Controls.Primitives.Track)scrollbar.Template.FindName("PART_Track", scrollbar);
+        track.Thumb.ApplyTemplate();
+        var grip = (System.Windows.Controls.Border)track.Thumb.Template.FindName("Grip", track.Thumb);
+        if (grip.Width != 2 || track.Thumb.MinHeight < 28 || scrollbar.ActualWidth < grip.Width)
+            throw new Exception("Narrow scrollbar lost its compact grip or draggable thumb");
         Console.WriteLine("PASS seamless blocks at 96/120/144 DPI, stale-pixel redraw and stable viewport width");
     }
 
