@@ -6,6 +6,11 @@ remain responsible for process input/output and terminal protocol semantics.
 
 Only visible rows are laid out. Visible layouts and shaped text are cached;
 scrollback does not create a document tree or a WPF element for every cell.
+Recently visited rows retain both shaped layouts and their WPF drawing visuals
+within a bounded margin around the viewport. Small scroll reversals reuse these
+visuals; resizing, font changes and theme changes invalidate them. Removed
+snapshot rows are evicted immediately. The scroll gutter is a fixed 10 DIPs,
+including while hovered, so its indicator can expand without resizing the text.
 Common box-drawing characters are drawn geometrically to join across cells.
 Block elements U+2580–U+259F use cell-relative rectangles (shades use blended
 foreground/background colors). Graphics have hard edges and font metrics are

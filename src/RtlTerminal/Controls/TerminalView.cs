@@ -66,10 +66,10 @@ public sealed class TerminalView : ContentControl
         _scroll.ScrollChanged += (_, e) =>
         {
             // Scrolling and history growth do not change existing row geometry.
-            if (e.ViewportWidthChange != 0) _layouts.Clear();
+            if (e.ViewportWidthChange != 0) { _layouts.Clear(); _surface.RetainRows(0, 0); }
             _surface.InvalidateVisual();
         };
-        SizeChanged += (_, _) => { _layouts.Clear(); _surface.InvalidateVisual(); };
+        SizeChanged += (_, _) => { _layouts.Clear(); _surface.RetainRows(0, 0); _surface.InvalidateVisual(); };
         _surface.MouseLeftButtonDown += BeginSelection;
         _surface.MouseMove += ExtendSelection;
         _surface.AddHandler(Mouse.MouseMoveEvent, new MouseEventHandler((_, e) =>
@@ -120,7 +120,10 @@ public sealed class TerminalView : ContentControl
         if (trimmed != 0 || _smartRtl != smartRtl || _rowRtl != rowRtl || _cellWidth != cellWidth ||
             _lineHeight != lineHeight || _fontKey != fontKey ||
             _snapshot?.Modes.AlternateScreen != snapshot.Modes.AlternateScreen)
+        {
             _layouts.Clear();
+            _surface.RetainRows(0, 0);
+        }
         if (_fontKey != fontKey) _glyphCache.Clear();
         _fontKey = fontKey;
         _snapshot = snapshot;
@@ -153,6 +156,7 @@ public sealed class TerminalView : ContentControl
     {
         ApplyScrollBarColors();
         _layouts.Clear();
+        _surface.RetainRows(0, 0);
         _glyphCache.Clear();
         _surface.InvalidateVisual();
     }
@@ -427,7 +431,10 @@ public sealed class TerminalView : ContentControl
         // The bounded cache avoids repeating Persian shaping on small scroll reversals.
         var cacheMargin = Math.Max(64, 3 * (last - first));
         foreach (var key in _layouts.Keys.Where(key => key < first - cacheMargin || key >= last + cacheMargin).ToArray()) _layouts.Remove(key);
-        _surface.RetainRows(first, last);
+        // Preserve the already-recorded WPF visuals too. Removing them at every
+        // viewport edge makes small scroll reversals allocate and record rows again.
+        // Only visited rows are cached, and the same bounded margin evicts both caches.
+        _surface.RetainRows(Math.Max(0, first - cacheMargin), Math.Min(_snapshot.Lines.Count, last + cacheMargin));
         for (var row = first; row < last; row++)
         {
             var layout = Layout(row); var y = row * _lineHeight;

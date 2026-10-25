@@ -33,6 +33,23 @@ internal static partial class Program
         view.ScrollToVerticalOffset(first * lineHeight);
         Render(view, snapshot, "scroll-cache-back.png");
         if (!ReferenceEquals(original, RowDrawing(view, first))) throw new Exception("Scrolling back rebuilt cached Persian text");
+        var surface = typeof(TerminalView).GetField("_surface", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(view)!;
+        int RowRecordings() => (int)surface.GetType().GetProperty("RowDrawCount")!.GetValue(surface)!;
+        void ScrollAndPump(int row)
+        {
+            view.ScrollToVerticalOffset(row * lineHeight);
+            view.UpdateLayout();
+            view.Dispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.ContextIdle);
+        }
+        var recordingsBefore = RowRecordings();
+        for (var i = 0; i < 20; i++) { ScrollAndPump(first + 8); ScrollAndPump(first); }
+        if (RowRecordings() != recordingsBefore)
+            throw new Exception("Warm scroll reversals must reuse WPF row visuals without recording them again");
+        ScrollAndPump(0); ScrollAndPump(170);
+        var retained = (System.Collections.IDictionary)surface.GetType().GetField("_rows", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(surface)!;
+        var visibleRows = (int)Math.Ceiling(view.ViewportHeight / lineHeight) + 2;
+        if (retained.Count > visibleRows + 2 * Math.Max(64, 3 * visibleRows))
+            throw new Exception("Scroll visual cache exceeded its viewport-relative memory bound");
         var fontHtml = WebUtility.HtmlDecode(TerminalHtmlExporter.Create([], "Cascadia Mono, Consolas", 18, 24));
         if (!fontHtml.Contains("font-family:'Cascadia Mono','Consolas','Segoe UI',Tahoma")) throw new Exception("Browser font families or Persian fallback missing");
         var directory = Path.Combine("artifacts", "render-checks", "preview-cleanup-" + Guid.NewGuid().ToString("N"));

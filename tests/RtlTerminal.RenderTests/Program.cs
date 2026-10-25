@@ -402,8 +402,8 @@ internal static partial class Program
         var scroll = (System.Windows.Controls.ScrollViewer)view.Content;
         scroll.ApplyTemplate();
         var scrollbar = (System.Windows.Controls.Primitives.ScrollBar)scroll.Template.FindName("PART_VerticalScrollBar", scroll);
-        if (Math.Abs(scrollbar.ActualWidth - 8) > 0.01 || Math.Abs(view.ActualWidth - view.ViewportWidth - 8) > 0.01)
-            throw new Exception($"Terminal scrollbar must reserve exactly 8 DIPs: bar={scrollbar.ActualWidth}, reserved={view.ActualWidth - view.ViewportWidth}");
+        if (Math.Abs(scrollbar.ActualWidth - 10) > 0.01 || Math.Abs(view.ActualWidth - view.ViewportWidth - 10) > 0.01)
+            throw new Exception($"Terminal scrollbar must reserve exactly 10 DIPs: bar={scrollbar.ActualWidth}, reserved={view.ActualWidth - view.ViewportWidth}");
         var track = (System.Windows.Controls.Primitives.Track)scrollbar.Template.FindName("PART_Track", scrollbar);
         track.Thumb.ApplyTemplate();
         var grip = (System.Windows.Controls.Border)track.Thumb.Template.FindName("Grip", track.Thumb);
