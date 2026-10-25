@@ -2,6 +2,7 @@ using RtlTerminal;
 
 var tests = new (string Name, Action Run)[]
 {
+    ("OSC 8 streams preserve hyperlink metadata independently of SGR", Osc8Links),
     ("alternate screen is isolated and restored", AlternateScreenIsIsolated),
     ("styled trailing spaces remain visible", StyledTrailingSpacesRemainVisible),
     ("modern SGR attributes reset independently", SgrAttributesResetIndependently),
@@ -40,6 +41,33 @@ foreach (var failure in failures)
     Console.Error.WriteLine(failure);
 
 return failures.Count == 0 ? 0 : 1;
+
+static void Osc8Links()
+{
+    const string target = "https://example.org/a;b?q=1&x=2";
+    var buffer = new TerminalBuffer(12, 5);
+    var stream = "\x1b]8;id=example;" + target + "\x1b\\" +
+        "first\x1b[31mSECOND\x1b[0mthird\x1b]8;;\a plain";
+    TerminalSnapshot snapshot = buffer.Process("");
+    foreach (var c in stream) snapshot = buffer.Process(c.ToString());
+    var linked = snapshot.Lines.SelectMany(l => l.Runs).Where(r => r.Style.Hyperlink is not null).ToArray();
+    Assert(string.Concat(linked.Select(r => r.Text)) == "firstSECONDthird", "OSC 8 escaped text leaked or SGR reset closed the link");
+    Assert(linked.All(r => r.Style.Hyperlink == target), "OSC 8 URI parameters or semicolons were lost");
+    snapshot = buffer.Resize(30, 10);
+    Assert(string.Concat(snapshot.Lines.SelectMany(l => l.Runs).Where(r => r.Style.Hyperlink == target).Select(r => r.Text)) == "firstSECONDthird", "Reflow lost hyperlink metadata");
+
+    var erase = new TerminalBuffer(30, 5);
+    snapshot = erase.Process("\x1b]8;;" + target + "\aold\r\x1b[2Knew\x1b]8;;\a");
+    Assert(snapshot.Lines[0].Runs.Where(r => r.Style.Hyperlink is not null).All(r => r.Text == "new"), "Erased padding inherited hyperlink metadata");
+    snapshot = erase.Process("\x1b]8;;" + new string('a', 4200) + "\aoverflow\x1b]8;;\a");
+    Assert(snapshot.Lines.SelectMany(l => l.Runs).Where(r => r.Text.Contains("overflow")).All(r => r.Style.Hyperlink is null), "Truncated OSC URI was accepted");
+
+    var history = new TerminalBuffer(30, 5);
+    snapshot = history.Process("\x1b]8;;" + target + "\alink\x1b]8;;\a" + new string('\n', 8));
+    Assert(snapshot.ScrollbackCount > 0 && snapshot.Lines[0].Runs.Any(r => r.Style.Hyperlink == target), "Scrollback lost the OSC 8 target");
+    snapshot = history.Process("\x1b[?1049h\x1b]8;;https://other.org\aother\x1b]8;;\a\x1b[?1049l");
+    Assert(snapshot.Lines[0].Runs.Any(r => r.Style.Hyperlink == target), "Alternate screen damaged saved links");
+}
 
 static void ResizeReflow()
 {

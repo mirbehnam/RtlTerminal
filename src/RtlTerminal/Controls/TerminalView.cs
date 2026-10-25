@@ -11,6 +11,14 @@ public sealed class TerminalView : ContentControl
 {
     private readonly ScrollViewer _scroll;
     private readonly Surface _surface;
+    private readonly TextBlock _linkAddress = new()
+    {
+        MaxWidth = 600,
+        TextWrapping = TextWrapping.Wrap,
+        FlowDirection = FlowDirection.LeftToRight
+    };
+    private readonly ToolTip _linkToolTip = new();
+    private Uri? _hoveredLink;
     private TerminalSnapshot? _snapshot;
     private long _sourceScrollbackStart;
     private bool _smartRtl;
@@ -53,6 +61,9 @@ public sealed class TerminalView : ContentControl
         VerticalContentAlignment = VerticalAlignment.Stretch;
         FocusVisualStyle = null;
         _surface = new Surface(this) { VerticalAlignment = VerticalAlignment.Top };
+        _linkToolTip.Content = _linkAddress;
+        ToolTipService.SetInitialShowDelay(_surface, 350);
+        ToolTipService.SetShowDuration(_surface, 30000);
         _scroll = new ScrollViewer
         {
             Content = _surface,
@@ -75,10 +86,11 @@ public sealed class TerminalView : ContentControl
         };
         _scroll.AddHandler(System.Windows.Controls.Primitives.Thumb.DragStartedEvent,
             new System.Windows.Controls.Primitives.DragStartedEventHandler((_, _) => CancelWheelScroll()));
-        Unloaded += (_, _) => CancelWheelScroll();
+        Unloaded += (_, _) => { CancelWheelScroll(); UpdateLinkHover(null); };
         _scroll.SetBinding(MarginProperty, new System.Windows.Data.Binding(nameof(Padding)) { Source = this });
         _scroll.ScrollChanged += (_, e) =>
         {
+            if (e.VerticalChange != 0 || e.ViewportWidthChange != 0) UpdateLinkHover(null);
             // Scrolling and history growth do not change existing row geometry.
             if (e.ViewportWidthChange != 0) { _layouts.Clear(); _surface.RetainRows(0, 0); }
             _surface.InvalidateVisual();
@@ -88,12 +100,14 @@ public sealed class TerminalView : ContentControl
         _surface.MouseMove += ExtendSelection;
         _surface.AddHandler(Mouse.MouseMoveEvent, new MouseEventHandler((_, e) =>
         {
-            var link = LinkAt(e.GetPosition(_surface));
-            _surface.ToolTip = link is null ? null : "Ctrl + Left Click to open link";
-            if (link is null) _surface.ClearValue(CursorProperty);
-            else _surface.Cursor = Cursors.Hand;
+            UpdateLinkHover(LinkAt(e.GetPosition(_surface)));
         }), true);
-        _surface.MouseLeave += (_, _) => { _surface.ToolTip = null; _surface.ClearValue(CursorProperty); };
+        _surface.ToolTipOpening += (_, e) =>
+        {
+            UpdateLinkHover(LinkAt(Mouse.GetPosition(_surface)));
+            if (_hoveredLink is null) e.Handled = true;
+        };
+        _surface.MouseLeave += (_, _) => UpdateLinkHover(null);
         _surface.MouseLeftButtonUp += (_, e) =>
         {
             if (!_dragging) return;
@@ -190,6 +204,7 @@ public sealed class TerminalView : ContentControl
 
     public void Clear()
     {
+        UpdateLinkHover(null);
         CancelWheelScroll();
         _snapshot = null;
         _rowLinks.Clear();
@@ -311,6 +326,24 @@ public sealed class TerminalView : ContentControl
     }
 
     public bool IsLinkAt(MouseEventArgs e) => LinkAt(e.GetPosition(_surface)) is not null;
+
+    private void UpdateLinkHover(Uri? link)
+    {
+        if (link is null)
+        {
+            _linkToolTip.IsOpen = false;
+            _surface.ToolTip = null;
+            _surface.ClearValue(CursorProperty);
+        }
+        else
+        {
+            if (_hoveredLink?.AbsoluteUri != link.AbsoluteUri)
+                _linkAddress.Text = link.AbsoluteUri + "\nCtrl + Left Click to open link";
+            _surface.ToolTip = _linkToolTip;
+            _surface.Cursor = Cursors.Hand;
+        }
+        _hoveredLink = link;
+    }
 
     private Uri? LinkAt(Point point)
     {

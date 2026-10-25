@@ -21,6 +21,8 @@ public readonly record struct TerminalStyle(
     // Keep indexed colors distinct from an identical explicit RGB value.
     public int? ForegroundPaletteIndex { get; init; }
     public int? BackgroundPaletteIndex { get; init; }
+    // OSC 8 metadata belongs to written cells, independently of SGR decoration.
+    public string? Hyperlink { get; init; }
 }
 
 public readonly record struct TerminalModes(
@@ -92,6 +94,7 @@ public sealed partial class TerminalBuffer
     private readonly object _syncRoot = new();
     private readonly StringBuilder _csi = new();
     private readonly StringBuilder _osc = new();
+    private bool _oscOverflow;
     private readonly StringBuilder _dcs = new();
     private readonly List<TerminalLine> _scrollback = [];
     private readonly List<string> _pendingResponses = [];
@@ -262,6 +265,8 @@ public sealed partial class TerminalBuffer
                     _state = ParserState.OscEscape;
                 else if (_osc.Length < 4096)
                     _osc.Append(character);
+                else
+                    _oscOverflow = true;
                 return;
             case ParserState.OscEscape:
                 if (character == '\\')
@@ -276,6 +281,8 @@ public sealed partial class TerminalBuffer
                         _osc.Append('\x1b');
                         _osc.Append(character);
                     }
+                    else
+                        _oscOverflow = true;
 
                     _state = ParserState.Osc;
                 }
@@ -365,6 +372,7 @@ public sealed partial class TerminalBuffer
                 break;
             case ']':
                 _osc.Clear();
+                _oscOverflow = false;
                 _state = ParserState.Osc;
                 break;
             case 'P':
@@ -444,6 +452,16 @@ public sealed partial class TerminalBuffer
             case 7:
                 if (Uri.TryCreate(value, UriKind.Absolute, out var location) && location.IsFile)
                     _workingDirectory = value;
+                return;
+            case 8:
+                // The first semicolon separates optional parameters (including id)
+                // from the URI. Further semicolons are part of the URI.
+                var linkSeparator = value.IndexOf(';');
+                _currentStyle = _currentStyle with
+                {
+                    Hyperlink = !_oscOverflow && linkSeparator >= 0 && linkSeparator + 1 < value.Length
+                        ? value[(linkSeparator + 1)..] : null
+                };
                 return;
             case 9:
                 if (value.StartsWith("9;", StringComparison.Ordinal))
@@ -887,7 +905,7 @@ public sealed partial class TerminalBuffer
             switch (code)
             {
                 case 0:
-                    _currentStyle = default;
+                    _currentStyle = default(TerminalStyle) with { Hyperlink = _currentStyle.Hyperlink };
                     break;
                 case 1:
                     _currentStyle = _currentStyle with { Bold = true };
@@ -1373,7 +1391,7 @@ public sealed partial class TerminalBuffer
         if (end < _columns && _cells[row, end].Continuation)
             end++;
 
-        var emptyCell = new Cell(" ", _currentStyle, false);
+        var emptyCell = new Cell(" ", _currentStyle with { Hyperlink = null }, false);
 
         for (var column = Math.Max(0, start); column < end; column++)
             _cells[row, column] = emptyCell;
@@ -1386,8 +1404,8 @@ public sealed partial class TerminalBuffer
 
         if (_cells[row, column].Continuation)
         {
-            _cells[row, column - 1] = new Cell(" ", _currentStyle, false);
-            _cells[row, column] = new Cell(" ", _currentStyle, false);
+            _cells[row, column - 1] = new Cell(" ", _currentStyle with { Hyperlink = null }, false);
+            _cells[row, column] = new Cell(" ", _currentStyle with { Hyperlink = null }, false);
         }
     }
 
@@ -1399,7 +1417,7 @@ public sealed partial class TerminalBuffer
                 continue;
 
             if (column == 0 || string.IsNullOrWhiteSpace(_cells[row, column - 1].Text))
-                _cells[row, column] = new Cell(" ", _currentStyle, false);
+                _cells[row, column] = new Cell(" ", _currentStyle with { Hyperlink = null }, false);
         }
     }
 
@@ -1634,7 +1652,8 @@ public sealed partial class TerminalBuffer
         style.Background is not null ||
         style.Inverse ||
         style.Underline ||
-        style.Strikethrough;
+        style.Strikethrough ||
+        style.Hyperlink is not null;
 
     private void AddScrollbackRow(int row)
     {

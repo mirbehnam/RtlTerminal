@@ -20,6 +20,19 @@ Uniform Persian/Arabic words share formatted text and relative character-hit
 bounds across rows in a bounded, per-view cache. Mixed ANSI formatting and links
 are kept separate; font, DPI and theme changes invalidate cached shaping.
 
+OSC 8 hyperlinks retain a hidden destination on each written cell. Both BEL and
+ESC-backslash terminators work across split reads, and optional parameters such
+as `id` are accepted. SGR resets do not close a link; an empty OSC 8 destination
+does. Hyperlinks survive scrollback, automatic wrapping and zoom reflow, and are
+exported as labelled anchors in HTML previews. Ctrl+click opens HTTP, HTTPS and
+mailto destinations; other schemes and control characters remain inert. Explicit
+destinations take precedence over URL detection within the label.
+Hovering a link shows its full destination in a wrapping, left-to-right tooltip
+alongside the Ctrl+click hint; leaving the link or scrolling dismisses it.
+Erased cells do not acquire links, and hidden text is never exported as a clickable anchor.
+Applications must emit OSC 8 sequences to use labelled links; plain Markdown or
+an application's textual URL fallback is not rewritten into a hidden link.
+
 HTTP/HTTPS and www links are detected across automatic line wraps, with each
 visible fragment opening the complete address in both the terminal and HTML
 preview. Explicit newlines remain boundaries. Concealed URL portions are not

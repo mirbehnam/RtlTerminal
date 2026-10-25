@@ -21,6 +21,23 @@ internal static class TerminalLinks
         }
         offsets[^1] = text.Length;
         var result = new Dictionary<int, IReadOnlyList<TerminalLinkSpan>>();
+        // Explicit OSC 8 destinations take precedence over addresses in the label.
+        // Keep unsupported destinations inert rather than auto-linking their label.
+        for (var row = first; row < end; row++)
+        {
+            var offset = 0;
+            foreach (var run in lines[row].Runs)
+            {
+                if (!run.Style.Hidden && run.Style.Hyperlink is { } target &&
+                    !target.Any(char.IsControl) &&
+                    Uri.TryCreate(target, UriKind.Absolute, out var uri) && uri.Scheme is "http" or "https" or "mailto")
+                {
+                    if (!result.TryGetValue(row, out var spans)) result[row] = spans = new List<TerminalLinkSpan>();
+                    ((List<TerminalLinkSpan>)spans).Add(new(offset, run.Text.Length, uri));
+                }
+                offset += run.Text.Length;
+            }
+        }
         foreach (Match match in Pattern.Matches(text.ToString()))
         {
             var address = match.Value.TrimEnd('.', ',', ';', ':', '!', '?', ')');
@@ -32,7 +49,7 @@ internal static class TerminalLinks
                 if (offset >= stop || offsets[row - first + 1] <= match.Index) continue;
                 foreach (var run in lines[row].Runs)
                 {
-                    if (run.Style.Hidden && offset < stop && offset + run.Text.Length > match.Index) { hidden = true; break; }
+                    if ((run.Style.Hidden || run.Style.Hyperlink is not null) && offset < stop && offset + run.Text.Length > match.Index) { hidden = true; break; }
                     offset += run.Text.Length;
                 }
             }
@@ -49,6 +66,7 @@ internal static class TerminalLinks
                 ((List<TerminalLinkSpan>)spans).Add(new(start - offset, finish - start, uri));
             }
         }
+        foreach (var row in result.Keys.ToArray()) result[row] = result[row].OrderBy(span => span.Start).ToArray();
         return result;
     }
 

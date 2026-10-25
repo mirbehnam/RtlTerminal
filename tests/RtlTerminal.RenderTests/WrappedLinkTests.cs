@@ -2,6 +2,7 @@ using System.Collections;
 using System.Net;
 using System.Reflection;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Media;
 using RtlTerminal;
 
@@ -69,6 +70,39 @@ internal static partial class Program
         Render(view, hidden.Process("https://example.com/\x1b[8msecret\x1b[0m"), "wrapped-hidden-link.png");
         if (At(0, 1) is not null || view.CreateHtmlPreview(HtmlPreviewScope.EntireHistory).Contains("href="))
             throw new Exception("A visible prefix exposed the concealed part of a link");
+        const string label = "مستندات مایکروسافت و راهنمای ترمینال";
+        var explicitLink = new TerminalBuffer(15, 16);
+        Render(view, explicitLink.Process("\x1b]8;id=docs;" + url + "\x1b\\" + label[..8] +
+            "\x1b[31m" + label[8..16] + "\x1b[0m" + label[16..] + "\x1b]8;;\a"), "osc8-persian.png");
+        CheckAddress(label, url);
+        Render(view, explicitLink.Resize(12, 16), "osc8-persian-resized.png");
+        CheckAddress(label, url);
+        var hover = typeof(TerminalView).GetMethod("UpdateLinkHover", flags)!;
+        var surface = (FrameworkElement)typeof(TerminalView).GetField("_surface", flags)!.GetValue(view)!;
+        hover.Invoke(view, [At(0, 1)]);
+        var tip = (ToolTip)surface.ToolTip;
+        if (tip.Content is not TextBlock address || !address.Text.StartsWith(url + "\n", StringComparison.Ordinal) ||
+            address.FlowDirection != FlowDirection.LeftToRight || address.TextWrapping != TextWrapping.Wrap)
+            throw new Exception("OSC 8 hover did not show the full destination in a wrapping LTR tooltip");
+        hover.Invoke(view, [new Uri("https://example.org/changed")]);
+        if (!((TextBlock)tip.Content).Text.StartsWith("https://example.org/changed\n", StringComparison.Ordinal))
+            throw new Exception("Hover kept a stale link destination");
+        hover.Invoke(view, [null]);
+        if (surface.ToolTip is not null || tip.IsOpen)
+            throw new Exception("Hover tooltip remained after leaving a link");
+        var precedence = new TerminalBuffer(80, 16);
+        Render(view, precedence.Process("\x1b]8;;" + url + "\ahttps://example.org\x1b]8;;\a plain"), "osc8-precedence.png");
+        if (At(0, 1)?.AbsoluteUri != url || At(0, 22) is not null)
+            throw new Exception("OSC 8 did not override an address label or leaked after closing");
+        var unsupported = new TerminalBuffer(80, 16);
+        Render(view, unsupported.Process("\x1b]8;;javascript:alert(1)\ahttps://example.org\x1b]8;;\a"), "osc8-inert.png");
+        if (At(0, 1) is not null || view.CreateHtmlPreview(HtmlPreviewScope.EntireHistory).Contains("href="))
+            throw new Exception("Unsupported OSC 8 destination became clickable");
+        var concealed = new TerminalBuffer(80, 16);
+        Render(view, concealed.Process("\x1b]8;;" + url + "\a\x1b[8msecret\x1b]8;;\a\x1b[0m"), "osc8-hidden.png");
+        if (At(0, 1) is not null || view.CreateHtmlPreview(HtmlPreviewScope.EntireHistory).Contains("href="))
+            throw new Exception("Hidden OSC 8 label exposed a target");
+        Console.WriteLine("PASS OSC 8 Persian labels, style reset, wrap, resize, HTML, explicit target precedence, close and inert destinations");
         Console.WriteLine("PASS full URL hit targets across soft wraps, split schemes, Persian/ANSI text, appended tails, resize, HTML, hard breaks and hidden text");
     }
 }
