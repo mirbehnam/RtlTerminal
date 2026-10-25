@@ -58,7 +58,14 @@ public partial class MainWindow
         try
         {
             if (!Directory.Exists(entry.Path)) { UiText.Show(this, "This directory is currently unavailable.", "Directory history"); return; }
-            var profile = entry.Profile == "Wsl" ? TerminalProfile.Wsl : entry.Profile == "PowerShell" ? TerminalProfile.PowerShell : TerminalProfile.CommandPrompt;
+            var profile = entry.Profile switch
+            {
+                "Wsl" => TerminalProfile.Wsl,
+                "PowerShell7" or "PowerShellCore" => TerminalProfile.PowerShell7,
+                "GitBash" => TerminalProfile.GitBash,
+                "PowerShell" => TerminalProfile.PowerShell,
+                _ => TerminalProfile.CommandPrompt
+            };
             CreateTerminalTab(profile, entry.Path, entry.Distribution);
         }
         catch (Exception ex) { UiText.Show(this, ex.Message, "Directory history"); }

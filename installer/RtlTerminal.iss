@@ -37,14 +37,15 @@ Name: "desktopicon"; Description: "Create a desktop shortcut"; GroupDescription:
 [Files]
 Source: "{#PublishDirectory}\{#AppExeName}"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#PublishDirectory}\ConPty\*"; DestDir: "{app}\ConPty"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "{#PublishDirectory}\Assets\Fonts\*"; DestDir: "{app}\Assets\Fonts"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
-Name: "{group}\Rtl Terminal"; Filename: "{app}\{#AppExeName}"
+Name: "{group}\Rtl Terminal"; Filename: "{app}\{#AppExeName}"; WorkingDir: "{%USERPROFILE}"
 Name: "{group}\Uninstall Rtl Terminal"; Filename: "{uninstallexe}"
-Name: "{autodesktop}\Rtl Terminal"; Filename: "{app}\{#AppExeName}"; Tasks: desktopicon
+Name: "{autodesktop}\Rtl Terminal"; Filename: "{app}\{#AppExeName}"; WorkingDir: "{%USERPROFILE}"; Tasks: desktopicon
 
 [Run]
-Filename: "{app}\{#AppExeName}"; Description: "Launch Rtl Terminal"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\{#AppExeName}"; WorkingDir: "{%USERPROFILE}"; Description: "Launch Rtl Terminal"; Flags: nowait postinstall skipifsilent
 
 [UninstallDelete]
 Type: filesandordirs; Name: "{app}"

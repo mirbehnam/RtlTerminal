@@ -17,7 +17,8 @@
         Closed="Window_Closed"
         SizeChanged="Window_SizeChanged"
         SourceInitialized="Window_SourceInitialized"
-        PreviewKeyDown="Window_PreviewKeyDown">
+        PreviewKeyDown="Window_PreviewKeyDown"
+        PreviewMouseWheel="Window_PreviewMouseWheel">
     <shell:WindowChrome.WindowChrome>
         <shell:WindowChrome CaptionHeight="40"
                             ResizeBorderThickness="6"
@@ -405,10 +406,88 @@
                 </Setter.Value>
             </Setter>
         </Style>
+        <Style x:Key="SearchIconButtonStyle" TargetType="Button">
+            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+            <Setter Property="Foreground" Value="{DynamicResource ChromeForegroundBrush}"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}" CornerRadius="3" BorderThickness="0">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Bd" Property="Background" Value="{DynamicResource RoundButtonHoverBrush}"/></Trigger>
+                            <Trigger Property="IsPressed" Value="True"><Setter TargetName="Bd" Property="Background" Value="{DynamicResource RoundButtonPressedBrush}"/></Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Bd" Property="Background" Value="{DynamicResource RoundButtonFocusBrush}"/></Trigger>
+                            <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.4"/></Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="SearchToggleButtonStyle" TargetType="ToggleButton">
+            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+            <Setter Property="Foreground" Value="{DynamicResource ChromeForegroundBrush}"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ToggleButton">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}" CornerRadius="3" BorderThickness="0">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource RoundButtonHoverBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource RoundButtonPressedBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource AccentBrush}"/>
+                                <Setter Property="Foreground" Value="{DynamicResource TerminalBackgroundBrush}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="SearchTextBoxStyle" TargetType="TextBox">
+            <Setter Property="Background" Value="{DynamicResource TerminalBackgroundBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource ChromeStrongForegroundBrush}"/>
+            <Setter Property="CaretBrush" Value="{DynamicResource ChromeStrongForegroundBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource MenuBorderBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="6,3"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TextBox">
+                        <Border x:Name="Border"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="4">
+                            <ScrollViewer x:Name="PART_ContentHost" Focusable="False" HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Hidden"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsFocused" Value="True">
+                                <Setter TargetName="Border" Property="BorderBrush" Value="{DynamicResource FocusBrush}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
         </ResourceDictionary>
     </Window.Resources>
 
-    <Border>
+    <Border x:Name="WindowFrame">
         <Border.Style>
             <Style TargetType="Border">
                 <Setter Property="Padding" Value="0" />
@@ -416,13 +495,25 @@
                     <DataTrigger Binding="{Binding WindowState, RelativeSource={RelativeSource AncestorType=Window}}" Value="Maximized">
                         <Setter Property="Padding" Value="8,8,8,12" />
                     </DataTrigger>
+                    <DataTrigger Binding="{Binding IsFullScreen, RelativeSource={RelativeSource AncestorType=Window}}" Value="True">
+                        <Setter Property="Padding" Value="0" />
+                    </DataTrigger>
                 </Style.Triggers>
             </Style>
         </Border.Style>
     <DockPanel Background="{DynamicResource TerminalBackgroundBrush}">
-        <Grid DockPanel.Dock="Top"
+        <Grid x:Name="TitleBarArea" DockPanel.Dock="Top"
               Height="40"
               Background="{DynamicResource TitleBarBrush}">
+            <Grid.Style>
+                <Style TargetType="Grid">
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding IsFullScreen, RelativeSource={RelativeSource AncestorType=Window}}" Value="True">
+                            <Setter Property="Visibility" Value="Collapsed" />
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </Grid.Style>
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="138" />
@@ -496,23 +587,17 @@
             </StackPanel>
         </Grid>
 
-        <Border DockPanel.Dock="Top" Background="{DynamicResource ToolbarBrush}" BorderBrush="{DynamicResource ToolbarBorderBrush}" BorderThickness="0,0,0,1">
+        <Border x:Name="MenuBarArea" DockPanel.Dock="Top" Background="{DynamicResource ToolbarBrush}" BorderBrush="{DynamicResource ToolbarBorderBrush}" BorderThickness="0,0,0,1">
+        <Border.Style>
+            <Style TargetType="Border">
+                <Style.Triggers>
+                    <DataTrigger Binding="{Binding IsFullScreen, RelativeSource={RelativeSource AncestorType=Window}}" Value="True">
+                        <Setter Property="Visibility" Value="Collapsed" />
+                    </DataTrigger>
+                </Style.Triggers>
+            </Style>
+        </Border.Style>
         <DockPanel Margin="8,0,14,3">
-        <TextBlock DockPanel.Dock="Right" VerticalAlignment="Center" FontSize="10" Margin="14,0,0,0"
-                   ToolTip="{local:UiText Key='Smart RTL automatically handles Persian and mixed-direction text'}">
-            <TextBlock.Style>
-                <Style TargetType="TextBlock">
-                    <Setter Property="Text" Value="●  SMART RTL" />
-                    <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
-                    <Style.Triggers>
-                        <DataTrigger Binding="{Binding IsChecked, ElementName=SmartRtlMenuItem}" Value="False">
-                            <Setter Property="Text" Value="RTL OFF" />
-                            <Setter Property="Foreground" Value="{DynamicResource MutedForegroundBrush}" />
-                        </DataTrigger>
-                    </Style.Triggers>
-                </Style>
-            </TextBlock.Style>
-        </TextBlock>
         <Button x:Name="MacroStopButton" DockPanel.Dock="Right" Visibility="Collapsed" Width="26" Height="26" Content="■" Style="{StaticResource WindowCaptionButtonStyle}" Click="MacroStop_Click" ToolTip="{local:UiText Key='Stop playback (Ctrl+Shift+Alt+End)'}" AutomationProperties.Name="{local:UiText Key='Stop macro'}"/>
         <Button x:Name="MacroStepButton" DockPanel.Dock="Right" Visibility="Collapsed" Width="26" Height="26" Content="▸|" Style="{StaticResource WindowCaptionButtonStyle}" Click="MacroStep_Click" ToolTip="{local:UiText Key='Run one step, then pause'}" AutomationProperties.Name="{local:UiText Key='Run one macro step'}"/>
         <Button x:Name="MacroPauseButton" DockPanel.Dock="Right" Visibility="Collapsed" Width="26" Height="26" Content="Ⅱ" Style="{StaticResource WindowCaptionButtonStyle}" Click="MacroPause_Click" ToolTip="{local:UiText Key='Pause / resume (Ctrl+Shift+Alt+P)'}" AutomationProperties.Name="{local:UiText Key='Pause or resume macro'}"/>
@@ -525,31 +610,6 @@
                       Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" StrokeThickness="1.3" />
             </Viewbox>
         </Button>
-        <ToggleButton x:Name="DarkModeButton" DockPanel.Dock="Right" Width="30" Height="26" Margin="4,0,0,0"
-                      IsChecked="True" Click="DarkModeButton_Click" AutomationProperties.Name="{local:UiText Key='Dark mode'}">
-            <ToggleButton.Style>
-                <Style TargetType="ToggleButton">
-                    <Setter Property="Foreground" Value="{DynamicResource ChromeForegroundBrush}"/>
-                    <Setter Property="Background" Value="Transparent"/>
-                    <Setter Property="BorderBrush" Value="Transparent"/>
-                    <Setter Property="BorderThickness" Value="0"/>
-                    <Setter Property="Template"><Setter.Value>
-                        <ControlTemplate TargetType="ToggleButton">
-                            <Border x:Name="ButtonBorder" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="4">
-                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                            </Border>
-                            <ControlTemplate.Triggers>
-                                <Trigger Property="IsChecked" Value="True"><Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/></Trigger>
-                                <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="ButtonBorder" Property="Background" Value="{DynamicResource CaptionHoverBrush}"/></Trigger>
-                                <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="ButtonBorder" Property="Background" Value="{DynamicResource CaptionHoverBrush}"/></Trigger>
-                            </ControlTemplate.Triggers>
-                        </ControlTemplate>
-                    </Setter.Value></Setter>
-                </Style>
-            </ToggleButton.Style>
-            <Path Width="15" Height="15" Stretch="Uniform" Data="M12,1 A7,7 0 1 0 15,12 A7,7 0 0 1 12,1 Z"
-                  Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ToggleButton}}"/>
-        </ToggleButton>
         <Grid ClipToBounds="True">
         <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
         <Menu Grid.Column="0" Height="28" FontFamily="Segoe UI" FontSize="12"
@@ -575,10 +635,12 @@
                           Click="ExitMenuItem_Click" />
             </MenuItem>
             <MenuItem Header="{local:UiText Key='_Edit'}">
+                <MenuItem Header="{local:UiText Key='Find...'}" InputGestureText="Ctrl+F" Click="FindMenuItem_Click" />
+                <Separator />
                 <MenuItem Header="{local:UiText Key='_Settings...'}"
                           Click="FontSettingsMenuItem_Click" />
             </MenuItem>
-            <MenuItem Header="{local:UiText Key='_View'}">
+            <MenuItem x:Name="ViewMenuItem" Header="{local:UiText Key='_View'}" SubmenuOpened="ViewMenu_Opened">
                 <MenuItem x:Name="SplitPaneMenuItem" Header="{local:UiText Key='_Split pane'}" InputGestureText="Ctrl+Shift+D"
                           Click="SplitPaneMenuItem_Click" />
                 <MenuItem x:Name="JoinTabMenuItem" Header="{local:UiText Key='Show _tab side by side'}"
@@ -601,6 +663,10 @@
                           Checked="SmartRtlMenuItem_Changed" Unchecked="SmartRtlMenuItem_Changed" />
                 <Separator />
                 <MenuItem x:Name="ThemeMenuItem" Header="{local:UiText Key='_Theme...'}" Click="ThemeMenuItem_Click" />
+                <Separator />
+                <MenuItem x:Name="ResetZoomMenuItem" Header="{local:UiText Key='Reset zoom'}" InputGestureText="Ctrl+0" Visibility="Collapsed" Click="ResetZoomMenuItem_Click" />
+                <Separator x:Name="ResetZoomSeparator" Visibility="Collapsed" />
+                <MenuItem Header="{local:UiText Key='Full screen'}" InputGestureText="F11" Click="FullScreenMenuItem_Click" />
             </MenuItem>
             <MenuItem Header="{local:UiText Key='_Tools'}">
                 <MenuItem Header="{local:UiText Key='_Macros'}" SubmenuOpened="MacroMenu_Opened">
@@ -625,6 +691,7 @@
                 <Separator/>
                 <MenuItem Header="{local:UiText Key='_Guide'}"
                           Click="GuideMenuItem_Click" />
+                <MenuItem Header="{local:UiText Key='Keyboard shortcuts'}" Click="KeyboardShortcutsMenuItem_Click" />
                 <MenuItem x:Name="CheckForUpdatesMenuItem"
                           Header="{local:UiText Key='Check for _updates...'}"
                           Click="CheckForUpdatesMenuItem_Click" />
@@ -668,6 +735,7 @@
         </DockPanel>
         </Border>
 
+        <Grid>
         <ScrollViewer x:Name="PaneScroller" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto"
                       CanContentScroll="False" Focusable="False" SizeChanged="PaneScroller_SizeChanged" ScrollChanged="PaneScroller_ScrollChanged">
         <Grid x:Name="PaneHost" HorizontalAlignment="Left">
@@ -675,8 +743,8 @@
                      Background="{DynamicResource TerminalBackgroundBrush}"
                      Foreground="{DynamicResource TerminalForegroundBrush}"
                      BorderThickness="0"
-                     Padding="10"
-                     FontFamily="Cascadia Mono, Consolas"
+                     Padding="10,10,2,10"
+                     FontFamily="{x:Static local:BundledFonts.DefaultFamily}"
                      FontSize="14"
                      Cursor="IBeam"
                      FlowDirection="LeftToRight"
@@ -689,6 +757,78 @@
                      Typography.NumeralAlignment="Tabular" />
         </Grid>
         </ScrollViewer>
+
+        <!-- Floating Search Bar -->
+        <Border x:Name="SearchBar"
+                HorizontalAlignment="Right"
+                VerticalAlignment="Top"
+                Margin="0,8,22,0"
+                Background="{DynamicResource MenuBackgroundBrush}"
+                BorderBrush="{DynamicResource MenuBorderBrush}"
+                BorderThickness="1"
+                CornerRadius="6"
+                Padding="6,4"
+                Visibility="Collapsed">
+            <Border.Effect>
+                <DropShadowEffect BlurRadius="12" ShadowDepth="2" Direction="270" Opacity="0.35" Color="Black" />
+            </Border.Effect>
+            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                <Grid Width="180" Height="26" VerticalAlignment="Center" Margin="0,0,6,0">
+                    <TextBox x:Name="SearchTextBox"
+                             Style="{StaticResource SearchTextBoxStyle}"
+                             TextChanged="SearchTextBox_TextChanged"
+                             KeyDown="SearchTextBox_KeyDown" />
+                    <TextBlock x:Name="SearchPlaceholderText"
+                               Text="{local:UiText Key='Find...'}"
+                               Foreground="{DynamicResource MutedForegroundBrush}"
+                               FontSize="12"
+                               VerticalAlignment="Center"
+                               Margin="8,0,0,0"
+                               IsHitTestVisible="False"
+                               Visibility="Visible" />
+                </Grid>
+
+                <TextBlock x:Name="SearchCounterText"
+                           VerticalAlignment="Center"
+                           Margin="2,0,6,0"
+                           FontSize="11"
+                           Foreground="{DynamicResource MutedForegroundBrush}"
+                           Text="" />
+
+                <ToggleButton x:Name="SearchCaseSensitiveButton"
+                              Width="26" Height="26" Margin="0,0,2,0"
+                              ToolTip="{local:UiText Key='Match case'}"
+                              Style="{StaticResource SearchToggleButtonStyle}"
+                              Click="SearchCaseSensitiveButton_Click">
+                    <TextBlock Text="Aa" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center" HorizontalAlignment="Center" />
+                </ToggleButton>
+
+                <Button x:Name="SearchPreviousButton"
+                        Width="26" Height="26" Margin="0,0,2,0"
+                        ToolTip="{local:UiText Key='Previous match'}"
+                        Style="{StaticResource SearchIconButtonStyle}"
+                        Click="SearchPreviousButton_Click">
+                    <TextBlock Text="▲" FontSize="9" VerticalAlignment="Center" HorizontalAlignment="Center" />
+                </Button>
+
+                <Button x:Name="SearchNextButton"
+                        Width="26" Height="26" Margin="0,0,2,0"
+                        ToolTip="{local:UiText Key='Next match'}"
+                        Style="{StaticResource SearchIconButtonStyle}"
+                        Click="SearchNextButton_Click">
+                    <TextBlock Text="▼" FontSize="9" VerticalAlignment="Center" HorizontalAlignment="Center" />
+                </Button>
+
+                <Button x:Name="SearchCloseButton"
+                        Width="26" Height="26" Margin="2,0,0,0"
+                        ToolTip="{local:UiText Key='Close search'}"
+                        Style="{StaticResource SearchIconButtonStyle}"
+                        Click="SearchCloseButton_Click">
+                    <TextBlock Text="✕" FontSize="11" VerticalAlignment="Center" HorizontalAlignment="Center" />
+                </Button>
+            </StackPanel>
+        </Border>
+        </Grid>
     </DockPanel>
     </Border>
 </Window>

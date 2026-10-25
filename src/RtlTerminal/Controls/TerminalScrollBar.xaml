@@ -2,12 +2,15 @@
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                     xmlns:sys="clr-namespace:System;assembly=mscorlib">
     <!-- Fluent-style indicator, with a fixed gutter to keep terminal columns stable. -->
+    <!-- ScrollViewer's system template sets a local Width from this resource,
+         which takes precedence over the ScrollBar style's Width setter. -->
+    <sys:Double x:Key="{x:Static SystemParameters.VerticalScrollBarWidthKey}">10</sys:Double>
     <Style TargetType="ScrollBar">
         <Style.Resources>
             <!-- WPF Track uses half this metric as its minimum thumb length. -->
             <sys:Double x:Key="{x:Static SystemParameters.VerticalScrollBarButtonHeightKey}">56</sys:Double>
         </Style.Resources>
-        <Setter Property="Width" Value="12" />
+        <Setter Property="Width" Value="10" />
         <Setter Property="Background" Value="{DynamicResource ScrollTrackBrush}" />
         <Setter Property="Focusable" Value="False" />
         <Setter Property="IsTabStop" Value="False" />

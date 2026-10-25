@@ -6,6 +6,45 @@ remain responsible for process input/output and terminal protocol semantics.
 
 Only visible rows are laid out. Visible layouts and shaped text are cached;
 scrollback does not create a document tree or a WPF element for every cell.
+Recently visited rows retain both shaped layouts and their WPF drawing visuals
+within a bounded margin around the viewport. Small scroll reversals reuse these
+visuals; resizing, font changes and theme changes invalidate them. Removed
+snapshot rows are evicted immediately. The scroll gutter is a fixed 10 DIPs,
+including while hovered, so its indicator can expand without resizing the text.
+Mouse-wheel input follows the Windows lines-per-notch setting (including page
+scrolling), accumulates partial deltas, and coalesces queued steps into whole-line
+jumps without animation. Direct thumb dragging remains pixel-based. Parent
+Ctrl+wheel zoom and application mouse reporting retain priority over history scrolling.
+
+Uniform Persian/Arabic words share formatted text and relative character-hit
+bounds across rows in a bounded, per-view cache. Mixed ANSI formatting and links
+are kept separate; font, DPI and theme changes invalidate cached shaping.
+
+OSC 8 hyperlinks retain a hidden destination on each written cell. Both BEL and
+ESC-backslash terminators work across split reads, and optional parameters such
+as `id` are accepted. SGR resets do not close a link; an empty OSC 8 destination
+does. Hyperlinks survive scrollback, automatic wrapping and zoom reflow, and are
+exported as labelled anchors in HTML previews. Ctrl+click opens HTTP, HTTPS and
+mailto destinations; other schemes and control characters remain inert. Explicit
+destinations take precedence over URL detection within the label.
+Hovering a link shows its full destination in a wrapping, left-to-right tooltip
+alongside the Ctrl+click hint; leaving the link or scrolling dismisses it.
+Erased cells do not acquire links, and hidden text is never exported as a clickable anchor.
+Applications must emit OSC 8 sequences to use labelled links; plain Markdown or
+an application's textual URL fallback is not rewritten into a hidden link.
+
+HTTP/HTTPS and www links are detected across automatic line wraps, with each
+visible fragment opening the complete address in both the terminal and HTML
+preview. Explicit newlines remain boundaries. Concealed URL portions are not
+exposed through a clickable visible prefix. Visible-row link maps are cached
+and refreshed when output changes.
+
+Zoom changes the font immediately and waits 180 ms after the last zoom action
+before resizing the shell grid. Normal-screen resizing joins soft wraps and
+reflows text into the new columns, moving overflow into retained history instead
+of cropping it. Explicit newlines, styles and grapheme cells are preserved.
+Alternate-screen applications keep a fixed grid; their saved main screen is
+reflowed separately. The configured history limit still applies after reflow.
 Common box-drawing characters are drawn geometrically to join across cells.
 Block elements U+2580–U+259F use cell-relative rectangles (shades use blended
 foreground/background colors). Graphics have hard edges and font metrics are

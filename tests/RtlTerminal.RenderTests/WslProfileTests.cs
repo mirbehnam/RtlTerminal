@@ -84,7 +84,8 @@ internal static partial class Program
             var menu = (ContextMenu)Call("CreateProfileMenu")!;
             var headers = menu.Items.Cast<MenuItem>().Select(i => ((TextBlock)i.Header).Text).ToArray();
             var discovered = WslProfilesForTests(type);
-            if (File.Exists(Path.Combine(Environment.SystemDirectory, "wsl.exe")) && !headers.Skip(2).SequenceEqual(discovered))
+            var nonWslCount = headers.Length - discovered.Count;
+            if (File.Exists(Path.Combine(Environment.SystemDirectory, "wsl.exe")) && !headers.Skip(nonWslCount).SequenceEqual(discovered))
                 throw new Exception("Terminal menu does not contain one profile per WSL distribution");
             var pane = Call("CreatePane", wsl)!;
             pane.GetType().GetProperty("WslDistribution")!.SetValue(pane, distro);

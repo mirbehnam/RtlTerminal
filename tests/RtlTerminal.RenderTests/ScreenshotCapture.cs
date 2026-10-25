@@ -82,7 +82,6 @@ internal static class ScreenshotCapture
             Capture("rtl-terminal-dark-palette.png", themeDemo);
 
             AppTheme.Apply(AppThemeKind.Light);
-            typeof(MainWindow).GetMethod("UpdateThemeMenu", flags)!.Invoke(window, null);
             typeof(MainWindow).GetMethod("RebuildTabStrip", flags)!.Invoke(window, null);
             view.RefreshTheme();
             Capture("rtl-terminal-light.png", themeDemo);

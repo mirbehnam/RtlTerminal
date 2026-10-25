@@ -10,9 +10,6 @@ public sealed record ThemeOption(string Name, AppThemeKind Theme, ColorScheme? S
     public Brush Swatch => Brush(Background);
     public TerminalColor Ansi(int index) => Scheme?.Text(index) ?? AppTheme.DefaultAnsiForeground(Theme,index);
     public static SolidColorBrush Brush(TerminalColor c) => new(Color.FromRgb(c.Red,c.Green,c.Blue));
-    public static ThemeOption QuickMode(bool dark, ColorScheme? rememberedDark) =>
-        dark ? All.First(t => t.Theme == AppThemeKind.Dark && t.Scheme == rememberedDark)
-             : All.First(t => t.Scheme?.Name == "Gruvbox Light");
 
     public static IReadOnlyList<ThemeOption> All { get; } = new[]
     {

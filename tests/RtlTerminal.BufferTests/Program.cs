@@ -2,6 +2,7 @@ using RtlTerminal;
 
 var tests = new (string Name, Action Run)[]
 {
+    ("OSC 8 streams preserve hyperlink metadata independently of SGR", Osc8Links),
     ("alternate screen is isolated and restored", AlternateScreenIsIsolated),
     ("styled trailing spaces remain visible", StyledTrailingSpacesRemainVisible),
     ("modern SGR attributes reset independently", SgrAttributesResetIndependently),
@@ -17,6 +18,7 @@ var tests = new (string Name, Action Run)[]
     ("status redraw clears old characters across reads", StatusRedraw),
     ("wide characters can be erased and overwritten", WideErase),
     ("snapshot rows are reused without hiding edits", SnapshotReuse),
+    ("resize reflows shell history without losing text, styles or graphemes", ResizeReflow),
     ("dropped Windows paths become WSL paths", DroppedPathsBecomeWslPaths)
 };
 
@@ -39,6 +41,81 @@ foreach (var failure in failures)
     Console.Error.WriteLine(failure);
 
 return failures.Count == 0 ? 0 : 1;
+
+static void Osc8Links()
+{
+    const string target = "https://example.org/a;b?q=1&x=2";
+    var buffer = new TerminalBuffer(12, 5);
+    var stream = "\x1b]8;id=example;" + target + "\x1b\\" +
+        "first\x1b[31mSECOND\x1b[0mthird\x1b]8;;\a plain";
+    TerminalSnapshot snapshot = buffer.Process("");
+    foreach (var c in stream) snapshot = buffer.Process(c.ToString());
+    var linked = snapshot.Lines.SelectMany(l => l.Runs).Where(r => r.Style.Hyperlink is not null).ToArray();
+    Assert(string.Concat(linked.Select(r => r.Text)) == "firstSECONDthird", "OSC 8 escaped text leaked or SGR reset closed the link");
+    Assert(linked.All(r => r.Style.Hyperlink == target), "OSC 8 URI parameters or semicolons were lost");
+    snapshot = buffer.Resize(30, 10);
+    Assert(string.Concat(snapshot.Lines.SelectMany(l => l.Runs).Where(r => r.Style.Hyperlink == target).Select(r => r.Text)) == "firstSECONDthird", "Reflow lost hyperlink metadata");
+
+    var erase = new TerminalBuffer(30, 5);
+    snapshot = erase.Process("\x1b]8;;" + target + "\aold\r\x1b[2Knew\x1b]8;;\a");
+    Assert(snapshot.Lines[0].Runs.Where(r => r.Style.Hyperlink is not null).All(r => r.Text == "new"), "Erased padding inherited hyperlink metadata");
+    snapshot = erase.Process("\x1b]8;;" + new string('a', 4200) + "\aoverflow\x1b]8;;\a");
+    Assert(snapshot.Lines.SelectMany(l => l.Runs).Where(r => r.Text.Contains("overflow")).All(r => r.Style.Hyperlink is null), "Truncated OSC URI was accepted");
+
+    var history = new TerminalBuffer(30, 5);
+    snapshot = history.Process("\x1b]8;;" + target + "\alink\x1b]8;;\a" + new string('\n', 8));
+    Assert(snapshot.ScrollbackCount > 0 && snapshot.Lines[0].Runs.Any(r => r.Style.Hyperlink == target), "Scrollback lost the OSC 8 target");
+    snapshot = history.Process("\x1b[?1049h\x1b]8;;https://other.org\aother\x1b]8;;\a\x1b[?1049l");
+    Assert(snapshot.Lines[0].Runs.Any(r => r.Style.Hyperlink == target), "Alternate screen damaged saved links");
+}
+
+static void ResizeReflow()
+{
+    static string Logical(TerminalSnapshot snapshot)
+    {
+        var result = new System.Text.StringBuilder();
+        for (var i = 0; i < snapshot.Lines.Count; i++)
+        {
+            var text = string.Concat(snapshot.Lines[i].Runs.Select(r => r.Text));
+            var continues = i + 1 < snapshot.Lines.Count && snapshot.Lines[i + 1].WrappedFromPrevious;
+            result.Append(continues ? text : text.TrimEnd());
+            if (!continues && i + 1 < snapshot.Lines.Count) result.Append('\n');
+        }
+        return result.ToString();
+    }
+    var buffer = new TerminalBuffer(80, 10);
+    var original = buffer.Process(string.Join("\r\n", Enumerable.Range(0, 25)
+        .Select(i => $"ROW{i:D2}: سلام دنیا می‌خواهم آزمایش کنم 👨‍💻 中文 \x1b[31mcolored text\x1b[0m " + new string('x', 45))));
+    var expected = Logical(original);
+    foreach (var (columns, rows) in new[] { (20, 5), (120, 30), (11, 8), (80, 10), (13, 5), (100, 20) })
+    {
+        var resized = buffer.Resize(columns, rows);
+        Assert(Logical(resized) == expected, $"Resize {columns}x{rows} changed logical shell text");
+        Assert(resized.Lines.SelectMany(l => l.Runs).Any(r => r.Text.Contains("colored") && r.Style.Foreground is not null), "Resize lost ANSI style");
+    }
+    var final = buffer.Process("!");
+    Assert(Logical(final) == expected + "!", "Resize misplaced the cursor for subsequent output");
+
+    var edge = new TerminalBuffer(20, 8);
+    edge.Process("12345678901234567890");
+    edge.Resize(10, 5);
+    Assert(Logical(edge.Process("Z")) == "12345678901234567890Z", "Resize lost pending auto-wrap at the right edge");
+
+    var wide = new TerminalBuffer(11, 6);
+    var wideText = Logical(wide.Process("1234567890中文🙂 end"));
+    for (var i = 0; i < 5; i++)
+    {
+        Assert(Logical(wide.Resize(13, 5)) == wideText, "Widening added padding to wide glyphs");
+        Assert(Logical(wide.Resize(10, 7)) == wideText, "Narrowing split a wide glyph or inserted spaces");
+    }
+
+    var alt = new TerminalBuffer(40, 8);
+    var main = Logical(alt.Process("saved shell text with a long soft wrapped sentence سلام دنیا\r\nnext prompt"));
+    alt.Process("\x1b[?1049hTUI");
+    var alternate = alt.Resize(15, 5);
+    Assert(alternate.Modes.AlternateScreen && alternate.Lines.Count == 5 && alternate.ScrollbackCount == 0, "Resize reflowed an application-owned alternate grid");
+    Assert(Logical(alt.Process("\x1b[?1049l")) == main, "Resize lost the saved main screen behind a TUI");
+}
 
 static void AlternateScreenIsIsolated()
 {

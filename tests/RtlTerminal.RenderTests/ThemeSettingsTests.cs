@@ -37,13 +37,10 @@ internal static partial class Program
         }
         settings.Close();
         if(AppTheme.Current!=originalTheme || AppTheme.Scheme!=originalScheme)throw new Exception("Canceling theme settings applied the preview");
-        if(ThemeOption.QuickMode(false,null).Scheme?.Name!="Gruvbox Light" || ThemeOption.QuickMode(true,null).Theme!=AppThemeKind.Dark ||
-           ThemeOption.QuickMode(true,ColorScheme.Find("Dracula")).Scheme?.Name!="Dracula")
-            throw new Exception("Moon quick switch uses the wrong dark/light theme");
         var main=new MainWindow();
-        if(main.FindName("DarkSchemesMenuItem") is not null || main.FindName("LightSchemesMenuItem") is not null || main.FindName("DarkThemeMenuItem") is not null)
+        if(main.FindName("DarkModeButton") is not null || main.FindName("DarkSchemesMenuItem") is not null || main.FindName("LightSchemesMenuItem") is not null || main.FindName("DarkThemeMenuItem") is not null)
             throw new Exception("Old duplicate theme submenus remain");
         main.Close();
-        Console.WriteLine("PASS unified theme settings, isolated selection preview/cancel, dark/Gruvbox Light quick switch and removed duplicate menus");
+        Console.WriteLine("PASS unified theme settings, isolated selection preview/cancel, theme menu access and removed redundant controls");
     }
 }

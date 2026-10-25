@@ -74,8 +74,8 @@ internal static partial class Program
                     throw new Exception("Terminal queries did not report the selected scheme defaults");
                 if(!ReferenceEquals(Get(target,"ActivePane"),bottom)||selected.GetSelectedText()!=selection||(Color)Get(target,"BackgroundColor")!=tabColor)
                     throw new Exception("Changing scheme altered the active pane, selection or custom tab color");
-                if (((System.Windows.Controls.Primitives.ToggleButton)window.FindName("DarkModeButton")).IsChecked != (scheme.Theme == AppThemeKind.Dark))
-                    throw new Exception("Toolbar dark-mode state is out of sync");
+                if (AppTheme.Current != scheme.Theme)
+                    throw new Exception("Applied theme mode is out of sync");
                 Layout();
                 if(scheme.Name is "Dracula" or "One Half Light")
                 {
@@ -88,7 +88,7 @@ internal static partial class Program
             if(!((TerminalView)Get(hidden,"View")).CreateHtmlPreview(HtmlPreviewScope.EntireHistory).Contains("#EFF1F5"))
                 throw new Exception("Hidden tab restored the previous color scheme");
             AppTheme.Apply(AppThemeKind.Dark);Call("RefreshColorViews");
-            if(((System.Windows.Controls.Primitives.ToggleButton)window.FindName("DarkModeButton")).IsChecked != true || AppTheme.Scheme is not null)
+            if(AppTheme.IsLight || AppTheme.Scheme is not null)
                 throw new Exception("Default color reset failed");
             Console.WriteLine("PASS all schemes across horizontal/vertical/hidden panes, cache invalidation, HTML, selection, tab colors and menu state");
         }

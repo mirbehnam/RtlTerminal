@@ -9,8 +9,10 @@ public partial class MainWindow
     {
         Source = ProfileIcons.Get(profile switch
         {
+            TerminalProfile.PowerShell7 => ProfileIconKind.PowerShell7,
             TerminalProfile.PowerShell => ProfileIconKind.PowerShell,
             TerminalProfile.Wsl => ProfileIconKind.Linux,
+            TerminalProfile.GitBash => ProfileIconKind.GitBash,
             _ => ProfileIconKind.CommandPrompt
         }),
         Width = 16, Height = 16, VerticalAlignment = VerticalAlignment.Center,

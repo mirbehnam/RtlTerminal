@@ -11,6 +11,7 @@ public static class TerminalEnvironment
         foreach (DictionaryEntry entry in inherited) values[(string)entry.Key] = (string)entry.Value!;
         values["COLORTERM"] = "truecolor";
         values["TERM_PROGRAM"] = "RtlTerminal";
+        values["CHERE_INVOKING"] = "1";
         values[ShellPath.PercentVariable] = "%";
         // CMD emits its current directory on each prompt, without changing the
         // visible prompt or the user's persistent environment.

@@ -30,13 +30,13 @@
                                    Margin="2,0,2,8"
                                    Foreground="#586174"
                                    TextWrapping="Wrap"
-                                   Text="{local:UiText Key='Recommended fonts for CMD, PowerShell, terminals and coding that are installed on this Windows.'}" />
+                                   Text="{local:UiText Key='Built-in and recommended terminal fonts.'}" />
                         <ListBox x:Name="StandardFontListBox"
                                  SelectionChanged="StandardFontListBox_SelectionChanged"
                                  ScrollViewer.HorizontalScrollBarVisibility="Disabled" />
                     </DockPanel>
                 </TabItem>
-                <TabItem Header="{local:UiText Key='All installed fonts'}">
+                <TabItem Header="{local:UiText Key='All fonts'}">
                     <DockPanel Margin="8">
                         <TextBox x:Name="FontSearchTextBox"
                                  DockPanel.Dock="Top"

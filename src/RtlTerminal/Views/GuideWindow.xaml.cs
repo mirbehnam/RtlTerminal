@@ -1,11 +1,29 @@
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using System.Windows.Data;
 
 namespace RtlTerminal;
 
 public partial class GuideWindow : Window
 {
+    private UiLanguage _shortcutLanguage;
+
+    public void ShowShortcuts() => GuideTabs.SelectedItem = ShortcutsTab;
+
+    private void ShortcutSearch_Changed(object sender, TextChangedEventArgs e) => RefreshShortcuts();
+
+    private void RefreshShortcuts()
+    {
+        if (ShortcutRows is null || ShortcutSearchBox is null) return;
+        var query = ShortcutSearchBox.Text.Trim();
+        var rows = ShortcutCatalog.For(_shortcutLanguage).Where(row => query.Length == 0 ||
+            (row.Keys + " " + row.Description + " " + row.Category).Contains(query, StringComparison.CurrentCultureIgnoreCase)).ToList();
+        var view = new ListCollectionView(rows);
+        view.GroupDescriptions.Add(new PropertyGroupDescription(nameof(ShortcutEntry.Category)));
+        ShortcutRows.ItemsSource = view;
+        ShortcutEmptyText.Visibility = rows.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+    }
     private static readonly SolidColorBrush ActiveLanguageBackground =
         new(Color.FromRgb(25, 112, 168));
     private static readonly SolidColorBrush InactiveLanguageBackground =
@@ -28,6 +46,16 @@ public partial class GuideWindow : Window
 
     private void ApplyLanguage(GuideLanguage language)
     {
+        _shortcutLanguage = language switch { GuideLanguage.Persian => UiLanguage.Persian, GuideLanguage.Arabic => UiLanguage.Arabic, _ => UiLanguage.English };
+        string L(string en, string fa, string ar) => ShortcutCatalog.Text(_shortcutLanguage, en, fa, ar);
+        FeaturesTab.Header = L("Guide", "راهنما", "الدليل");
+        ShortcutsTab.Header = L("Keyboard shortcuts", "کلیدهای میانبر", "اختصارات لوحة المفاتيح");
+        ShortcutSearchLabel.Text = L("Search by key or action", "جست‌وجو با نام کلید یا عملکرد", "ابحث بالمفتاح أو الوظيفة");
+        ShortcutNote.Text = L("Pane and macro shortcuts can be disabled in Settings. Other terminal keys belong to the running program.",
+            "میانبرهای پنل و ماکرو در تنظیمات قابل غیرفعال‌کردن هستند. سایر کلیدهای ترمینال به برنامهٔ در حال اجرا مربوط‌اند.",
+            "يمكن تعطيل اختصارات الأجزاء والماكرو في الإعدادات. مفاتيح الطرفية الأخرى تخص التطبيق الجاري.");
+        ShortcutEmptyText.Text = L("No matching shortcuts.", "میانبری با این عبارت پیدا نشد.", "لم يُعثر على اختصار مطابق.");
+        RefreshShortcuts();
         var content = GetContent(language);
 
         Title = content.WindowTitle;

@@ -28,7 +28,7 @@ Download `RtlTerminal-Setup-…-x64.exe` from the [latest release](https://githu
 - **Tabs and split panes.** Run PowerShell, Command Prompt and installed WSL distributions; split the active pane, combine tabs, rename them and assign tab colors.
 - **Terminal macros.** Record commands and interactive keys, edit steps and replay with pause, resume or single-step controls. Files are encrypted, with optional password protection and sensitive inputs requested at runtime.
 - **Directory history.** See the active pane's folder, open it in Explorer and revisit recent locations. The menu shows 20 directories; searchable history holds up to 200 and can be cleared or disabled.
-- **Personalization.** Preview light and dark themes, customize installed fonts and choose English, Persian or Arabic interface text without changing the layout direction.
+- **Personalization.** Preview light and dark themes, choose from nine built-in terminal fonts or your installed fonts, and use English, Persian or Arabic interface text without changing the layout direction.
 - **Output and sharing.** Open a local HTML preview of the current page, recent content or retained history, or export the session as UTF-8 text.
 - **Desktop integration.** Copy and paste, drop files or images into a pane, open links with Ctrl+click and optionally add “Open in RtlTerminal” to the Windows folder context menu.
 
@@ -36,7 +36,7 @@ Download `RtlTerminal-Setup-…-x64.exe` from the [latest release](https://githu
 
 Use **+** to open a terminal and its adjacent arrow to choose a profile. Right-click a tab for split and color options; double-click its name to rename it.
 
-Open **Edit → Settings** for fonts, themes, history and macro preferences. **Help → LANGUAGE** changes the interface language. The eye button beside **Smart RTL** opens the browser preview.
+Open **Edit → Settings** for fonts, themes, history and macro preferences. **Help → LANGUAGE** changes the interface language. The eye button on the toolbar opens the browser preview.
 
 | Action | Shortcut |
 | --- | --- |
@@ -53,7 +53,7 @@ With no text selected, `Ctrl+C` interrupts the running command. Pane shortcuts c
 
 ### Guides and support
 
-[Macros](docs/macros.md) · [Directory history](docs/directory-history.md) · [WSL](docs/wsl-behavior.md) · [Interface languages](docs/ui-language.md)
+[Fonts](docs/fonts.md) · [Macros](docs/macros.md) · [Directory history](docs/directory-history.md) · [WSL](docs/wsl-behavior.md) · [Interface languages](docs/ui-language.md)
 
 For rendering issues, include your Windows version, shell, command, expected result and a screenshot in an [issue](https://github.com/mirbehnam/RtlTerminal/issues). Smart RTL handles automatically wrapped text; application-defined line breaks and full-screen terminal layouts are preserved. Rendering can vary between CLI applications.
 
@@ -75,7 +75,7 @@ For rendering issues, include your Windows version, shell, command, expected res
 - **تب‌ها و پنل‌های مجزا:** اجرای PowerShell، Command Prompt و توزیع‌های نصب‌شدهٔ WSL، تقسیم پنل فعال، ترکیب تب‌ها، تغییر نام و رنگ تب.
 - **ماکروهای ترمینال:** ضبط فرمان‌ها و کلیدهای تعاملی، ویرایش مراحل و اجرای مجدد با امکان مکث، ادامه و اجرای گام‌به‌گام. فایل‌ها رمزگذاری می‌شوند و می‌توان برایشان رمز مستقل تعیین کرد یا ورودی‌های حساس را هنگام اجرا پرسید.
 - **تاریخچهٔ پوشه‌ها:** نمایش پوشهٔ پنل فعال، بازکردن آن در اکسپلورر و بازگشت به مسیرهای اخیر. منو ۲۰ مسیر و پنجرهٔ جست‌وجو تا ۲۰۰ مسیر را نمایش می‌دهد؛ تاریخچه قابل پاک‌کردن و غیرفعال‌کردن است.
-- **شخصی‌سازی محیط:** تم‌های روشن و تیره با پیش‌نمایش، تنظیم فونت‌های نصب‌شده و رابط فارسی، انگلیسی یا عربی بدون تغییر جهت چیدمان.
+- **شخصی‌سازی محیط:** تم‌های روشن و تیره با پیش‌نمایش، انتخاب از ۹ فونت داخلی ترمینال یا فونت‌های نصب‌شده و رابط فارسی، انگلیسی یا عربی بدون تغییر جهت چیدمان.
 - **ذخیره و نمایش خروجی:** پیش‌نمایش HTML محلی از صفحهٔ فعلی، محتوای اخیر یا کل سابقهٔ نگه‌داری‌شده و ذخیرهٔ جلسه به‌صورت متن UTF-8.
 - **هماهنگی با دسکتاپ:** کپی و پیست، کشیدن فایل یا تصویر روی پنل، بازکردن لینک با Ctrl و کلیک و افزودن اختیاری «Open in RtlTerminal» به منوی راست‌کلیک پوشه‌های ویندوز.
 
@@ -83,7 +83,7 @@ For rendering issues, include your Windows version, shell, command, expected res
 
 با دکمهٔ **+** یک ترمینال باز کنید و با فلش کنارش محیط موردنظر را انتخاب کنید. گزینه‌های تقسیم و رنگ در راست‌کلیک تب قرار دارند؛ برای تغییر نام، روی نام تب دوبار کلیک کنید.
 
-تنظیمات فونت، تم، تاریخچه و ماکرو در **Edit → Settings** قرار دارند. زبان رابط از **Help → LANGUAGE** تغییر می‌کند و دکمهٔ چشم کنار **Smart RTL** پیش‌نمایش مرورگر را باز می‌کند.
+تنظیمات فونت، تم، تاریخچه و ماکرو در **Edit → Settings** قرار دارند. زبان رابط از **Help → LANGUAGE** تغییر می‌کند و دکمهٔ چشم در نوار بالا پیش‌نمایش مرورگر را باز می‌کند.
 
 | کار | میان‌بر |
 | --- | --- |
@@ -100,7 +100,7 @@ For rendering issues, include your Windows version, shell, command, expected res
 
 ### راهنما و پشتیبانی
 
-[ماکروها](docs/macros.md) · [تاریخچهٔ پوشه‌ها](docs/directory-history.md) · [رفتار WSL](docs/wsl-behavior.md) · [زبان رابط](docs/ui-language.md)
+[فونت‌ها](docs/fonts.md) · [ماکروها](docs/macros.md) · [تاریخچهٔ پوشه‌ها](docs/directory-history.md) · [رفتار WSL](docs/wsl-behavior.md) · [زبان رابط](docs/ui-language.md)
 
 برای گزارش مشکل، نسخهٔ ویندوز، محیط خط فرمان، فرمان اجراشده، نتیجهٔ مورد انتظار و تصویر مشکل را در بخش [Issues](https://github.com/mirbehnam/RtlTerminal/issues) بفرستید. Smart RTL شکست خودکار خطوط را مدیریت می‌کند؛ شکست خط‌های صریح و چیدمان برنامه‌های تمام‌صفحه حفظ می‌شوند. نتیجهٔ نمایش ممکن است بین ابزارهای خط فرمان متفاوت باشد.
 
@@ -122,7 +122,7 @@ For rendering issues, include your Windows version, shell, command, expected res
 - **علامات تبويب وأجزاء مستقلة:** تشغيل PowerShell وCommand Prompt وتوزيعات WSL المثبّتة، مع تقسيم الجزء النشط ودمج العلامات وتغيير أسمائها وألوانها.
 - **ماكرو الطرفية:** تسجيل الأوامر والمفاتيح التفاعلية، وتحرير الخطوات وإعادة تشغيلها مع الإيقاف المؤقت والمتابعة والتنفيذ خطوة بخطوة. تُشفّر الملفات مع كلمة مرور اختيارية وإمكانية طلب المدخلات الحساسة أثناء التشغيل.
 - **سجل المجلدات:** عرض مجلد الجزء النشط وفتحه في المستكشف والعودة إلى المجلدات الأخيرة. تعرض القائمة 20 موقعاً، وتتيح نافذة البحث الوصول إلى 200 موقع مع مسح السجل أو تعطيله.
-- **التخصيص:** سمات فاتحة وداكنة مع معاينة، وإعدادات للخطوط المثبّتة، وواجهة عربية أو فارسية أو إنجليزية دون تغيير اتجاه التخطيط.
+- **التخصيص:** سمات فاتحة وداكنة مع معاينة، وتسعة خطوط طرفية مضمّنة إلى جانب الخطوط المثبّتة، وواجهة عربية أو فارسية أو إنجليزية دون تغيير اتجاه التخطيط.
 - **حفظ المخرجات وعرضها:** معاينة HTML محلية للصفحة الحالية أو المحتوى الأخير أو السجل المحتفظ به، وتصدير الجلسة كنص UTF-8.
 - **التكامل مع سطح المكتب:** النسخ واللصق وإفلات الملفات والصور على الجزء وفتح الروابط باستخدام Ctrl مع النقر، وإضافة خيار «Open in RtlTerminal» إلى قائمة المجلدات اختيارياً.
 
@@ -130,7 +130,7 @@ For rendering issues, include your Windows version, shell, command, expected res
 
 استخدم زر **+** لفتح طرفية والسهم المجاور لاختيار البيئة. انقر بزر الفأرة الأيمن على علامة التبويب لخيارات التقسيم واللون، أو انقر مرتين على اسمها لإعادة تسميتها.
 
-توجد إعدادات الخط والسمات والسجل والماكرو في **Edit → Settings**. غيّر لغة الواجهة من **Help → LANGUAGE**، وافتح معاينة المتصفح بزر العين بجوار **Smart RTL**.
+توجد إعدادات الخط والسمات والسجل والماكرو في **Edit → Settings**. غيّر لغة الواجهة من **Help → LANGUAGE**، وافتح معاينة المتصفح بزر العين في شريط الأدوات.
 
 | الإجراء | الاختصار |
 | --- | --- |
@@ -147,7 +147,7 @@ For rendering issues, include your Windows version, shell, command, expected res
 
 ### الأدلة والدعم
 
-[الماكرو](docs/macros.md) · [سجل المجلدات](docs/directory-history.md) · [سلوك WSL](docs/wsl-behavior.md) · [لغات الواجهة](docs/ui-language.md)
+[الخطوط](docs/fonts.md) · [الماكرو](docs/macros.md) · [سجل المجلدات](docs/directory-history.md) · [سلوك WSL](docs/wsl-behavior.md) · [لغات الواجهة](docs/ui-language.md)
 
 للإبلاغ عن مشكلة، أرفق إصدار Windows والصدفة والأمر والنتيجة المتوقعة وصورة للمشكلة في [Issues](https://github.com/mirbehnam/RtlTerminal/issues). تتعامل Smart RTL مع التفاف الأسطر التلقائي مع الحفاظ على فواصل الأسطر الصريحة وتخطيط التطبيقات بملء الشاشة. قد تختلف نتائج العرض بين أدوات سطر الأوامر.
 

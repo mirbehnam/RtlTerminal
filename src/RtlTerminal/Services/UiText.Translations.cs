@@ -10,6 +10,7 @@ _Tools|_ابزارها|_أدوات
 _Help|_راهنما|_مساعدة
 LANGUAGE|زبان|اللغة
 _Guide|_راهنما|_الدليل
+Keyboard shortcuts|کلیدهای میانبر|اختصارات لوحة المفاتيح
 _About Rtl Terminal|_دربارهٔ Rtl Terminal|_حول Rtl Terminal
 Check for _updates...|بررسی _به‌روزرسانی…|التحقق من _التحديثات…
 Checking for updates...|در حال بررسی به‌روزرسانی…|جارٍ التحقق من التحديثات…
@@ -57,6 +58,8 @@ Theme|تم|المظهر
 History|تاریخچه|السجل
 Macros|ماکروها|الماكرو
 Standard fonts|فونت‌های پیشنهادی|الخطوط المقترحة
+Built-in and recommended terminal fonts.|فونت‌های داخلی و پیشنهادی ترمینال.|خطوط الطرفية المضمّنة والمقترحة.
+All fonts|همهٔ فونت‌ها|كل الخطوط
 All installed fonts|همهٔ فونت‌های نصب‌شده|كل الخطوط المثبتة
 Recommended fonts for CMD, PowerShell, terminals and coding that are installed on this Windows.|فونت‌های پیشنهادی نصب‌شده برای ترمینال و برنامه‌نویسی.|خطوط الطرفية والبرمجة المقترحة المثبتة على Windows.
 Size|اندازه|الحجم
@@ -287,5 +290,18 @@ Current directory is not available yet|پوشهٔ فعلی هنوز مشخص ن�
 The current directory is unavailable. Return to the shell prompt and try again.|پوشهٔ فعلی در دسترس نیست. به اعلان شل برگردید و دوباره تلاش کنید.|المجلد الحالي غير متاح. ارجع إلى مطالبة الصدفة وحاول مجدداً.
 Tab name|نام تب|اسم علامة التبويب
 Cancel rename|لغو تغییر نام|إلغاء إعادة التسمية
+Find...|جست‌وجو…|بحث…
+Previous match|تطابق قبلی|المطابقة السابقة
+Next match|تطابق بعدی|المطابقة التالية
+Match case|حساس به حروف بزرگ و کوچک|مطابقة حالة الأحرف
+Close search|بستن جست‌وجو|إغلاق البحث
+{0} of {1}|{0} از {1}|{0} من {1}
+No results|نتیجه‌ای یافت نشد|لا توجد نتائج
+Full screen|تمام‌صفحه|ملء الشاشة
+Zoom in|بزرگ‌نمایی|تكبير
+Zoom out|کوچک‌نمایی|تصغير
+Reset zoom|بازنشانی بزرگ‌نمایی|إعادة تعيين الحجم
+PowerShell 7|پاورشل ۷|PowerShell 7
+Git Bash|گیت بش|Git Bash
 """;
 }

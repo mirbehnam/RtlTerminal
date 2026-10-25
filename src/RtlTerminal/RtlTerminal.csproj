@@ -43,6 +43,8 @@
     <Content Include="$(PkgMicrosoft_Windows_Console_ConPTY)/runtimes/win-arm64/native/conpty.dll" Link="ConPty/arm64/conpty.dll" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" ExcludeFromSingleFile="true" />
     <Content Include="$(PkgMicrosoft_Windows_Console_ConPTY)/build/native/runtimes/arm64/OpenConsole.exe" Link="ConPty/arm64/OpenConsole.exe" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" ExcludeFromSingleFile="true" />
     <Resource Include="Assets/RtlTerminal.ico" />
+    <Resource Include="Assets/Fonts/**/*.ttf" />
+    <Content Include="Assets/Fonts/**/*" Exclude="Assets/Fonts/**/*.ttf" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 
 

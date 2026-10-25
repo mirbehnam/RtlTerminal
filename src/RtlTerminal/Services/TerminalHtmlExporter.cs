@@ -1,7 +1,6 @@
 using System.Globalization;
 using System.Net;
 using System.Text;
-using System.Text.RegularExpressions;
 
 namespace RtlTerminal;
 
@@ -20,9 +19,14 @@ public static class TerminalHtmlExporter
             $"line-height:{lineHeight.ToString(CultureInfo.InvariantCulture)}px;font-weight:{(bold ? "bold" : "normal")};font-style:{(italic ? "italic" : "normal")};" +
             $"color:{Color(AppTheme.DefaultForeground)};background:{Color(AppTheme.DefaultBackground)}";
         var html = new StringBuilder("<!doctype html><html><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">");
-        html.Append("<meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'none'; style-src 'unsafe-inline'\">");
+        html.Append("<meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'none'; style-src 'unsafe-inline'; font-src data:\">");
+        var neededFaces = new HashSet<(bool Bold, bool Italic)> { (bold, italic) };
+        foreach (var run in lines.SelectMany(line => line.Runs)) neededFaces.Add((bold || run.Style.Bold, italic || run.Style.Italic));
+        var fontFaces = BundledFonts.FontFaceCss(fontFamily, neededFaces);
+        if (fontFaces.Length > 0) html.Append("<style>").Append(fontFaces).Append("</style>");
         html.Append("<title>Rtl Terminal — Preview</title><style>body{margin:0;padding:24px}main{max-width:1200px;margin:auto}.line{white-space:pre-wrap;white-space:break-spaces;overflow-wrap:normal;word-break:normal;unicode-bidi:plaintext;min-height:1lh;margin:0}span{unicode-bidi:normal}::selection{background:#467dc8;color:white}</style></head><body style=\"");
         html.Append(H(css)).Append("\"><main>");
+        var paragraphLinks = TerminalLinks.ForLines(lines);
         var open = false;
         for (var i = 0; i < lines.Count; i++)
         {
@@ -33,10 +37,7 @@ public static class TerminalHtmlExporter
                 html.Append("<div class=\"line\" dir=\"auto\">");
                 open = true;
             }
-            var lineText = string.Concat(line.Runs.Select(run => run.Text));
-            var links = TerminalView.Links.Matches(lineText).Cast<Match>()
-                .Select(match => (match.Index, Text: match.Value.TrimEnd('.', ',', ';', ':', '!', '?', ')')))
-                .ToArray();
+            IReadOnlyList<TerminalLinkSpan> links = paragraphLinks.TryGetValue(i, out var spans) ? spans : [];
             var runOffset = 0;
             foreach (var run in line.Runs)
             {
@@ -52,18 +53,18 @@ public static class TerminalHtmlExporter
                 html.Append("<span style=\"").Append(H(runCss)).Append("\">");
                 for (var offset = 0; offset < run.Text.Length;)
                 {
-                    var link = links.FirstOrDefault(item => runOffset + offset >= item.Index && runOffset + offset < item.Index + item.Text.Length);
-                    if (link.Text is not null && !style.Hidden)
+                    var link = links.FirstOrDefault(item => runOffset + offset >= item.Start && runOffset + offset < item.Start + item.Length);
+                    if (link is not null && !style.Hidden)
                     {
-                        var length = Math.Min(run.Text.Length - offset, link.Index + link.Text.Length - runOffset - offset);
-                        var address = link.Text.StartsWith("www.", StringComparison.OrdinalIgnoreCase) ? "https://" + link.Text : link.Text;
+                        var length = Math.Min(run.Text.Length - offset, link.Start + link.Length - runOffset - offset);
+                        var address = link.Uri.AbsoluteUri;
                         html.Append("<a style=\"color:#6495ED;text-decoration:underline\" href=\"").Append(H(address))
                             .Append("\">").Append(H(run.Text.Substring(offset, length))).Append("</a>");
                         offset += length;
                     }
                     else
                     {
-                        var next = links.Where(item => item.Index > runOffset + offset).Select(item => item.Index - runOffset)
+                        var next = links.Where(item => item.Start > runOffset + offset).Select(item => item.Start - runOffset)
                             .DefaultIfEmpty(run.Text.Length).Min();
                         var length = Math.Min(run.Text.Length, next) - offset;
                         html.Append(H(run.Text.Substring(offset, length)));
