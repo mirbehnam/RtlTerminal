@@ -19,6 +19,7 @@ internal static partial class Program
     }
     private static void Run()
     {
+        if (Environment.GetCommandLineArgs().Contains("--startup-directory-tests")) { CheckStartupDirectories(); return; }
         if (Environment.GetCommandLineArgs().Contains("--macro-child")) { MacroTests.Child(); return; }
         if (Environment.GetCommandLineArgs().Contains("--tab-rename-smoke"))
         {
@@ -43,6 +44,7 @@ internal static partial class Program
         if (Environment.GetCommandLineArgs().Contains("--conpty-child")) { ConPtyPersianProbe.Child(); return; }
         if (Environment.GetCommandLineArgs().Contains("--conpty-persian")) { ConPtyPersianProbe.Run(); return; }
         UiText.Select(UiLanguage.English, persist: false);
+        CheckStartupDirectories();
         CheckUiLanguages();
         CheckWindowStatus();
         CheckProfileChrome();

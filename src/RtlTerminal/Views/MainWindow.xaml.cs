@@ -1229,20 +1229,9 @@ ApplySavedFontSettings();
     private static string? ResolveStartupDirectory(
         string? requestedDirectory = null)
     {
-        if (TryResolveDirectory(requestedDirectory, out var directory))
-            return directory;
-
         var arguments = Environment.GetCommandLineArgs();
-
-        if (arguments.Length >= 2 &&
-            TryResolveDirectory(arguments[1], out directory))
-        {
-            return directory;
-        }
-
-        return TryResolveDirectory(Environment.CurrentDirectory, out directory)
-            ? directory
-            : null;
+        return StartupDirectories.Resolve(requestedDirectory, arguments.Length >= 2 ? arguments[1] : null,
+            Environment.CurrentDirectory, AppContext.BaseDirectory, Environment.GetFolderPath(Environment.SpecialFolder.UserProfile));
     }
 
     private static bool TryResolveDirectory(
