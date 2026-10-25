@@ -17,10 +17,12 @@ public static class ProfileIcons
         lock (Cache)
         {
             if (Cache.TryGetValue(profile, out var cached)) return cached;
+            // Shell file info may return a generic executable icon for MSIX
+            // aliases or Git's bash.exe. These profiles have stable vector marks.
+            if (profile is ProfileIconKind.PowerShell7 or ProfileIconKind.GitBash)
+                return Cache[profile] = Fallback(profile);
             string? executable = profile switch
             {
-                ProfileIconKind.PowerShell7 => ShellProfiles.PowerShell7Path,
-                ProfileIconKind.GitBash => ShellProfiles.GitBashPath,
                 ProfileIconKind.PowerShell => Path.Combine(Environment.SystemDirectory, @"WindowsPowerShell\v1.0\powershell.exe"),
                 ProfileIconKind.Linux => Path.Combine(Environment.SystemDirectory, "wsl.exe"),
                 _ => Path.Combine(Environment.SystemDirectory, "cmd.exe")
@@ -54,22 +56,26 @@ public static class ProfileIcons
         }
         else if (kind == ProfileIconKind.PowerShell7)
         {
-            var bgBrush = new SolidColorBrush(Color.FromRgb(24, 30, 42));
-            bgBrush.Freeze();
-            var fgPen = new Pen(new SolidColorBrush(Color.FromRgb(56, 189, 248)), 1.4);
-            fgPen.Freeze();
-            Shape("M1,2 L15,2 L15,14 L1,14 Z", bgBrush);
-            Shape("M4,5 L7,8 L4,11 M8,11 L12,11", Brushes.Transparent, fgPen);
+            Shape("M0,0 H16 V16 H0 Z", Brushes.Transparent);
+            var blue = new LinearGradientBrush(Color.FromRgb(0, 120, 212), Color.FromRgb(1, 36, 86), 90);
+            blue.Freeze();
+            Shape("M3,1.5 H14 C15,1.5 15.5,2.2 15.2,3.3 L12.6,13.1 C12.4,14 11.9,14.5 11,14.5 H1.8 C.8,14.5 .4,13.8 .7,12.7 L3.2,3.1 C3.4,2.2 3.7,1.5 4.5,1.5 Z", blue);
+            var white = new Pen(Brushes.White, 1.35) { StartLineCap = PenLineCap.Round, EndLineCap = PenLineCap.Round, LineJoin = PenLineJoin.Round };
+            white.Freeze();
+            Shape("M5,4.6 L8,7.5 L4.2,10.6 M8.1,11 H11.3", Brushes.Transparent, white);
         }
         else if (kind == ProfileIconKind.GitBash)
         {
+            Shape("M0,0 H16 V16 H0 Z", Brushes.Transparent);
             var gitOrange = new SolidColorBrush(Color.FromRgb(240, 80, 50));
             gitOrange.Freeze();
-            var branchPen = new Pen(Brushes.White, 1.2);
+            var branchPen = new Pen(Brushes.White, 1.2) { StartLineCap = PenLineCap.Round, EndLineCap = PenLineCap.Round, LineJoin = PenLineJoin.Round };
             branchPen.Freeze();
-            Shape("M8,1 L15,8 L8,15 L1,8 Z", gitOrange);
-            Shape("M5.5,11 L5.5,5 M5.5,9 C5.5,7.5 7,6.5 10.5,6.5", Brushes.Transparent, branchPen);
-            Shape("M4.5,11 A1,1 0 1 0 6.5,11 A1,1 0 1 0 4.5,11 M4.5,5 A1,1 0 1 0 6.5,5 A1,1 0 1 0 4.5,5 M9.5,6.5 A1,1 0 1 0 11.5,6.5 A1,1 0 1 0 9.5,6.5", Brushes.White);
+            Shape("M8,.7 Q8.4,.7 8.7,1 L15,7.3 Q15.7,8 15,8.7 L8.7,15 Q8,15.7 7.3,15 L1,8.7 Q.3,8 1,7.3 L7.3,1 Q7.6,.7 8,.7 Z", gitOrange);
+            Shape("M4.8,4.8 L10.8,10.8 M7.8,7.8 L7.8,11.3", Brushes.Transparent, branchPen);
+            drawing.Children.Add(new GeometryDrawing(Brushes.White, null, new EllipseGeometry(new Point(4.8, 4.8), 1.15, 1.15)));
+            drawing.Children.Add(new GeometryDrawing(Brushes.White, null, new EllipseGeometry(new Point(10.8, 10.8), 1.15, 1.15)));
+            drawing.Children.Add(new GeometryDrawing(Brushes.White, null, new EllipseGeometry(new Point(7.8, 11.3), 1.15, 1.15)));
         }
         else
         {
