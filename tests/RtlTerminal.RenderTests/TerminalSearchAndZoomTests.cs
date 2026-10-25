@@ -21,22 +21,23 @@ internal static partial class Program
         if (recFontsField?.GetValue(null) is not string[] recFonts)
             throw new Exception("FontSettingsWindow.RecommendedFontNames not found");
 
-        string[] requiredArabicFonts =
+        string[] requiredBundledFonts =
         [
-            "Cascadia Code",
+            "JetBrains Mono",
             "Cascadia Mono",
-            "Simplified Arabic Fixed",
-            "Segoe UI Variable Text",
-            "Amiri Typewriter",
-            "Amiri",
-            "Cairo",
-            "Almarai"
+            "Fira Code",
+            "Iosevka",
+            "Hack",
+            "Geist Mono",
+            "Vazir Code",
+            "Cascadia Mono NF",
+            "JetBrains Mono NF"
         ];
 
-        for (var i = 0; i < requiredArabicFonts.Length; i++)
+        for (var i = 0; i < requiredBundledFonts.Length; i++)
         {
-            if (recFonts.Length <= i || recFonts[i] != requiredArabicFonts[i])
-                throw new Exception($"Expected Arabic font '{requiredArabicFonts[i]}' at index {i}, but found '{recFonts.ElementAtOrDefault(i)}'");
+            if (recFonts.Length <= i || recFonts[i] != requiredBundledFonts[i])
+                throw new Exception($"Expected bundled font '{requiredBundledFonts[i]}' at index {i}, but found '{recFonts.ElementAtOrDefault(i)}'");
         }
 
         if (!recFonts.Contains("Consolas") || !recFonts.Contains("Lucida Console") || !recFonts.Contains("JetBrains Mono"))
@@ -268,7 +269,7 @@ internal static partial class Program
                 ((FrameworkElement)window.FindName("MenuBarArea")).Visibility != Visibility.Visible)
                 throw new Exception("Fullscreen toggle did not restore previous window state/style");
 
-            Console.WriteLine("PASS terminal search bar navigation, RTL/Arabic search, case sensitivity, font zoom/reset, fullscreen toggle and Arabic font recommendations");
+            Console.WriteLine("PASS terminal search bar navigation, RTL/Arabic search, case sensitivity, font zoom/reset, fullscreen toggle and bundled terminal font recommendations");
         }
         finally
         {

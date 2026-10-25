@@ -12,25 +12,26 @@ public partial class FontSettingsWindow : Window
 {
     private static readonly string[] RecommendedFontNames =
     [
-        "Cascadia Code",
+        "JetBrains Mono",
         "Cascadia Mono",
-        "Simplified Arabic Fixed",
+        "Fira Code",
+        "Iosevka",
+        "Hack",
+        "Geist Mono",
+        "Vazir Code",
+        "Cascadia Mono NF",
+        "JetBrains Mono NF",
+        "Cascadia Code",
         "Segoe UI Variable Text",
-        "Amiri Typewriter",
-        "Amiri",
         "Cairo",
         "Almarai",
         "Consolas",
         "Lucida Console",
         "Courier New",
-        "JetBrains Mono",
-        "Fira Code",
         "Source Code Pro",
         "IBM Plex Mono",
         "DejaVu Sans Mono",
         "Ubuntu Mono",
-        "Hack",
-        "Iosevka",
         "MesloLGS NF",
         "CaskaydiaCove Nerd Font"
     ];
@@ -51,15 +52,17 @@ public partial class FontSettingsWindow : Window
         InitializeComponent();
         InitializeMacroSettings();
         InitializeDirectoryHistorySettings();
-        _fontFamilies = Fonts.SystemFontFamilies
+        _fontFamilies = BundledFonts.Names.Concat(Fonts.SystemFontFamilies
             .Select(font => font.Source)
+            .Select(BundledFonts.CanonicalName))
+            .Where(name => !BundledFonts.IsExcluded(name))
             .Distinct(StringComparer.CurrentCultureIgnoreCase)
             .OrderBy(name => name, StringComparer.CurrentCultureIgnoreCase)
             .ToArray();
         _initialFamily = ResolveInitialFamily(family);
 
         StandardFontListBox.ItemsSource = RecommendedFontNames
-            .Where(IsFontInstalled)
+            .Where(IsFontAvailable)
             .ToArray();
 
         FontSizeComboBox.Text = size.ToString(
@@ -195,7 +198,7 @@ public partial class FontSettingsWindow : Window
             return;
 
         var family = GetSelectedFamily();
-        PreviewTextBlock.FontFamily = new FontFamily(family);
+        PreviewTextBlock.FontFamily = BundledFonts.Resolve(family);
         PreviewTextBlock.FontSize = GetFontSize();
         PreviewTextBlock.FontWeight =
             BoldCheckBox.IsChecked == true
@@ -278,7 +281,7 @@ public partial class FontSettingsWindow : Window
         _synchronizingSelection = false;
     }
 
-    private bool IsFontInstalled(string fontName)
+    private bool IsFontAvailable(string fontName)
     {
         return _fontFamilies.Contains(
             fontName,
@@ -291,7 +294,7 @@ public partial class FontSettingsWindow : Window
         {
             var trimmed = candidate.Trim();
 
-            if (IsFontInstalled(trimmed))
+            if (IsFontAvailable(trimmed))
                 return _fontFamilies.First(name =>
                     string.Equals(
                         name,
@@ -302,7 +305,7 @@ public partial class FontSettingsWindow : Window
         return _fontFamilies.FirstOrDefault(name =>
             string.Equals(
                 name,
-                "Cascadia Code",
+                "Cascadia Mono",
                 StringComparison.CurrentCultureIgnoreCase)) ??
             _fontFamilies.FirstOrDefault(name =>
                 string.Equals(

@@ -245,7 +245,7 @@ public partial class MainWindow
         if (Math.Abs(newSize - currentSize) < 0.01) return;
         _zoomReflowDue = Environment.TickCount64 + 180;
         ApplyFontSettings(new TerminalFontSettings(
-            TerminalTextBox.FontFamily.Source,
+            BundledFonts.DisplayName(TerminalTextBox.FontFamily),
             newSize,
             TerminalTextBox.FontWeight >= FontWeights.Bold,
             TerminalTextBox.FontStyle == FontStyles.Italic));
@@ -257,7 +257,7 @@ public partial class MainWindow
         var defaultSize = Math.Clamp(saved?.Size ?? 14.0, 8, 48);
         _zoomReflowDue = Environment.TickCount64 + 180;
         ApplyFontSettings(new TerminalFontSettings(
-            TerminalTextBox.FontFamily.Source,
+            BundledFonts.DisplayName(TerminalTextBox.FontFamily),
             defaultSize,
             TerminalTextBox.FontWeight >= FontWeights.Bold,
             TerminalTextBox.FontStyle == FontStyles.Italic));

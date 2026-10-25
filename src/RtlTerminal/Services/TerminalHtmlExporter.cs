@@ -20,7 +20,11 @@ public static class TerminalHtmlExporter
             $"line-height:{lineHeight.ToString(CultureInfo.InvariantCulture)}px;font-weight:{(bold ? "bold" : "normal")};font-style:{(italic ? "italic" : "normal")};" +
             $"color:{Color(AppTheme.DefaultForeground)};background:{Color(AppTheme.DefaultBackground)}";
         var html = new StringBuilder("<!doctype html><html><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">");
-        html.Append("<meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'none'; style-src 'unsafe-inline'\">");
+        html.Append("<meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'none'; style-src 'unsafe-inline'; font-src data:\">");
+        var neededFaces = new HashSet<(bool Bold, bool Italic)> { (bold, italic) };
+        foreach (var run in lines.SelectMany(line => line.Runs)) neededFaces.Add((bold || run.Style.Bold, italic || run.Style.Italic));
+        var fontFaces = BundledFonts.FontFaceCss(fontFamily, neededFaces);
+        if (fontFaces.Length > 0) html.Append("<style>").Append(fontFaces).Append("</style>");
         html.Append("<title>Rtl Terminal — Preview</title><style>body{margin:0;padding:24px}main{max-width:1200px;margin:auto}.line{white-space:pre-wrap;white-space:break-spaces;overflow-wrap:normal;word-break:normal;unicode-bidi:plaintext;min-height:1lh;margin:0}span{unicode-bidi:normal}::selection{background:#467dc8;color:white}</style></head><body style=\"");
         html.Append(H(css)).Append("\"><main>");
         var open = false;

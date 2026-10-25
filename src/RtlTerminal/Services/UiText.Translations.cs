@@ -58,6 +58,8 @@ Theme|تم|المظهر
 History|تاریخچه|السجل
 Macros|ماکروها|الماكرو
 Standard fonts|فونت‌های پیشنهادی|الخطوط المقترحة
+Built-in and recommended terminal fonts.|فونت‌های داخلی و پیشنهادی ترمینال.|خطوط الطرفية المضمّنة والمقترحة.
+All fonts|همهٔ فونت‌ها|كل الخطوط
 All installed fonts|همهٔ فونت‌های نصب‌شده|كل الخطوط المثبتة
 Recommended fonts for CMD, PowerShell, terminals and coding that are installed on this Windows.|فونت‌های پیشنهادی نصب‌شده برای ترمینال و برنامه‌نویسی.|خطوط الطرفية والبرمجة المقترحة المثبتة على Windows.
 Size|اندازه|الحجم

@@ -56,6 +56,7 @@ internal static partial class Program
         CheckMacroUi();
         CheckDirectoryHistory();
         CheckTerminalSearchAndZoom();
+        CheckBundledFonts();
         var view = new TerminalView
         {
             Width = 800, Height = 420, FontFamily = new FontFamily("Consolas"),

@@ -156,7 +156,7 @@ public sealed class TerminalView : ContentControl
 
     public string CreateHtmlPreview(HtmlPreviewScope scope = HtmlPreviewScope.CurrentPage)
     {
-        if (_snapshot is null) return TerminalHtmlExporter.Create([], FontFamily.Source, FontSize, _lineHeight);
+        if (_snapshot is null) return TerminalHtmlExporter.Create([], BundledFonts.DisplayName(FontFamily), FontSize, _lineHeight);
         var first = Math.Max(0, (int)Math.Floor(VerticalOffset / _lineHeight));
         var last = Math.Min(_snapshot.Lines.Count, (int)Math.Ceiling((VerticalOffset + ViewportHeight) / _lineHeight));
         if (scope == HtmlPreviewScope.EntireHistory) { first = 0; last = _snapshot.Lines.Count; }
@@ -166,7 +166,7 @@ public sealed class TerminalView : ContentControl
             last = _snapshot.Lines.Count;
         }
         return TerminalHtmlExporter.Create(_snapshot.Lines.Skip(first).Take(Math.Max(0, last - first)).ToArray(),
-            FontFamily.Source, FontSize, _lineHeight, FontWeight.ToOpenTypeWeight() >= 600, FontStyle != FontStyles.Normal);
+            BundledFonts.DisplayName(FontFamily), FontSize, _lineHeight, FontWeight.ToOpenTypeWeight() >= 600, FontStyle != FontStyles.Normal);
     }
 
     public void RefreshTheme()
@@ -580,7 +580,7 @@ public sealed class TerminalView : ContentControl
             {
             formatted = new FormattedText(glyph.Text, CultureInfo.CurrentCulture,
                 glyph.Rtl ? FlowDirection.RightToLeft : FlowDirection.LeftToRight,
-                new Typeface(glyph.Text.EnumerateRunes().Any(rune => rune.Value >= 0x1f000)
+                new Typeface(glyph.Text.EnumerateRunes().Any(rune => rune.Value is >= 0x1f000 and <= 0x1ffff)
                     ? new FontFamily("Segoe UI Emoji") : FontFamily, glyph.Style.Italic ? FontStyles.Italic : FontStyle,
                     glyph.Style.Bold ? FontWeights.Bold : FontWeight, FontStretch), FontSize,
                 BrushFor(Colors(glyph.Style).Foreground), VisualTreeHelper.GetDpi(this).PixelsPerDip);

@@ -744,7 +744,7 @@
                      Foreground="{DynamicResource TerminalForegroundBrush}"
                      BorderThickness="0"
                      Padding="10,10,2,10"
-                     FontFamily="Cascadia Mono, Consolas"
+                     FontFamily="{x:Static local:BundledFonts.DefaultFamily}"
                      FontSize="14"
                      Cursor="IBeam"
                      FlowDirection="LeftToRight"

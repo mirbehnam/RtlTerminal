@@ -909,7 +909,7 @@ ApplySavedFontSettings();
     private void ShowSettings(bool openThemeTab, bool openMacroTab = false)
     {
         var settingsWindow = new FontSettingsWindow(
-            TerminalTextBox.FontFamily.Source,
+            BundledFonts.DisplayName(TerminalTextBox.FontFamily),
             TerminalTextBox.FontSize,
             TerminalTextBox.FontWeight,
             TerminalTextBox.FontStyle,
@@ -2393,7 +2393,7 @@ ApplySavedFontSettings();
     {
         foreach (var view in AllViews())
         {
-            view.FontFamily = new FontFamily(settings.Family);
+            view.FontFamily = BundledFonts.Resolve(settings.Family);
             view.FontSize = settings.Size;
             view.FontWeight = settings.Bold
                 ? FontWeights.Bold
