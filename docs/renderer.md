@@ -11,6 +11,14 @@ within a bounded margin around the viewport. Small scroll reversals reuse these
 visuals; resizing, font changes and theme changes invalidate them. Removed
 snapshot rows are evicted immediately. The scroll gutter is a fixed 10 DIPs,
 including while hovered, so its indicator can expand without resizing the text.
+Mouse-wheel input follows the Windows lines-per-notch setting (including page
+scrolling), accumulates partial deltas, and coalesces queued steps into whole-line
+jumps without animation. Direct thumb dragging remains pixel-based. Parent
+Ctrl+wheel zoom and application mouse reporting retain priority over history scrolling.
+
+Uniform Persian/Arabic words share formatted text and relative character-hit
+bounds across rows in a bounded, per-view cache. Mixed ANSI formatting and links
+are kept separate; font, DPI and theme changes invalidate cached shaping.
 Common box-drawing characters are drawn geometrically to join across cells.
 Block elements U+2580–U+259F use cell-relative rectangles (shades use blended
 foreground/background colors). Graphics have hard edges and font metrics are

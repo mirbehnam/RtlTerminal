@@ -112,6 +112,7 @@ internal static partial class Program
         CheckThemes();
         CheckPersianWordWrapAndHtml();
         CheckPreviewAndScrollCache();
+        CheckLineScrollAndWordCache();
         CheckPanes();
         CheckTabMenusAndColors();
         CheckAutomaticSplit();

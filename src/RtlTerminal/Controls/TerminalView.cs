@@ -23,6 +23,10 @@ public sealed class TerminalView : ContentControl
     private readonly Dictionary<TerminalColor, Brush> _brushes = [];
     private string _fontKey = string.Empty;
     private readonly Dictionary<(string Text, TerminalStyle Style, bool Link), FormattedText> _glyphCache = [];
+    private readonly Dictionary<(string Text, TerminalStyle Style), ShapedWord> _wordCache = [];
+    private int _wheelDelta;
+    private long _pendingWheelRows;
+    private System.Windows.Threading.DispatcherOperation? _wheelOperation;
     internal static readonly Regex Links = new(@"(?i)\b(?:https?://|www\.)[^\s<>{}\[\]""']+", RegexOptions.Compiled);
     public event Action<Uri>? LinkRequested;
     public bool HasSelection => _anchor is not null && _end is not null && _anchor != _end;
@@ -62,6 +66,17 @@ public sealed class TerminalView : ContentControl
             Focusable = false
         };
         Content = _scroll;
+        // Window-level Ctrl+wheel and application mouse reporting get first refusal
+        // during tunneling, before the event reaches this ScrollViewer.
+        _scroll.PreviewMouseWheel += (_, e) =>
+        {
+            if (e.Handled || (Keyboard.Modifiers & ModifierKeys.Control) != 0) return;
+            QueueWheelScroll(e.Delta, SystemParameters.WheelScrollLines);
+            e.Handled = true;
+        };
+        _scroll.AddHandler(System.Windows.Controls.Primitives.Thumb.DragStartedEvent,
+            new System.Windows.Controls.Primitives.DragStartedEventHandler((_, _) => CancelWheelScroll()));
+        Unloaded += (_, _) => CancelWheelScroll();
         _scroll.SetBinding(MarginProperty, new System.Windows.Data.Binding(nameof(Padding)) { Source = this });
         _scroll.ScrollChanged += (_, e) =>
         {
@@ -94,6 +109,8 @@ public sealed class TerminalView : ContentControl
     {
         // Reflow the presentation only; application cursor commands still target the VT grid.
         var sourceStart = snapshot.ScrollbackStartIndex;
+        if (sourceStart != _sourceScrollbackStart || lineHeight != _lineHeight ||
+            _snapshot?.Modes.AlternateScreen != snapshot.Modes.AlternateScreen) CancelWheelScroll();
         if (sourceStart != _sourceScrollbackStart) ClearSelection();
         _sourceScrollbackStart = sourceStart;
         if (smartRtl) snapshot = TerminalWordWrap.Reflow(snapshot);
@@ -124,7 +141,7 @@ public sealed class TerminalView : ContentControl
             _layouts.Clear();
             _surface.RetainRows(0, 0);
         }
-        if (_fontKey != fontKey) _glyphCache.Clear();
+        if (_fontKey != fontKey) { _glyphCache.Clear(); _wordCache.Clear(); }
         _fontKey = fontKey;
         _snapshot = snapshot;
         _smartRtl = smartRtl;
@@ -158,6 +175,7 @@ public sealed class TerminalView : ContentControl
         _layouts.Clear();
         _surface.RetainRows(0, 0);
         _glyphCache.Clear();
+        _wordCache.Clear();
         _surface.InvalidateVisual();
     }
 
@@ -172,6 +190,7 @@ public sealed class TerminalView : ContentControl
 
     public void Clear()
     {
+        CancelWheelScroll();
         _snapshot = null;
         _layouts.Clear();
         _surface.Height = _lineHeight;
@@ -179,7 +198,43 @@ public sealed class TerminalView : ContentControl
         _surface.InvalidateVisual();
     }
 
-    public void ScrollToVerticalOffset(double offset) => _scroll.ScrollToVerticalOffset(offset);
+    public void ScrollToVerticalOffset(double offset)
+    {
+        CancelWheelScroll();
+        _scroll.ScrollToVerticalOffset(offset);
+    }
+
+    private void CancelWheelScroll()
+    {
+        _wheelOperation?.Abort();
+        _wheelOperation = null;
+        _wheelDelta = 0;
+        _pendingWheelRows = 0;
+    }
+
+    private void QueueWheelScroll(int delta, int wheelLines)
+    {
+        if (wheelLines == 0) { CancelWheelScroll(); return; }
+        // Retain high-resolution wheel deltas instead of rounding each event up.
+        var accumulated = (long)_wheelDelta + delta;
+        var notches = accumulated / Mouse.MouseWheelDeltaForOneLine;
+        _wheelDelta = (int)(accumulated % Mouse.MouseWheelDeltaForOneLine);
+        var lines = wheelLines < 0 ? Math.Max(1, (int)Math.Floor(ViewportHeight / _lineHeight)) : wheelLines;
+        _pendingWheelRows -= notches * lines;
+        if (notches == 0 || _wheelOperation is not null) return;
+        _wheelOperation = Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Input, () =>
+        {
+            _wheelOperation = null;
+            var rows = _pendingWheelRows;
+            _pendingWheelRows = 0;
+            if (rows == 0) return;
+            var currentRow = Math.Round(VerticalOffset / _lineHeight, MidpointRounding.AwayFromZero);
+            // This is deliberate user navigation, even if an output frame has
+            // not yet reached its idle callback. Let the pane leave follow mode.
+            IsUpdatingScroll = false;
+            _scroll.ScrollToVerticalOffset(Math.Clamp((currentRow + rows) * _lineHeight, 0, _scroll.ScrollableHeight));
+        });
+    }
     public bool TryGetGridCell(MouseEventArgs e, out int x, out int y)
     {
         var point = e.GetPosition(_surface);
@@ -399,6 +454,18 @@ public sealed class TerminalView : ContentControl
         foreach (var run in line.Runs) { if (offset < run.Text.Length) return run.Style; offset -= run.Text.Length; }
         return default;
     }
+    private static bool HasUniformStyle(TerminalLine line, int start, int length, TerminalStyle style)
+    {
+        var offset = 0;
+        foreach (var run in line.Runs)
+        {
+            var end = offset + run.Text.Length;
+            if (end > start && offset < start + length && run.Style != style) return false;
+            if (end >= start + length) return true;
+            offset = end;
+        }
+        return false;
+    }
     private static string Text(TerminalLine line) => string.Concat(line.Runs.Select(run => run.Text));
     private Brush BrushFor(TerminalColor color)
     {
@@ -495,6 +562,17 @@ public sealed class TerminalView : ContentControl
             if (DrawBlock(dc, glyph, y) || DrawBox(dc, glyph, y)) continue;
             var formatted = glyph.Formatted;
             var cacheable = !glyph.Rtl && glyph.Text.Length == 1;
+            // A uniform Persian word can share shaping and character hit bounds
+            // across rows. Mixed ANSI words and links retain their own formatting.
+            var wordCacheable = glyph.Rtl && glyph.Text.Length <= 256 &&
+                !links.Cast<Match>().Any(link => link.Index < glyph.Start + glyph.Text.Length && link.Index + link.Length > glyph.Start) &&
+                HasUniformStyle(layout.Source, glyph.Start, glyph.Text.Length, glyph.Style);
+            var wordKey = (glyph.Text, glyph.Style);
+            if (formatted is null && wordCacheable && _wordCache.TryGetValue(wordKey, out var shaped))
+            {
+                formatted = shaped.Formatted;
+                glyph.HighlightBounds = shaped.HighlightBounds;
+            }
             var isLink = links.Cast<Match>().Any(link => glyph.Start >= link.Index && glyph.Start < link.Index + link.Length);
             var glyphKey = (glyph.Text, glyph.Style, isLink);
             if (formatted is null && cacheable) _glyphCache.TryGetValue(glyphKey, out formatted);
@@ -529,6 +607,11 @@ public sealed class TerminalView : ContentControl
                 formatted.SetTextDecorations(TextDecorations.Underline, start - glyph.Start, end - start);
             }
             glyph.Formatted = formatted;
+            if (wordCacheable && !_wordCache.ContainsKey(wordKey))
+            {
+                if (_wordCache.Count >= 2048) _wordCache.Clear();
+                _wordCache[wordKey] = new ShapedWord(formatted, glyph.HighlightBounds ??= []);
+            }
             if (cacheable)
             {
                 if (_glyphCache.Count >= 2048) _glyphCache.Clear();
@@ -550,10 +633,15 @@ public sealed class TerminalView : ContentControl
                 {
                     var cell = layout.Cells[i];
                     if (cell.Start < glyph.Start || cell.Start >= glyph.Start + glyph.Text.Length) continue;
-                    var geometry = formatted.BuildHighlightGeometry(new Point(origin, 0), cell.Start - glyph.Start, cell.Length);
-                    if (geometry is null || geometry.Bounds.IsEmpty) continue;
-                    var bounds = geometry.Bounds;
-                    layout.Cells[i] = cell with { X = origin + (bounds.Left - origin) * scale, Width = bounds.Width * scale };
+                    var boundsCache = glyph.HighlightBounds ??= [];
+                    var key = (cell.Start - glyph.Start, cell.Length);
+                    if (!boundsCache.TryGetValue(key, out var bounds))
+                    {
+                        bounds = formatted.BuildHighlightGeometry(new Point(0, 0), key.Item1, key.Item2)?.Bounds ?? Rect.Empty;
+                        boundsCache[key] = bounds;
+                    }
+                    if (bounds.IsEmpty) continue;
+                    layout.Cells[i] = cell with { X = origin + bounds.Left * scale, Width = bounds.Width * scale };
                 }
             }
             dc.PushTransform(new ScaleTransform(scale, 1, origin, y));
@@ -635,7 +723,9 @@ public sealed class TerminalView : ContentControl
     private sealed record DrawGlyph(string Text, double X, double Width, bool Rtl, int Start, TerminalStyle Style)
     {
         public FormattedText? Formatted { get; set; }
+        public Dictionary<(int Start, int Length), Rect>? HighlightBounds { get; set; }
     }
+    private sealed record ShapedWord(FormattedText Formatted, Dictionary<(int Start, int Length), Rect> HighlightBounds);
     private sealed record RowLayout(TerminalLine Source, string Text, List<DrawCell> Cells, List<DrawGlyph> Glyphs)
     {
         public DrawingGroup? Drawing { get; set; }
