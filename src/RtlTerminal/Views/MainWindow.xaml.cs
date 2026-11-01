@@ -48,8 +48,9 @@ public partial class MainWindow : Window
     public MainWindow(DirectoryHistoryStore directoryHistory)
     {
         _directoryHistory = directoryHistory;
-        InitializeComponent();
-        InitializeDirectoryHistory();
+        using var constructionTiming = StartupPerformance.Measure("MainWindow.Initialize");
+        using (StartupPerformance.Measure("MainWindow.Xaml")) InitializeComponent();
+        using (StartupPerformance.Measure("MainWindow.DirectoryHistory")) InitializeDirectoryHistory();
         WireTerminalView(TerminalTextBox);
         UpdateShortcutLabels();
         LocationChanged += (_, _) => UpdatePaneSizing();
@@ -61,12 +62,14 @@ public partial class MainWindow : Window
         _renderTimer.Tick += RenderTimer_Tick;
         _resizeTimer = new DispatcherTimer(DispatcherPriority.Background) { Interval = TimeSpan.FromMilliseconds(80) };
         _resizeTimer.Tick += (_, _) => { _resizeTimer.Stop(); ApplyViewportResize(); };
-        _defaultProfile = LoadDefaultProfile();
-        _defaultWslDistribution = AppSettings.LoadWslDistribution() ?? WslProfiles.DefaultDistribution();
+        using (StartupPerformance.Measure("MainWindow.Profiles"))
+        {
+            _defaultProfile = LoadDefaultProfile();
+            _defaultWslDistribution = AppSettings.LoadWslDistribution() ?? WslProfiles.DefaultDistribution();
+        }
         _historySize = AppSettings.LoadHistorySize();
-ApplySavedFontSettings();
-        UpdateFontMetrics();
-        InitializeUiLanguage();
+        using (StartupPerformance.Measure("MainWindow.Fonts")) { ApplySavedFontSettings(); UpdateFontMetrics(); }
+        using (StartupPerformance.Measure("MainWindow.Language")) InitializeUiLanguage();
         InitializeWindowStatus();
         AllowDrop = true;
         PreviewDragOver += Window_PreviewDragOver;
@@ -124,14 +127,15 @@ ApplySavedFontSettings();
 
     private void Window_Loaded(object sender, RoutedEventArgs e)
     {
+        using var timing = StartupPerformance.Measure("MainWindow.LoadedHandlers");
         RefreshContextMenuIntegrationState();
-        PromptForContextMenuIntegration();
+        if (!App.PerformanceProbe) PromptForContextMenuIntegration();
         ActiveView.Focus();
         ActiveView.UpdateLayout();
         Dispatcher.BeginInvoke(
             DispatcherPriority.Loaded,
             () => CreateTerminalTab(_defaultProfile));
-        _ = CheckForUpdatesOnStartupAsync();
+        if (!App.PerformanceProbe) _ = CheckForUpdatesOnStartupAsync();
     }
 
     private void CreateTerminalTab(
@@ -139,6 +143,7 @@ ApplySavedFontSettings();
         string? requestedStartupDirectory = null,
         string? wslDistribution = null)
     {
+        using var timing = StartupPerformance.Measure("Terminal.CreateTab");
         var pane = CreatePane(profile);
         if (profile == TerminalProfile.Wsl) pane.WslDistribution = wslDistribution ?? _defaultWslDistribution;
         var tab = new TerminalTab(pane);
@@ -199,6 +204,7 @@ ApplySavedFontSettings();
 
     private void StartPane(TerminalPane pane, string? requestedStartupDirectory, bool showIntroduction = true)
     {
+        using var timing = StartupPerformance.Measure("Terminal.StartPane");
         var startupDirectory = ResolveStartupDirectory(
             requestedStartupDirectory);
         var wslDirectory = pane.Profile == TerminalProfile.Wsl ? ResolveWslStartupDirectory(requestedStartupDirectory) : null;
@@ -214,10 +220,12 @@ ApplySavedFontSettings();
                 _historySize);
             pane.GridSize = (columns, rows);
             pane.CancellationTokenSource = new CancellationTokenSource();
-            pane.Session = new ConPtySession(columns, rows);
+            using (StartupPerformance.Measure("Terminal.CreatePseudoConsole")) pane.Session = new ConPtySession(columns, rows);
             pane.SessionEnded = false;
-            pane.Session.Start(
-                GetProfileCommand(pane.Profile, showIntroduction, pane.WslDistribution, wslDirectory),
+            string shellCommand;
+            using (StartupPerformance.Measure("Terminal.BuildCommand")) shellCommand = GetProfileCommand(pane.Profile, showIntroduction, pane.WslDistribution, wslDirectory);
+            using (StartupPerformance.Measure("Terminal.ConPtyStart")) pane.Session.Start(
+                shellCommand,
                 pane.Profile == TerminalProfile.Wsl ? wslDirectory ?? Environment.GetFolderPath(Environment.SpecialFolder.UserProfile) : startupDirectory);
 
             if (pane.Profile != TerminalProfile.Wsl && startupDirectory is not null)
@@ -296,7 +304,11 @@ ApplySavedFontSettings();
         CleanupTemporaryClipboardFiles();
     }
 
-    private void Window_SourceInitialized(object? sender, EventArgs e) => WindowWorkArea.Attach(this, () => IsFullScreen);
+    private void Window_SourceInitialized(object? sender, EventArgs e)
+    {
+        Width = Math.Min(Width, Math.Max(MinWidth, WindowWorkArea.GetAvailableWidth(this) - 32));
+        WindowWorkArea.Attach(this, () => IsFullScreen);
+    }
 
     private void Window_SizeChanged(object sender, SizeChangedEventArgs e)
     {
@@ -908,7 +920,8 @@ ApplySavedFontSettings();
 
     private void ShowSettings(bool openThemeTab, bool openMacroTab = false)
     {
-        var settingsWindow = new FontSettingsWindow(
+        FontSettingsWindow settingsWindow;
+        using (StartupPerformance.Measure("Settings.Construct")) settingsWindow = new FontSettingsWindow(
             BundledFonts.DisplayName(TerminalTextBox.FontFamily),
             TerminalTextBox.FontSize,
             TerminalTextBox.FontWeight,
@@ -1790,6 +1803,8 @@ ApplySavedFontSettings();
 
     private void RebuildTabStrip()
     {
+        CaptureTabScrollAnchor();
+        _tabLayoutEntries.Clear();
         _tabRenameEditor = null;
         if (_renamingTab is not null && !_tabs.Contains(_renamingTab)) { _renamingTab = null; _tabRenameDraft = ""; }
         Title = _activeTab?.Title ?? "RtlTerminal";
@@ -1873,14 +1888,20 @@ ApplySavedFontSettings();
             grid.MouseEnter += (_, _) => shape.Fill = tab.BackgroundColor is not null || isActive ? activeBrush : new SolidColorBrush(AppTheme.HoverTab);
             grid.MouseLeave += (_, _) => shape.Fill = tab.BackgroundColor is not null || isActive ? activeBrush : Brushes.Transparent;
             TabStrip.Children.Add(grid);
-            if (isActive)
-                Dispatcher.BeginInvoke(DispatcherPriority.Loaded, () => grid.BringIntoView());
+            var titleMeasurement = new TextBlock { Text = tab.Title, FontFamily = tabTitle.FontFamily, FontSize = 12, FontWeight = FontWeights.SemiBold };
+            titleMeasurement.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+            icon.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+            var minimum = Math.Clamp(Math.Ceiling(titleMeasurement.DesiredSize.Width + icon.DesiredSize.Width + closeButton.Width + closeButton.Margin.Left + closeButton.Margin.Right + selectButton.Padding.Left + selectButton.Padding.Right + panel.Margin.Right + (ReferenceEquals(_renamingTab, tab) ? 27 : 0)), 80, 248);
+            _tabLayoutEntries.Add(new(tab, grid, shape, minimum, isActive));
         }
+        if (!ReferenceEquals(_lastTabForReveal, _activeTab) || _renamingTab != null) _revealActiveTab = true;
+        _lastTabForReveal = _activeTab;
+        QueueTabLayout();
     }
 
     private void TitleTabsHost_SizeChanged(object sender, SizeChangedEventArgs e)
     {
-        TabScroller.MaxWidth = Math.Max(0, e.NewSize.Width - 72 - (AdministratorBadge?.Visibility == Visibility.Visible ? 30 : 0));
+        QueueTabLayout();
     }
 
     private void TabScroller_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
@@ -2232,6 +2253,7 @@ ApplySavedFontSettings();
         var bytes = new byte[8192];
         var characters = new char[Encoding.UTF8.GetMaxCharCount(bytes.Length)];
         var decoder = Encoding.UTF8.GetDecoder();
+        var firstOutput = true;
         var cancellationToken = cancellationTokenSource.Token;
 
         while (!cancellationToken.IsCancellationRequested)
@@ -2253,6 +2275,8 @@ ApplySavedFontSettings();
 
             if (byteCount <= 0)
                 break;
+
+            if (firstOutput) { firstOutput = false; StartupPerformance.Mark("Terminal.FirstOutput"); }
 
             var characterCount = decoder.GetChars(
                 bytes,

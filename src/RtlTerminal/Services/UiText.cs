@@ -68,11 +68,16 @@ public sealed partial class UiText : MarkupExtension
     private static Dictionary<string, (string Fa, string Ar)> BuildCatalog()
     {
         var result = new Dictionary<string, (string, string)>(StringComparer.Ordinal);
-        foreach (var line in TranslationData.Split('\n', StringSplitOptions.RemoveEmptyEntries))
+        var entries = TranslationData.Split('\n', StringSplitOptions.RemoveEmptyEntries).Select(line => (Line: line, Proxy: false))
+            .Concat(ProxyTranslationData.Split('\n', StringSplitOptions.RemoveEmptyEntries).Select(line => (Line: line, Proxy: true)));
+        foreach (var entry in entries)
         {
+            var line = entry.Line;
             var fields = line.TrimEnd('\r').Split('|');
             if (fields.Length != 3) throw new InvalidOperationException("Invalid UI translation row: " + fields[0]);
-            result.Add(fields[0].Replace("\\n", "\n"), (fields[1].Replace("\\n", "\n"), fields[2].Replace("\\n", "\n")));
+            var key = fields[0].Replace("\\n", "\n");
+            if (entry.Proxy && result.ContainsKey(key)) continue;
+            result.Add(key, (fields[1].Replace("\\n", "\n"), fields[2].Replace("\\n", "\n")));
             if (fields[0].Contains("{0}"))
             {
                 var pattern = Regex.Escape(fields[0]);

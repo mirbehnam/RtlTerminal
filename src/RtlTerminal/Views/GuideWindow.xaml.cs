@@ -49,6 +49,9 @@ public partial class GuideWindow : Window
         _shortcutLanguage = language switch { GuideLanguage.Persian => UiLanguage.Persian, GuideLanguage.Arabic => UiLanguage.Arabic, _ => UiLanguage.English };
         string L(string en, string fa, string ar) => ShortcutCatalog.Text(_shortcutLanguage, en, fa, ar);
         FeaturesTab.Header = L("Guide", "راهنما", "الدليل");
+        ProxyGuideTitle.Text = L("Proxy Manager", "مدیریت پراکسی", "إدارة الوكيل");
+        ProxyGuideLocation.Text = L("Open Tools → Proxy Manager. Use Help inside the dialog for a quick guide.", "از Tools → Proxy Manager باز کنید. راهنمای کوتاه با دکمهٔ راهنما در همان پنجره در دسترس است.", "افتح Tools → Proxy Manager. يتوفر دليل سريع عبر زر المساعدة داخل النافذة.");
+        ProxyGuideSections.ItemsSource = ProxyHelpContent.Get(_shortcutLanguage);
         ShortcutsTab.Header = L("Keyboard shortcuts", "کلیدهای میانبر", "اختصارات لوحة المفاتيح");
         ShortcutSearchLabel.Text = L("Search by key or action", "جست‌وجو با نام کلید یا عملکرد", "ابحث بالمفتاح أو الوظيفة");
         ShortcutNote.Text = L("Pane and macro shortcuts can be disabled in Settings. Other terminal keys belong to the running program.",

@@ -102,6 +102,8 @@ internal static class ScreenshotCapture
         }
         finally
         {
+            var closing = typeof(MainWindow).GetMethod("Window_Closing", flags)!;
+            window.Closing -= (System.ComponentModel.CancelEventHandler)closing.CreateDelegate(typeof(System.ComponentModel.CancelEventHandler), window);
             window.Close();
             AppTheme.Apply(AppThemeKind.Dark);
         }

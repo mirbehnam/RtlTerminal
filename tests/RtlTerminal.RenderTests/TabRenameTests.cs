@@ -126,7 +126,12 @@ internal static partial class Program
             Call("FinishTabRename", false, false, true);
             Console.WriteLine(live ? "PASS live inline rename Enter/Escape and native taskbar caption" : "PASS inline rename, cancel/reset/blur, double-click, active tab title and borderless folder badge");
         }
-        finally { window.Close(); Registry.CurrentUser.DeleteSubKeyTree(registry, false); }
+        finally
+        {
+            var closing = typeof(MainWindow).GetMethod("Window_Closing", flags)!;
+            window.Closing -= (System.ComponentModel.CancelEventHandler)closing.CreateDelegate(typeof(System.ComponentModel.CancelEventHandler), window);
+            window.Close(); Registry.CurrentUser.DeleteSubKeyTree(registry, false);
+        }
     }
     [DllImport("user32.dll", CharSet = CharSet.Unicode)]
     private static extern int GetWindowText(IntPtr window, StringBuilder text, int capacity);

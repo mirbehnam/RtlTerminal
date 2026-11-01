@@ -5,7 +5,7 @@
         xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
         Title="RtlTerminal"
         Icon="/RtlTerminal;component/Assets/RtlTerminal.ico"
-        Width="980"
+        Width="1120"
         Height="620"
         MinWidth="480"
         MinHeight="300"
@@ -14,6 +14,7 @@
         WindowStyle="None"
         ResizeMode="CanResize"
         Loaded="Window_Loaded"
+        Closing="Window_Closing"
         Closed="Window_Closed"
         SizeChanged="Window_SizeChanged"
         SourceInitialized="Window_SourceInitialized"
@@ -361,16 +362,42 @@
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="Template"><Setter.Value>
                 <ControlTemplate TargetType="Button">
-                    <Border x:Name="Segment" Background="{TemplateBinding Background}" CornerRadius="3" BorderThickness="0">
+                    <Border x:Name="Segment" Background="{TemplateBinding Background}" CornerRadius="4" BorderThickness="0"
+                            SnapsToDevicePixels="True" UseLayoutRounding="True">
                         <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                     </Border>
                     <ControlTemplate.Triggers>
+                        <Trigger Property="Name" Value="NewTabButton"><Setter TargetName="Segment" Property="CornerRadius" Value="4,0,0,4"/></Trigger>
+                        <Trigger Property="Name" Value="ProfileMenuButton"><Setter TargetName="Segment" Property="CornerRadius" Value="0,4,4,0"/></Trigger>
                         <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Segment" Property="Background" Value="{DynamicResource RoundButtonHoverBrush}"/></Trigger>
                         <Trigger Property="IsPressed" Value="True"><Setter TargetName="Segment" Property="Background" Value="{DynamicResource CaptionPressedBrush}"/></Trigger>
                         <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Segment" Property="Background" Value="{DynamicResource RoundButtonFocusBrush}"/></Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
             </Setter.Value></Setter>
+        </Style>
+        <Style x:Key="TabScrollButtonStyle" TargetType="Button" BasedOn="{StaticResource ProfileActionSegmentStyle}">
+            <Setter Property="Width" Value="24"/>
+            <Setter Property="Height" Value="28"/>
+            <Setter Property="VerticalAlignment" Value="Bottom"/>
+            <Setter Property="Margin" Value="0,0,0,3"/>
+            <Setter Property="FocusVisualStyle"><Setter.Value><Style TargetType="Control">
+                <Setter Property="Template"><Setter.Value><ControlTemplate>
+                    <Rectangle Margin="2" RadiusX="3" RadiusY="3" Stroke="{DynamicResource FocusBrush}" StrokeThickness="1" StrokeDashArray="1,1"/>
+                </ControlTemplate></Setter.Value></Setter>
+            </Style></Setter.Value></Setter>
+            <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button">
+                <Border x:Name="ArrowFrame" Background="{TemplateBinding Background}" CornerRadius="3">
+                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                </Border>
+                <ControlTemplate.Triggers>
+                    <MultiTrigger><MultiTrigger.Conditions><Condition Property="IsEnabled" Value="True"/><Condition Property="IsMouseOver" Value="True"/></MultiTrigger.Conditions>
+                        <Setter TargetName="ArrowFrame" Property="Background" Value="{DynamicResource RoundButtonHoverBrush}"/>
+                    </MultiTrigger>
+                    <Trigger Property="IsPressed" Value="True"><Setter TargetName="ArrowFrame" Property="Background" Value="{DynamicResource CaptionPressedBrush}"/></Trigger>
+                </ControlTemplate.Triggers>
+            </ControlTemplate></Setter.Value></Setter>
+            <Style.Triggers><Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.3"/></Trigger></Style.Triggers>
         </Style>
         <Style x:Key="ChromeTabButtonStyle" TargetType="Button" BasedOn="{StaticResource DarkTitleButtonStyle}">
             <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
@@ -529,25 +556,43 @@
                           Data="M8,1 C6,3 3,3 1,4 L1,10 C1,14 4,17 8,19 C12,17 15,14 15,10 L15,4 C13,3 10,3 8,1 Z"
                           Stroke="{DynamicResource ChromeForegroundBrush}" StrokeThickness="1.2" Opacity="0.8"/>
                 </Border>
+                <Button x:Name="ScrollTabsLeftButton" DockPanel.Dock="Left" Visibility="Collapsed" IsEnabled="False"
+                        Margin="0,0,6,3"
+                        Style="{StaticResource TabScrollButtonStyle}" Click="ScrollTabsLeft_Click"
+                        ToolTip="{local:UiText Key='Scroll tabs left'}" AutomationProperties.Name="{local:UiText Key='Scroll tabs left'}"
+                        shell:WindowChrome.IsHitTestVisibleInChrome="True">
+                    <Path Width="5" Height="8" Stretch="Fill" Data="M5,0 L0,4 L5,8 Z"
+                          Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                </Button>
                 <ScrollViewer x:Name="TabScroller" DockPanel.Dock="Left" VerticalScrollBarVisibility="Disabled"
+                              ScrollChanged="TabScroller_ScrollChanged"
                               PreviewMouseWheel="TabScroller_PreviewMouseWheel"
                               HorizontalScrollBarVisibility="Hidden">
                     <StackPanel x:Name="TabStrip" Orientation="Horizontal"
                                 shell:WindowChrome.IsHitTestVisibleInChrome="True" />
                 </ScrollViewer>
-                <Border x:Name="NewTerminalControls" DockPanel.Dock="Left" Width="64" Height="28" Margin="4,0,4,3"
+                <Button x:Name="ScrollTabsRightButton" DockPanel.Dock="Left" Visibility="Collapsed" IsEnabled="False"
+                        Margin="6,0,0,3"
+                        Style="{StaticResource TabScrollButtonStyle}" Click="ScrollTabsRight_Click"
+                        ToolTip="{local:UiText Key='Scroll tabs right'}" AutomationProperties.Name="{local:UiText Key='Scroll tabs right'}"
+                        shell:WindowChrome.IsHitTestVisibleInChrome="True">
+                    <Path Width="5" Height="8" Stretch="Fill" Data="M0,0 L5,4 L0,8 Z"
+                          Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                </Button>
+                <Border x:Name="NewTerminalControls" DockPanel.Dock="Left" Width="65" Height="28" Margin="4,0,4,3"
                         VerticalAlignment="Bottom" CornerRadius="4" Background="Transparent"
+                        SnapsToDevicePixels="True" UseLayoutRounding="True"
                         shell:WindowChrome.IsHitTestVisibleInChrome="True">
                     <Grid>
-                        <Grid.ColumnDefinitions><ColumnDefinition Width="36"/><ColumnDefinition Width="28"/></Grid.ColumnDefinitions>
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="32"/><ColumnDefinition Width="1"/><ColumnDefinition Width="32"/></Grid.ColumnDefinitions>
                         <Button x:Name="NewTabButton" ToolTip="{local:UiText Key='New terminal (Ctrl+Shift+T)'}"
                                 Style="{StaticResource ProfileActionSegmentStyle}" Click="NewTabButton_Click"
                                 AutomationProperties.Name="{local:UiText Key='New terminal'}">
                             <Path Width="10" Height="10" Data="M5,0 L5,10 M0,5 L10,5" StrokeThickness="1"
                                   Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"/>
                         </Button>
-                        <Border Grid.Column="1" Width="1" HorizontalAlignment="Left" Margin="0,6" Background="{DynamicResource ToolbarBorderBrush}" IsHitTestVisible="False"/>
-                        <Button x:Name="ProfileMenuButton" Grid.Column="1" ToolTip="{local:UiText Key='Terminal profiles'}"
+                        <Border Grid.Column="1" Background="{DynamicResource ToolbarBorderBrush}" IsHitTestVisible="False"/>
+                        <Button x:Name="ProfileMenuButton" Grid.Column="2" ToolTip="{local:UiText Key='Terminal profiles'}"
                                 Style="{StaticResource ProfileActionSegmentStyle}" Click="ProfileMenuButton_Click"
                                 AutomationProperties.Name="{local:UiText Key='Terminal profiles'}">
                             <Path Width="8" Height="4" Data="M0,0 L4,4 L8,0" StrokeThickness="1" StrokeLineJoin="Round"
@@ -669,6 +714,7 @@
                 <MenuItem Header="{local:UiText Key='Full screen'}" InputGestureText="F11" Click="FullScreenMenuItem_Click" />
             </MenuItem>
             <MenuItem Header="{local:UiText Key='_Tools'}">
+                <MenuItem Header="{local:UiText Key='Proxy Manager...'}" Click="ProxyManager_Click" />
                 <MenuItem Header="{local:UiText Key='_Macros'}" SubmenuOpened="MacroMenu_Opened">
                     <MenuItem x:Name="MacroRecordMenuItem" Header="{local:UiText Key='_Start recording'}" Click="MacroRecord_Click"/>
                     <MenuItem x:Name="MacroStopMenuItem" Header="{local:UiText Key='Stop playback'}" IsEnabled="False" Click="MacroStop_Click"/>

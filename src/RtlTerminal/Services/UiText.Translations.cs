@@ -3,6 +3,12 @@ namespace RtlTerminal;
 public sealed partial class UiText
 {
     private const string TranslationData = """
+Scroll tabs left|پیمایش تب‌ها به چپ|تمرير علامات التبويب لليسار
+Scroll tabs right|پیمایش تب‌ها به راست|تمرير علامات التبويب لليمين
+Close terminal|بستن ترمینال|إغلاق الطرفية
+Do you want to close all tabs?|آیا می‌خواهید همهٔ تب‌ها را ببندید؟|هل تريد إغلاق جميع علامات التبويب؟
+{0} tabs will be closed.|{0} تب بسته خواهد شد.|سيتم إغلاق {0} علامات تبويب.
+Yes|بله|نعم
 _File|_فایل|_ملف
 _Edit|_ویرایش|_تحرير
 _View|_نمایش|_عرض

@@ -19,6 +19,15 @@ internal static partial class Program
     }
     private static void Run()
     {
+        if (Environment.GetCommandLineArgs().Contains("--performance-tests")) { CheckPerformanceLogging(); return; }
+        if (Environment.GetCommandLineArgs().Contains("--tab-overflow-tests")) { CheckTabOverflow(); return; }
+        if (Environment.GetCommandLineArgs().Contains("--window-close-tests")) { CheckWindowCloseConfirmation(); return; }
+        if (Environment.GetCommandLineArgs().Contains("--proxy-status-tests")) { CheckProxyStatus(); return; }
+        if (Environment.GetCommandLineArgs().Contains("--proxy-help-tests")) { CheckProxyDefaultsAndHelp(); return; }
+        if (Environment.GetCommandLineArgs().Contains("--proxy-language-tests")) { CheckProxyLanguages(Environment.GetCommandLineArgs().Contains("--visuals")); return; }
+        if (Environment.GetCommandLineArgs().Contains("--proxy-conflict-probe")) { CheckWinHttpConflictProbe(); return; }
+        if (Environment.GetCommandLineArgs().Contains("--proxy-operation-tests")) { CheckProxyOperations(Environment.GetCommandLineArgs().Contains("--visuals")); return; }
+        if (Environment.GetCommandLineArgs().Contains("--proxy-tests")) { CheckProxyManager(); return; }
         if (Environment.GetCommandLineArgs().Contains("--startup-directory-tests")) { CheckStartupDirectories(); return; }
         if (Environment.GetCommandLineArgs().Contains("--shortcut-guide-tests")) { CheckShortcutGuide(); return; }
         if (Environment.GetCommandLineArgs().Contains("--macro-child")) { MacroTests.Child(); return; }
@@ -45,6 +54,11 @@ internal static partial class Program
         if (Environment.GetCommandLineArgs().Contains("--conpty-child")) { ConPtyPersianProbe.Child(); return; }
         if (Environment.GetCommandLineArgs().Contains("--conpty-persian")) { ConPtyPersianProbe.Run(); return; }
         UiText.Select(UiLanguage.English, persist: false);
+        CheckProxyManager();
+        CheckProxyStatus();
+        CheckProxyDefaultsAndHelp();
+        CheckProxyOperations();
+        CheckProxyLanguages();
         CheckStartupDirectories();
         CheckShortcutGuide();
         CheckUiLanguages();
@@ -108,6 +122,8 @@ internal static partial class Program
         Console.WriteLine("PASS unchanged-row drawing reuse and style-only cache invalidation");
         CheckGraphicsAndRedraw();
         CheckWindowHeader();
+        CheckTabOverflow();
+        CheckWindowCloseConfirmation();
         CheckLinksAndMenu();
         CheckWrappedLinks();
         CheckRtlModes();

@@ -161,6 +161,20 @@
                         <TextBlock x:Name="MacrosGuideText" Style="{StaticResource GuideTextStyle}" />
                     </StackPanel>
                 </Border>
+                <Border Style="{StaticResource GuideCardStyle}">
+                    <StackPanel>
+                        <TextBlock x:Name="ProxyGuideTitle" Style="{StaticResource GuideTitleStyle}"/>
+                        <TextBlock x:Name="ProxyGuideLocation" Style="{StaticResource GuideTextStyle}" Margin="0,0,0,10"/>
+                        <ItemsControl x:Name="ProxyGuideSections">
+                            <ItemsControl.ItemTemplate><DataTemplate>
+                                <StackPanel Margin="0,0,0,12">
+                                    <TextBlock Text="{Binding Title}" Style="{StaticResource GuideTextStyle}" FontWeight="SemiBold"/>
+                                    <TextBlock Text="{Binding Body}" Style="{StaticResource GuideTextStyle}"/>
+                                </StackPanel>
+                            </DataTemplate></ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </Border>
             </StackPanel>
         </ScrollViewer>
         </TabItem>

@@ -1,0 +1,37 @@
+<Window x:Class="RtlTerminal.CloseTabsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:RtlTerminal"
+        Title="{local:UiText Key='Close terminal'}" Width="420" SizeToContent="Height"
+        WindowStartupLocation="CenterOwner" WindowStyle="None" ResizeMode="NoResize"
+        AllowsTransparency="True" Background="Transparent" ShowInTaskbar="False"
+        FontFamily="Segoe UI" FontSize="13" UseLayoutRounding="True">
+    <Window.Resources>
+        <Style TargetType="Button">
+            <Setter Property="Foreground" Value="{DynamicResource ChromeForegroundBrush}"/>
+            <Setter Property="Background" Value="{DynamicResource DirectoryBadgeBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource ToolbarBorderBrush}"/>
+            <Setter Property="MinWidth" Value="84"/><Setter Property="Padding" Value="18,7"/>
+            <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button">
+                <Border x:Name="Frame" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                </Border>
+                <ControlTemplate.Triggers>
+                    <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Frame" Property="Opacity" Value="0.85"/></Trigger>
+                    <Trigger Property="IsPressed" Value="True"><Setter TargetName="Frame" Property="Opacity" Value="0.65"/></Trigger>
+                    <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Frame" Property="BorderBrush" Value="{DynamicResource FocusBrush}"/></Trigger>
+                </ControlTemplate.Triggers>
+            </ControlTemplate></Setter.Value></Setter>
+        </Style>
+    </Window.Resources>
+    <Border CornerRadius="12" Background="{DynamicResource MenuBackgroundBrush}" BorderBrush="{DynamicResource ToolbarBorderBrush}" BorderThickness="1" Padding="22">
+        <StackPanel>
+            <TextBlock Text="{local:UiText Key='Do you want to close all tabs?'}" FontSize="18" FontWeight="SemiBold" TextWrapping="Wrap" Foreground="{DynamicResource ChromeForegroundBrush}"/>
+            <TextBlock x:Name="TabCountText" Margin="0,9,0,0" TextWrapping="Wrap" Foreground="{DynamicResource MutedForegroundBrush}"/>
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,22,0,0">
+                <Button x:Name="CancelButton" Content="{local:UiText Key='Cancel'}" IsCancel="True" IsDefault="True" Click="Cancel_Click" Margin="0,0,8,0"/>
+                <Button x:Name="ConfirmButton" Content="{local:UiText Key='Yes'}" Click="Confirm_Click" Background="{DynamicResource AccentBrush}" Foreground="{DynamicResource TerminalBackgroundBrush}"/>
+            </StackPanel>
+        </StackPanel>
+    </Border>
+</Window>
