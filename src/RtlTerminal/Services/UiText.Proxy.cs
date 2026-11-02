@@ -106,6 +106,21 @@ Machine|سیستم|الجهاز
 (unset)|(تنظیم نشده)|(غير مضبوط)
 Flags|پرچم‌ها|الأعلام
 Proxy|پراکسی|الوكيل
+Proxy status unavailable|وضعیت پراکسی در دسترس نیست|حالة الوكيل غير متاحة
+Download|دانلود|تنزيل
+Download from GitHub|دانلود از گیت‌هاب|تنزيل من GitHub
+Only required font files are downloaded from GitHub.|فقط فایل‌های موردنیاز فونت از گیت‌هاب دانلود می‌شوند.|تُنزّل ملفات الخط المطلوبة فقط من GitHub.
+This server or proxy does not support partial font downloads. No full archive was downloaded.|سرور یا پراکسی دانلود بخشی از فایل را پشتیبانی نمی‌کند. بستهٔ کامل دانلود نشد.|لا يدعم الخادم أو الوكيل التنزيل الجزئي. لم تُنزّل الحزمة الكاملة.
+Font download|دانلود فونت|تنزيل الخط
+The font download timed out. Check your connection and try again.|مهلت دانلود فونت تمام شد. اتصال را بررسی و دوباره تلاش کنید.|انتهت مهلة تنزيل الخط. تحقق من الاتصال وحاول مجدداً.
+Font verification failed. Nothing was installed. Please try again.|فایل فونت تأیید نشد و نصب انجام نشد. دوباره تلاش کنید.|فشل التحقق من الخط ولم يتم تثبيته. حاول مجدداً.
+The font folder is not writable. Check its permissions and try again.|امکان نوشتن در پوشهٔ فونت نیست. دسترسی پوشه را بررسی کنید.|تعذرت الكتابة في مجلد الخطوط. تحقق من الأذونات.
+The font could not be downloaded or installed. Check your connection, available disk space, or another running download, and try again.|دانلود یا نصب فونت انجام نشد. اتصال، فضای خالی دیسک و دانلود هم‌زمان را بررسی و دوباره تلاش کنید.|تعذر تنزيل الخط أو تثبيته. تحقق من الاتصال ومساحة القرص أو تنزيل آخر قيد التشغيل وحاول مجدداً.
+Check proxy connection|بررسی اطلاعات پراکسی|تحقق من بيانات الوكيل
+Please enter a valid IP address or host and port first.|لطفاً ابتدا IP یا میزبان و پورت معتبر وارد کنید.|يرجى إدخال عنوان IP أو مضيف ومنفذ صالحين أولاً.
+Set Proxy uses Host / IP, Port and Protocol from Configuration scope above.|دکمهٔ تنظیم پراکسی از میزبان، درگاه و پروتکل بخش بالای صفحه استفاده می‌کند.|يستخدم ضبط الوكيل المضيف والمنفذ والبروتوكول من قسم نطاق الإعداد أعلاه.
+Only selected developer tools. Windows proxy settings remain unchanged.|فقط ابزارهای توسعهٔ انتخاب‌شده؛ تنظیمات پراکسی ویندوز تغییر نمی‌کنند.|أدوات التطوير المحددة فقط؛ لا تتغير إعدادات وكيل Windows.
+Saved user configuration; environment or project overrides may still apply.|تنظیمات ذخیره‌شدهٔ کاربر؛ تنظیمات محیط یا پروژه ممکن است اولویت داشته باشند.|إعدادات المستخدم المحفوظة؛ قد تتجاوزها إعدادات البيئة أو المشروع.
 Bypass|استثناها|الاستثناءات
 ProxyBypass|استثناهای پراکسی|استثناءات الوكيل
 Pac|اسکریپت PAC|برنامج PAC

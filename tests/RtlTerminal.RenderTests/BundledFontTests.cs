@@ -22,7 +22,7 @@ internal static partial class Program
                 foreach (var (weight, style) in new[] { (FontWeights.Normal, FontStyles.Normal), (FontWeights.Bold, FontStyles.Normal), (FontWeights.Normal, FontStyles.Italic), (FontWeights.Bold, FontStyles.Italic) })
                 {
                     var face = new Typeface(family, style, weight, FontStretches.Normal);
-                    if (!face.TryGetGlyphTypeface(out var glyph) || !glyph.FontUri.AbsoluteUri.Contains("/Assets/Fonts/"))
+                    if (!face.TryGetGlyphTypeface(out var glyph) || !(glyph.FontUri.AbsoluteUri.Contains("/Assets/Fonts/") || glyph.FontUri.IsFile && glyph.FontUri.LocalPath.StartsWith(OptionalFonts.Root, StringComparison.OrdinalIgnoreCase)))
                         throw new Exception($"{name} fell back to a system font instead of its bundled face");
                     if (name.EndsWith(" NF") && (!glyph.CharacterToGlyphMap.ContainsKey(0xf120) || !glyph.CharacterToGlyphMap.ContainsKey(0xf0001)))
                         throw new Exception($"{name} is missing Nerd Font terminal icons");
@@ -41,6 +41,6 @@ internal static partial class Program
                 throw new Exception("HTML preview must include its private font without network access");
         }
         finally { settings.Close(); }
-        Console.WriteLine("PASS nine embedded terminal fonts, private regular/bold/italic faces, Nerd icons, picker/preview, removed families and self-contained HTML font data");
+        Console.WriteLine("PASS available terminal fonts, private regular/bold/italic faces, picker/preview, removed families and self-contained HTML font data");
     }
 }

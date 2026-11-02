@@ -16,6 +16,12 @@ internal static partial class Program
         T Field<T>(string name) => (T)typeof(ProxyManagerWindow).GetField(name, flags)!.GetValue(manager)!;
         var host = Field<TextBox>("host"); var port = Field<TextBox>("port"); var bypass = Field<TextBox>("bypass"); var section = Field<ListBox>("section");
         Check(host.Text == "" && port.Text == "" && bypass.Text == "", "Proxy fields contained a sample/default value");
+        var validate = typeof(ProxyManagerWindow).GetMethod("ValidateConnection", flags)!;
+        var error = Field<TextBlock>("connectionError");
+        foreach (var invalid in new[] { new ProxyEndpoint("HTTP", "", 0, ""), new ProxyEndpoint("HTTP", "127.0.0.1", 0, ""), new ProxyEndpoint("HTTP", "http://127.0.0.1", 10808, "") })
+            Check(!(bool)validate.Invoke(manager, new object[] { invalid, false })! && error.Visibility == Visibility.Visible && error.Text == "Please enter a valid IP address or host and port first.", "Invalid connection did not receive actionable preflight feedback");
+        Check((bool)validate.Invoke(manager, new object[] { new ProxyEndpoint("HTTP", "", 0, ""), true })!, "Clear incorrectly required a proxy endpoint");
+        Check((bool)validate.Invoke(manager, new object[] { new ProxyEndpoint("HTTP", "127.0.0.1", 10808, ""), false })! && error.Visibility == Visibility.Collapsed, "Valid endpoint retained stale validation feedback");
         var user = new StatusFixtureProxy(new(new())); var windows = new StatusFixtureProxy(new(new() { ["Flags"] = "1" })); var http = new StatusFixtureProxy(new(new()));
         var machineState = new ProxyState(new()); var systems = Field<IProxyProvider[]>("systems"); systems[0] = user; systems[1] = windows; systems[2] = http;
         typeof(ProxyManagerWindow).GetField("machineEnvironment", flags)!.SetValue(manager, new MachineEnvironmentProxyProvider(() => machineState));

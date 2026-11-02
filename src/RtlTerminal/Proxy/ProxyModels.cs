@@ -162,6 +162,16 @@ public sealed class ProxyService(string? backupDirectory = null)
 
 internal static class ProxyProcess
 {
+    public static Task<string> ToolVersion(string executable, string argument, CancellationToken ct)
+    {
+        // Rustup shims otherwise resolve the toolchain relative to the terminal's
+        // launch directory, which may contain a project override.
+        var start = new ProcessStartInfo(executable) { UseShellExecute = false, CreateNoWindow = true,
+            RedirectStandardOutput = true, RedirectStandardError = true,
+            WorkingDirectory = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile) };
+        start.ArgumentList.Add(argument);
+        return RunStart(start, ct, []);
+    }
     public static async Task<string> Run(string executable, IEnumerable<string> arguments, CancellationToken ct, params int[] allowedExitCodes)
     {
         var start = new ProcessStartInfo(executable) { UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true };

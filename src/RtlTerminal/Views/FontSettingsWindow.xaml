@@ -10,6 +10,15 @@
         MinHeight="660"
         WindowStartupLocation="CenterOwner"
         Background="#f4f5f7">
+    <Window.Resources>
+        <Style x:Key="FontRowItem" TargetType="ListBoxItem"><Setter Property="HorizontalContentAlignment" Value="Stretch"/></Style>
+        <DataTemplate x:Key="FontRowTemplate">
+            <DockPanel LastChildFill="True" Margin="2,3" Loaded="FontDownloadRow_Loaded">
+                <Button DockPanel.Dock="Right" Padding="6,2" Margin="6,0,0,0" MinWidth="65" Content="{local:UiText Key='Download'}" Click="DownloadFont_Click"/>
+                <TextBlock Text="{Binding}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+            </DockPanel>
+        </DataTemplate>
+    </Window.Resources>
     <Grid Margin="20">
         <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
         <TextBlock Text="{local:UiText Key='Settings'}" FontSize="25" FontWeight="SemiBold" Foreground="#182033" Margin="0,0,0,16"/>
@@ -32,6 +41,7 @@
                                    TextWrapping="Wrap"
                                    Text="{local:UiText Key='Built-in and recommended terminal fonts.'}" />
                         <ListBox x:Name="StandardFontListBox"
+                                 ItemTemplate="{StaticResource FontRowTemplate}" ItemContainerStyle="{StaticResource FontRowItem}"
                                  SelectionChanged="StandardFontListBox_SelectionChanged"
                                  ScrollViewer.HorizontalScrollBarVisibility="Disabled" />
                     </DockPanel>
@@ -44,6 +54,7 @@
                                  Padding="7"
                                  TextChanged="FontSearchTextBox_TextChanged" />
                         <ListBox x:Name="FontListBox"
+                                 ItemTemplate="{StaticResource FontRowTemplate}" ItemContainerStyle="{StaticResource FontRowItem}"
                                  SelectionChanged="FontListBox_SelectionChanged"
                                  ScrollViewer.HorizontalScrollBarVisibility="Disabled" />
                     </DockPanel>

@@ -7,6 +7,9 @@ namespace RtlTerminal.Proxy;
 public sealed record DetectedProxyTool(string Name, string Executable, IProxyProvider? Provider, string Status)
 {
     public ProxyToolCapabilities? Capabilities { get; init; }
+    public IProxyProvider? BackupProvider { get; init; }
+    public string[] ProxyAddresses { get; init; } = [];
+    public bool ProxyReadFailed { get; init; }
 }
 
 public sealed class DeveloperToolDetectionService
@@ -16,7 +19,7 @@ public sealed class DeveloperToolDetectionService
     public async Task DetectAsync(Action<DetectedProxyTool> discovered, bool refresh, CancellationToken ct)
     {
         if (!refresh && cache is { } saved && DateTime.UtcNow - cachedAt < TimeSpan.FromMinutes(2))
-        { foreach (var tool in saved) { ct.ThrowIfCancellationRequested(); discovered(tool); } return; }
+        { foreach (var tool in saved) { ct.ThrowIfCancellationRequested(); discovered(await Task.Run(() => DeveloperProxySummary.ReadAsync(tool, ct), ct)); } return; }
         var result = new List<DetectedProxyTool>();
         await Task.Run(async () =>
         {
@@ -50,10 +53,14 @@ public sealed class DeveloperToolDetectionService
                 discovered(new DetectedProxyTool(name, executable, null, "Checking version and adapter compatibility…"));
                 ProxyToolCapabilities? capability;
                 using (StartupPerformance.Measure("ProxyDetection.Version." + name)) capability = await ProxyToolVersion.DetectAsync(name, executable, ct);
+                // Reading original bytes needs no format adapter. Keep a complete,
+                // read-only snapshot even when the executable/version probe fails.
+                var backupProvider = provider == null ? null : new InspectionOnlyToolProvider(provider, executable, capability?.Version);
                 if (capability?.Method != "Verified adapter") provider = null;
                 else if (provider != null) provider = new VersionedProxyProvider(provider, executable, capability);
                 var tool = new DetectedProxyTool(name, executable, provider, provider is null
-                    ? "Detected · inherited, unsupported or unverified adapter" : "Version-verified User adapter · project/environment overrides may remain") { Capabilities = capability };
+                    ? "Detected · inherited, unsupported or unverified adapter" : "Version-verified User adapter · project/environment overrides may remain") { Capabilities = capability, BackupProvider = backupProvider };
+                tool = await DeveloperProxySummary.ReadAsync(tool, ct);
                 result.Add(tool); discovered(tool);
             }
         }, ct);
@@ -64,6 +71,19 @@ public sealed class DeveloperToolDetectionService
         var folder = Environment.GetEnvironmentVariable("CARGO_HOME") ?? Path.Combine(home, ".cargo");
         return File.Exists(Path.Combine(folder, "config")) ? Path.Combine(folder, "config") : Path.Combine(folder, "config.toml");
     }
+}
+
+// Unknown adapters may be backed up losslessly, but never written or restored by
+// guessing their format. Changed files require explicit manual recovery.
+public sealed class InspectionOnlyToolProvider(IProxyProvider inner, string executable, string? version) : IProxyProvider
+{
+    public string Name => inner.Name;
+    public bool CanRestore => false;
+    public ProxyDescriptor Descriptor => inner.Descriptor with { Version = "inspection:" + (version ?? "unknown"), Location = executable + " | " + inner.Descriptor.Location };
+    public Task<ProxyState> ReadAsync(CancellationToken ct) => inner.ReadAsync(ct);
+    public void Validate(ProxyEndpoint endpoint) => throw new NotSupportedException(Name + ": version compatibility could not be verified; configuration is read-only.");
+    public ProxyState Desired(ProxyEndpoint endpoint, ProxyState previous, bool clear) => throw new NotSupportedException(Name + " is inspection-only.");
+    public Task WriteAsync(ProxyState state, CancellationToken ct) => throw new NotSupportedException(Name + " is inspection-only.");
 }
 
 public sealed class GitProxyProvider(string executable, string? configurationPath = null) : IProxyProvider

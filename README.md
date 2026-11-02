@@ -29,7 +29,7 @@ Download `RtlTerminal-Setup-…-x64.exe` from the [latest release](https://githu
 - **Terminal macros.** Record commands and interactive keys, edit steps and replay with pause, resume or single-step controls. Files are encrypted, with optional password protection and sensitive inputs requested at runtime.
 - **Directory history.** See the active pane's folder, open it in Explorer and revisit recent locations. The menu shows 20 directories; searchable history holds up to 200 and can be cleared or disabled.
 - **Proxy Manager.** Inspect Environment, Windows System and WinHTTP settings, Set or Clear a selected scope, optionally include supported developer tools, and restore from ten encrypted configuration snapshots.
-- **Personalization.** Preview light and dark themes, choose from nine built-in terminal fonts or your installed fonts, and use English, Persian or Arabic interface text without changing the layout direction.
+- **Personalization.** Preview light and dark themes, choose from six built-in terminal fonts, three optional GitHub font downloads, or your installed fonts, and use English, Persian or Arabic interface text without changing the layout direction.
 - **Output and sharing.** Open a local HTML preview of the current page, recent content or retained history, or export the session as UTF-8 text.
 - **Desktop integration.** Copy and paste, drop files or images into a pane, open links with Ctrl+click and optionally add “Open in RtlTerminal” to the Windows folder context menu.
 
@@ -81,7 +81,7 @@ For rendering issues, include your Windows version, shell, command, expected res
 - **ماکروهای ترمینال:** ضبط فرمان‌ها و کلیدهای تعاملی، ویرایش مراحل و اجرای مجدد با امکان مکث، ادامه و اجرای گام‌به‌گام. فایل‌ها رمزگذاری می‌شوند و می‌توان برایشان رمز مستقل تعیین کرد یا ورودی‌های حساس را هنگام اجرا پرسید.
 - **تاریخچهٔ پوشه‌ها:** نمایش پوشهٔ پنل فعال، بازکردن آن در اکسپلورر و بازگشت به مسیرهای اخیر. منو ۲۰ مسیر و پنجرهٔ جست‌وجو تا ۲۰۰ مسیر را نمایش می‌دهد؛ تاریخچه قابل پاک‌کردن و غیرفعال‌کردن است.
 - **مدیریت پراکسی:** مشاهدهٔ تنظیمات Environment، Windows System و WinHTTP، تنظیم یا پاک‌کردن محدودهٔ انتخابی، پشتیبانی اختیاری از ابزارهای توسعه و بازیابی از ده نسخهٔ پشتیبان رمزگذاری‌شده.
-- **شخصی‌سازی محیط:** تم‌های روشن و تیره با پیش‌نمایش، انتخاب از ۹ فونت داخلی ترمینال یا فونت‌های نصب‌شده و رابط فارسی، انگلیسی یا عربی بدون تغییر جهت چیدمان.
+- **شخصی‌سازی محیط:** تم‌های روشن و تیره با پیش‌نمایش، انتخاب از ۶ فونت داخلی و ۳ فونت قابل دانلود از گیت‌هاب یا فونت‌های نصب‌شده و رابط فارسی، انگلیسی یا عربی بدون تغییر جهت چیدمان.
 - **ذخیره و نمایش خروجی:** پیش‌نمایش HTML محلی از صفحهٔ فعلی، محتوای اخیر یا کل سابقهٔ نگه‌داری‌شده و ذخیرهٔ جلسه به‌صورت متن UTF-8.
 - **هماهنگی با دسکتاپ:** کپی و پیست، کشیدن فایل یا تصویر روی پنل، بازکردن لینک با Ctrl و کلیک و افزودن اختیاری «Open in RtlTerminal» به منوی راست‌کلیک پوشه‌های ویندوز.
 
@@ -133,7 +133,7 @@ For rendering issues, include your Windows version, shell, command, expected res
 - **ماكرو الطرفية:** تسجيل الأوامر والمفاتيح التفاعلية، وتحرير الخطوات وإعادة تشغيلها مع الإيقاف المؤقت والمتابعة والتنفيذ خطوة بخطوة. تُشفّر الملفات مع كلمة مرور اختيارية وإمكانية طلب المدخلات الحساسة أثناء التشغيل.
 - **سجل المجلدات:** عرض مجلد الجزء النشط وفتحه في المستكشف والعودة إلى المجلدات الأخيرة. تعرض القائمة 20 موقعاً، وتتيح نافذة البحث الوصول إلى 200 موقع مع مسح السجل أو تعطيله.
 - **إدارة الوكيل:** عرض إعدادات Environment وWindows System وWinHTTP، وتعيين النطاق المحدد أو مسحه، مع أدوات تطوير اختيارية واستعادة من عشر لقطات إعدادات مشفرة.
-- **التخصيص:** سمات فاتحة وداكنة مع معاينة، وتسعة خطوط طرفية مضمّنة إلى جانب الخطوط المثبّتة، وواجهة عربية أو فارسية أو إنجليزية دون تغيير اتجاه التخطيط.
+- **التخصيص:** سمات فاتحة وداكنة مع معاينة، وستة خطوط طرفية مضمّنة وثلاثة خطوط اختيارية تُنزّل من GitHub إلى جانب الخطوط المثبّتة، وواجهة عربية أو فارسية أو إنجليزية دون تغيير اتجاه التخطيط.
 - **حفظ المخرجات وعرضها:** معاينة HTML محلية للصفحة الحالية أو المحتوى الأخير أو السجل المحتفظ به، وتصدير الجلسة كنص UTF-8.
 - **التكامل مع سطح المكتب:** النسخ واللصق وإفلات الملفات والصور على الجزء وفتح الروابط باستخدام Ctrl مع النقر، وإضافة خيار «Open in RtlTerminal» إلى قائمة المجلدات اختيارياً.
 

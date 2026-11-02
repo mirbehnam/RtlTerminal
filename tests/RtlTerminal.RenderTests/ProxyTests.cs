@@ -10,6 +10,7 @@ internal static partial class Program
     private static void CheckProxyManager()
     {
         UiText.Select(UiLanguage.English, persist: false);
+        CheckDeveloperProxySummaries();
         CheckMachineProxy();
         static void Check(bool value, string reason) { if (!value) throw new Exception(reason); }
         var endpoint = new ProxyEndpoint("HTTP", "127.0.0.1", 10808, "internal.test"); endpoint.Validate();
@@ -30,6 +31,26 @@ internal static partial class Program
         Check(!ProxyFileProvider.Edit(edited, "global", ["proxy"], new Dictionary<string,string>()).Contains("proxy="), "Clear left proxy entry");
         var temporary = Path.Combine(Environment.CurrentDirectory, "artifacts", "proxy-tests-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(temporary);
+        var cargoFile = Path.Combine(temporary, "cargo-config.toml");
+        var cargoBytes = System.Text.Encoding.UTF8.GetBytes("# retained\r\n[http]\r\nproxy=\"http://old.test:8080\"\r\n[build]\r\njobs=2\r\n");
+        File.WriteAllBytes(cargoFile, cargoBytes);
+        var cargoInspection = new InspectionOnlyToolProvider(new ProxyFileProvider("Cargo user", cargoFile, "http", ["proxy"], false, true), "cargo.exe", null);
+        var cargoService = new ProxyService(Path.Combine(temporary, "cargo-backups"));
+        var systemFixture = new FakeProxy("Windows fixture");
+        var cargoResult = cargoService.ExecuteAsync([systemFixture], endpoint, true, default, [systemFixture, cargoInspection]).Result;
+        Check(cargoResult.Single().Success && File.ReadAllBytes(cargoFile).SequenceEqual(cargoBytes), "Unverified Cargo blocked an unrelated clear or changed its configuration");
+        var cargoBackup = cargoService.History.ReadAsync(cargoService.LastBackupPath!, default).Result;
+        Check(Convert.FromBase64String(cargoBackup.Snapshot.Entries.Single(e => e.Provider.Name == "Cargo user").State["Content"]!).SequenceEqual(cargoBytes), "Unverified Cargo was omitted from complete lossless backup");
+        Check(!cargoInspection.CanRestore, "Unknown Cargo version allowed unsafe restoration");
+        try { cargoInspection.Desired(endpoint, cargoInspection.ReadAsync(default).Result, true); throw new Exception("Unverified Cargo was writable"); } catch (NotSupportedException) { }
+        var cargoHistoryPath = cargoService.LastBackupPath!;
+        File.AppendAllText(cargoFile, "# newer changes\r\n");
+        var beforeRestore = new IProxyProvider[] { systemFixture, cargoInspection }.ToDictionary(p => p.Name, p => p.ReadAsync(default).Result.Signature);
+        var cargoRestore = cargoService.RestoreHistoryAsync(cargoHistoryPath, [systemFixture, cargoInspection], beforeRestore, default).Result;
+        Check(cargoRestore.Single(r => r.Provider == "Cargo user").Outcome == ProxyOutcome.Skipped && File.ReadAllText(cargoFile).Contains("# newer changes"), "Restore overwrote an unverified tool's newer file");
+        File.Delete(cargoFile);
+        Check(cargoInspection.ReadAsync(default).Result["Content"] == null, "Absent Cargo configuration was not preserved");
+        Console.WriteLine("PASS unknown Cargo version permits unrelated operations with complete encrypted raw-file backup; unsafe mutations/restoration refused and file absence preserved");
         var first = new FakeProxy("first"); var fail = new FakeProxy("fail") { Fail = true }; var last = new FakeProxy("last");
         var service = new ProxyService(temporary);
         var results = service.ExecuteAsync([first, fail, last], endpoint, false, default).GetAwaiter().GetResult();
@@ -136,6 +157,10 @@ internal static partial class Program
                 Directory.CreateDirectory("artifacts/render-checks");
                 using (var image = File.Create("artifacts/render-checks/proxy-" + theme + ".png")) encoder.Save(image);
                 var panel = (Expander)typeof(ProxyManagerWindow).GetField("developerPanel", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(preview)!;
+                // Display-only fixture: never writes an installed tool's configuration.
+                var previewTools = (List<(DetectedProxyTool Tool, CheckBox Card)>)typeof(ProxyManagerWindow).GetField("tools", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(preview)!;
+                if (previewTools.Count > 0) typeof(ProxyManagerWindow).GetMethod("UpdateToolCardContent", BindingFlags.NonPublic | BindingFlags.Instance)!
+                    .Invoke(preview, new object[] { previewTools[0].Tool with { ProxyAddresses = ["http://127.0.0.1:10808"] }, previewTools[0].Card });
                 panel.IsExpanded = true; preview.UpdateLayout();
                 var expanded = new System.Windows.Media.Imaging.RenderTargetBitmap((int)preview.ActualWidth, (int)preview.ActualHeight, 96, 96, System.Windows.Media.PixelFormats.Pbgra32);
                 expanded.Render(preview);
@@ -179,6 +204,10 @@ internal static partial class Program
         var tool = new FakeProxy("developer");
         var card = new CheckBox { IsChecked = true };
         var tools = Field<List<(DetectedProxyTool Tool, CheckBox Card)>>("tools");
+        var cargoBackupProvider = new InspectionOnlyToolProvider(new FakeProxy("Cargo user"), "cargo.exe", null);
+        tools.Add((new("Cargo", "cargo.exe", null, "unverified") { BackupProvider = cargoBackupProvider }, new CheckBox { IsChecked = true }));
+        var inventory = (List<IProxyProvider>)typeof(ProxyManagerWindow).GetMethod("Inventory", flags)!.Invoke(window, null)!;
+        if (!inventory.Contains(cargoBackupProvider)) throw new Exception("Dialog inventory excluded unverified Cargo raw snapshot");
         tools.Add((new("Fixture", "fixture.exe", tool, "fixture"), card));
         tools.Add((new("Unsupported", "fixture.exe", null, "inspection"), new CheckBox { IsChecked = true }));
         var select = typeof(ProxyManagerWindow).GetMethod("SelectedProviders", flags)!;
@@ -209,6 +238,35 @@ internal static partial class Program
             opt.IsChecked = false;
             if (card.IsChecked != true) throw new Exception("Opt-out discarded tool selection");
         }
+        var toolSelect = typeof(ProxyManagerWindow).GetMethod("SelectedToolProviders", flags)!;
+        List<IProxyProvider> ToolSelection() => (List<IProxyProvider>)toolSelect.Invoke(window, null)!;
+        typeof(ProxyManagerWindow).GetField("detectionComplete", flags)!.SetValue(window, true);
+        opt.IsChecked = true;
+        if (!ToolSelection().SequenceEqual(new[] { tool }) || !Field<Button>("setToolProxy").IsEnabled || !Field<Button>("clearToolProxy").IsEnabled)
+            throw new Exception("Tool-only actions failed selected-provider isolation");
+        foreach (var clear in new[] { false, true })
+        {
+            foreach (var fake in fakes.Append(tool)) fake.Value = "old";
+            var results = service.ExecuteAsync(ToolSelection(), endpoint, clear, default, fakes.Cast<IProxyProvider>().Append(tool).ToArray()).Result;
+            if (!results.Single().Success || fakes.Any(f => f.Value != "old") || tool.Value != (clear ? "" : endpoint.Url))
+                throw new Exception("Tool-only Set/Clear changed Windows or missed its selected tool");
+        }
+        card.IsChecked = false;
+        typeof(ProxyManagerWindow).GetMethod("UpdateCards", flags)!.Invoke(window, null);
+        if (Field<Button>("setToolProxy").IsEnabled || Field<Button>("clearToolProxy").IsEnabled) throw new Exception("Empty tool selection enabled mutation");
+        var secondTool = new FakeProxy("second developer");
+        var secondCard = new CheckBox { IsChecked = true };
+        tools.Add((new("Second fixture", "fixture.exe", secondTool, "fixture"), secondCard)); card.IsChecked = true;
+        if (ToolSelection().Count != 2) throw new Exception("All-selected tools were not included");
+        foreach (var clear in new[] { false, true })
+        {
+            var results = service.ExecuteAsync(ToolSelection(), endpoint, clear, default, fakes.Cast<IProxyProvider>().Concat([tool, secondTool]).ToArray()).Result;
+            if (results.Count != 2 || results.Any(r => !r.Success) || fakes.Any(f => f.Value != "old") || secondTool.Value != (clear ? "" : endpoint.Url))
+                throw new Exception("All-selected developer Set/Clear affected Windows or missed a tool");
+        }
+        card.IsChecked = true; opt.IsChecked = false;
+        if (ToolSelection().Count != 0 || Field<Button>("setToolProxy").IsEnabled || Field<Button>("clearToolProxy").IsEnabled)
+            throw new Exception("Tool-only actions bypassed opt-in");
         var protocol = Field<ComboBox>("protocol"); var host = Field<TextBox>("host"); var port = Field<TextBox>("port");
         scope.SelectedIndex = 0; host.Text = "all.example.test";
         if (protocol.IsEnabled || !protocol.Items.Cast<string>().SequenceEqual(new[] { "HTTP" })) throw new Exception("All offered an unsupported proxy protocol");

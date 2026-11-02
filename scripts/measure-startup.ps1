@@ -2,6 +2,7 @@ param(
     [Parameter(Mandatory = $true)][string]$Executable,
     [ValidateRange(1, 10)][int]$Runs = 3,
     [ValidateRange(5, 120)][int]$TimeoutSeconds = 30,
+    [switch]$VerifyUiFirst,
     [string]$OutputDirectory = (Join-Path $PSScriptRoot '..\artifacts\startup-performance')
 )
 $ErrorActionPreference = 'Stop'
@@ -32,8 +33,18 @@ for ($trial = 1; $trial -le $Runs; $trial++) {
     $events = @(Get-Content -LiteralPath $log | ForEach-Object { $_ | ConvertFrom-Json })
     $rendered = $events | Where-Object stage -eq 'MainWindow.ContentRendered' | Select-Object -First 1
     $output = $events | Where-Object stage -eq 'Terminal.FirstOutput' | Select-Object -First 1
+    $firstFrame = $events | Where-Object stage -eq 'MainWindow.FirstFrameBeforeTerminal' | Select-Object -First 1
+    $console = $events | Where-Object stage -eq 'Terminal.CreatePseudoConsole' | Select-Object -First 1
+    $launch = $events | Where-Object stage -eq 'Terminal.ConPtyStart' | Select-Object -First 1
+    $uiFirst = $null -ne $firstFrame -and $null -ne $rendered -and $null -ne $console -and $null -ne $launch -and
+        ($console.elapsedMs - $console.durationMs) -ge $firstFrame.elapsedMs -and
+        $firstFrame.elapsedMs -ge $rendered.elapsedMs -and $launch.thread -ne $firstFrame.thread
+    if ($VerifyUiFirst -and (!$uiFirst -or $null -eq $output)) {
+        throw "UI-first startup failed: the first frame must precede background ConPTY creation and verified first output. Log: $log"
+    }
     $results += [pscustomobject]@{
         Run = $trial; FirstOutputObserved = ($null -ne $output)
+        UiBeforeBackgroundTerminal = $uiFirst
         FirstWindowMs = $rendered.processElapsedMs; FirstShellOutputMs = $output.processElapsedMs
         LauncherObservedMs = [Math]::Round($observed, 1); Log = $log
     }

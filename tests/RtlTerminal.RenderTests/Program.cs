@@ -19,6 +19,7 @@ internal static partial class Program
     }
     private static void Run()
     {
+        if (Environment.GetCommandLineArgs().Contains("--optional-font-tests")) { CheckOptionalFonts(Environment.GetCommandLineArgs().Contains("--live")); return; }
         if (Environment.GetCommandLineArgs().Contains("--performance-tests")) { CheckPerformanceLogging(); return; }
         if (Environment.GetCommandLineArgs().Contains("--tab-overflow-tests")) { CheckTabOverflow(); return; }
         if (Environment.GetCommandLineArgs().Contains("--window-close-tests")) { CheckWindowCloseConfirmation(); return; }

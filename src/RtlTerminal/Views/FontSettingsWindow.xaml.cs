@@ -52,7 +52,7 @@ public partial class FontSettingsWindow : Window
         InitializeComponent();
         InitializeMacroSettings();
         InitializeDirectoryHistorySettings();
-        _fontFamilies = BundledFonts.Names.Concat(Fonts.SystemFontFamilies
+        _fontFamilies = BundledFonts.CatalogNames.Concat(Fonts.SystemFontFamilies
             .Select(font => font.Source)
             .Select(BundledFonts.CanonicalName))
             .Where(name => !BundledFonts.IsExcluded(name))
@@ -83,6 +83,7 @@ public partial class FontSettingsWindow : Window
         RefreshFontList();
         ThemeListBox.ItemsSource = ThemeOption.All;
         ThemeListBox.SelectedItem = ThemeOption.All.First(t => t.Theme == AppTheme.Current && t.Scheme == AppTheme.Scheme);
+        Closed += (_, _) => { _fontDownloadsClosed = true; foreach (var download in _fontDownloads.Values) download.Cancel(); };
     }
 
     public ThemeOption SelectedTheme { get; private set; } = ThemeOption.All[0];
@@ -168,6 +169,7 @@ public partial class FontSettingsWindow : Window
         {
             return;
         }
+        if (NeedsDownload(family)) { StandardFontListBox.SelectedItem = null; return; }
 
         _synchronizingSelection = true;
         FontListBox.SelectedItem = family;
@@ -225,6 +227,7 @@ public partial class FontSettingsWindow : Window
                 MessageBoxImage.Information);
             return;
         }
+        if (FontListBox.SelectedItem is string optional && NeedsDownload(optional)) { FontListBox.SelectedItem = null; return; }
 
         SelectedSettings = new TerminalFontSettings(
             family,
@@ -294,7 +297,7 @@ public partial class FontSettingsWindow : Window
         {
             var trimmed = candidate.Trim();
 
-            if (IsFontAvailable(trimmed))
+            if (IsFontAvailable(trimmed) && !NeedsDownload(trimmed))
                 return _fontFamilies.First(name =>
                     string.Equals(
                         name,

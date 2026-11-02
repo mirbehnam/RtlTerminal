@@ -13,7 +13,7 @@ public static class ProxyToolVersion
         {
             var versionArg = name == "Maven" ? "-v" : "--version";
             string text;
-            if (Path.GetExtension(executable).Equals(".exe", StringComparison.OrdinalIgnoreCase)) text = await ProxyProcess.Run(executable, [versionArg], ct);
+            if (Path.GetExtension(executable).Equals(".exe", StringComparison.OrdinalIgnoreCase)) text = await ProxyProcess.ToolVersion(executable, versionArg, ct);
             else
             {
                 var package = name switch { "npm" => "npm", "pnpm" => "pnpm", "Yarn" => "yarn", "Cypress" => "cypress", _ => null };

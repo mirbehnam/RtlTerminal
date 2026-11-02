@@ -4,7 +4,9 @@
 #endif
 #define AppPublisher "behnamapps"
 #define AppExeName "RtlTerminal.exe"
-#define PublishDirectory "..\artifacts\publish\win-x64"
+#ifndef PublishDirectory
+  #define PublishDirectory "..\artifacts\publish\win-x64"
+#endif
 
 [Setup]
 AppId={{A5BC0F01-F4CD-49C4-B85F-8B88ACDC4416}

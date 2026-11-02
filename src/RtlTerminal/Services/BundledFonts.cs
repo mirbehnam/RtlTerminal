@@ -21,7 +21,8 @@ public static class BundledFonts
         new("CascadiaMonoNF", "Cascadia Mono NF", "Cascadia Mono NF", "CascadiaMonoNF-", FullStyles),
         new("JetBrainsMonoNF", "JetBrains Mono NF", "JetBrainsMono NFM", "JetBrainsMonoNerdFontMono-", FullStyles)
     ];
-    public static IReadOnlyList<string> Names { get; } = Entries.Select(e => e.Name).ToArray();
+    public static IReadOnlyList<string> CatalogNames { get; } = Entries.Select(e => e.Name).ToArray();
+    public static IReadOnlyList<string> Names => Entries.Where(e => OptionalFonts.Packages.FirstOrDefault(p => p.Id == e.Id) is not { } optional || OptionalFonts.IsInstalled(optional)).Select(e => e.Name).ToArray();
     public static FontFamily DefaultFamily => Resolve("Cascadia Mono");
     private static Entry? Find(string value) => Entries.FirstOrDefault(e =>
         string.Equals(value, e.Name, StringComparison.OrdinalIgnoreCase) ||
@@ -33,6 +34,8 @@ public static class BundledFonts
     {
         var first = name.Split(',')[0].Trim();
         var entry = Find(IsExcluded(first) ? "Cascadia Mono" : first);
+        if (entry != null && OptionalFonts.Packages.FirstOrDefault(p => p.Id == entry.Id) is { } optional)
+            return OptionalFonts.IsInstalled(optional) ? new FontFamily(new Uri(OptionalFonts.DirectoryFor(optional) + Path.DirectorySeparatorChar), "./#" + entry.Family) : DefaultFamily;
         return entry is null ? new FontFamily(name) : new FontFamily(
             new Uri($"pack://application:,,,/RtlTerminal;component/Assets/Fonts/{entry.Id}/"), "./#" + entry.Family);
     }
@@ -47,6 +50,8 @@ public static class BundledFonts
     {
         var entry = Find(name);
         if (entry is null) return string.Empty;
+        var optional = OptionalFonts.Packages.FirstOrDefault(p => p.Id == entry.Id);
+        if (optional != null && !OptionalFonts.IsInstalled(optional)) return FontFaceCss("Cascadia Mono", needed);
         var css = new System.Text.StringBuilder();
         var styles = needed is null ? entry.Styles : needed.Select(pair =>
         {
@@ -56,7 +61,7 @@ public static class BundledFonts
         foreach (var style in styles)
         {
             var path = $"pack://application:,,,/RtlTerminal;component/Assets/Fonts/{entry.Id}/{entry.Stem}{style}.ttf";
-            using var stream = Application.GetResourceStream(new Uri(path))!.Stream;
+            using var stream = optional == null ? Application.GetResourceStream(new Uri(path))!.Stream : File.OpenRead(Path.Combine(OptionalFonts.DirectoryFor(optional), entry.Stem + style + ".ttf"));
             using var bytes = new MemoryStream(); stream.CopyTo(bytes);
             css.Append("@font-face{font-family:'").Append(entry.Name).Append("';font-weight:")
                 .Append(style.Contains("Bold") ? "700" : "400").Append(";font-style:")

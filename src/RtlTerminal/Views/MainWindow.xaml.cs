@@ -42,6 +42,8 @@ public partial class MainWindow : Window
     private bool _suppressRightMouseUp;
     private Key? _pendingContextMenuKey;
     private (int X, int Y, int Button)? _lastReportedMouseCell;
+    private bool _windowClosed;
+    private bool _initialTerminalQueued;
 
     public MainWindow() : this(new DirectoryHistoryStore()) { }
 
@@ -128,20 +130,34 @@ public partial class MainWindow : Window
     private void Window_Loaded(object sender, RoutedEventArgs e)
     {
         using var timing = StartupPerformance.Measure("MainWindow.LoadedHandlers");
-        RefreshContextMenuIntegrationState();
-        if (!App.PerformanceProbe) PromptForContextMenuIntegration();
-        ActiveView.Focus();
-        ActiveView.UpdateLayout();
-        Dispatcher.BeginInvoke(
-            DispatcherPriority.Loaded,
-            () => CreateTerminalTab(_defaultProfile));
-        if (!App.PerformanceProbe) _ = CheckForUpdatesOnStartupAsync();
+        if (_initialTerminalQueued) return;
+        _initialTerminalQueued = true;
+        ContentRendered += StartInitialTerminalAfterRender;
+    }
+
+    private void StartInitialTerminalAfterRender(object? sender, EventArgs e)
+    {
+        ContentRendered -= StartInitialTerminalAfterRender;
+        StartupPerformance.Mark("MainWindow.FirstFrameBeforeTerminal");
+        Dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(() =>
+        {
+            if (_windowClosed) return;
+            if (_tabs.Count == 0) CreateTerminalTabCore(_defaultProfile, null, null, backgroundStart: true);
+            RefreshContextMenuIntegrationState();
+            if (!App.PerformanceProbe)
+            {
+                PromptForContextMenuIntegration();
+                _ = CheckForUpdatesOnStartupAsync();
+            }
+        }));
     }
 
     private void CreateTerminalTab(
         TerminalProfile profile,
         string? requestedStartupDirectory = null,
-        string? wslDistribution = null)
+        string? wslDistribution = null) => CreateTerminalTabCore(profile, requestedStartupDirectory, wslDistribution, false);
+
+    private void CreateTerminalTabCore(TerminalProfile profile, string? requestedStartupDirectory, string? wslDistribution, bool backgroundStart)
     {
         using var timing = StartupPerformance.Measure("Terminal.CreateTab");
         var pane = CreatePane(profile);
@@ -149,7 +165,7 @@ public partial class MainWindow : Window
         var tab = new TerminalTab(pane);
         _tabs.Add(tab);
         ShowTab(tab);
-        StartPane(pane, requestedStartupDirectory);
+        StartPaneCore(pane, requestedStartupDirectory, true, backgroundStart);
         ActiveView.Focus();
     }
 
@@ -203,6 +219,9 @@ public partial class MainWindow : Window
     }
 
     private void StartPane(TerminalPane pane, string? requestedStartupDirectory, bool showIntroduction = true)
+        => StartPaneCore(pane, requestedStartupDirectory, showIntroduction, false);
+
+    private async void StartPaneCore(TerminalPane pane, string? requestedStartupDirectory, bool showIntroduction, bool backgroundStart)
     {
         using var timing = StartupPerformance.Measure("Terminal.StartPane");
         var startupDirectory = ResolveStartupDirectory(
@@ -220,13 +239,39 @@ public partial class MainWindow : Window
                 _historySize);
             pane.GridSize = (columns, rows);
             pane.CancellationTokenSource = new CancellationTokenSource();
-            using (StartupPerformance.Measure("Terminal.CreatePseudoConsole")) pane.Session = new ConPtySession(columns, rows);
             pane.SessionEnded = false;
             string shellCommand;
             using (StartupPerformance.Measure("Terminal.BuildCommand")) shellCommand = GetProfileCommand(pane.Profile, showIntroduction, pane.WslDistribution, wslDirectory);
-            using (StartupPerformance.Measure("Terminal.ConPtyStart")) pane.Session.Start(
-                shellCommand,
-                pane.Profile == TerminalProfile.Wsl ? wslDirectory ?? Environment.GetFolderPath(Environment.SpecialFolder.UserProfile) : startupDirectory);
+            var directory = pane.Profile == TerminalProfile.Wsl ? wslDirectory ?? Environment.GetFolderPath(Environment.SpecialFolder.UserProfile) : startupDirectory;
+            ConPtySession Launch()
+            {
+                ConPtySession session;
+                using (StartupPerformance.Measure("Terminal.CreatePseudoConsole")) session = new ConPtySession(columns, rows);
+                try
+                {
+                    using (StartupPerformance.Measure("Terminal.ConPtyStart")) session.Start(shellCommand, directory);
+                    return session;
+                }
+                catch { session.Dispose(); throw; }
+            }
+            var session = backgroundStart ? await Task.Run(Launch) : Launch();
+            if (_windowClosed || !_tabs.Any(tab => tab.Panes.Contains(pane)))
+            {
+                // There is no normal output loop yet. Drain during shutdown so
+                // ClosePseudoConsole cannot wait on a full output pipe.
+                var drain = Task.Run(() =>
+                {
+                    try { var bytes = new byte[8192]; while (session.Read(bytes) > 0) { } }
+                    catch (IOException) { }
+                    catch (ObjectDisposedException) { }
+                });
+                await Task.Run(session.Dispose);
+                await drain;
+                StartupPerformance.Mark("Terminal.StartupSessionDiscarded");
+                return;
+            }
+            pane.Session = session;
+            if (backgroundStart) QueueViewportResize();
 
             if (pane.Profile != TerminalProfile.Wsl && startupDirectory is not null)
                 ObserveDirectory(pane, startupDirectory);
@@ -236,6 +281,7 @@ public partial class MainWindow : Window
         }
         catch (Exception exception)
         {
+            if (_windowClosed || !_tabs.Any(tab => tab.Panes.Contains(pane))) return;
             var errorBuffer = new TerminalBuffer(GetColumns(pane.View), GetRows(pane.View));
             Render(pane, errorBuffer.Process("خطا در اجرای ConPTY:\r\n" + exception.Message));
         }
@@ -291,6 +337,8 @@ public partial class MainWindow : Window
 
     private void Window_Closed(object? sender, EventArgs e)
     {
+        _windowClosed = true;
+        ContentRendered -= StartInitialTerminalAfterRender;
         UiText.Changed -= ApplyUiLanguage;
         _directoryPollTimer.Stop();
         _macroCancellation?.Cancel();

@@ -1,5 +1,20 @@
 # Startup and component timings
 
+The main window renders its first frame before starting the initial terminal.
+Initial ConPTY creation and native shell launch run on a worker thread; tab and
+view updates stay on the WPF dispatcher. Closing the window or its starting tab
+disposes a late-created session rather than attaching it to a closed view.
+Context-menu prompts and update checks are deferred until after the first frame.
+
+Use `scripts/measure-startup.ps1 -Executable <preview.exe> -Runs 3 -VerifyUiFirst`
+to check that `MainWindow.FirstFrameBeforeTerminal` follows ContentRendered,
+precedes ConPTY creation, and shell startup runs on a different thread. This also
+requires actual terminal output; a visible empty window alone does not pass.
+Three local trials after this change reached the first frame at 755, 691 and
+694 ms, and first terminal output at 3,094, 769 and 772 ms respectively. The first
+trial's native launch took about 2.2 seconds on the worker, after the UI appeared.
+These are local observations, not guaranteed launch times or a cold-cache benchmark.
+
 Normal launches write local JSON Lines timing reports to
 `%LOCALAPPDATA%\RtlTerminal\Performance`. Only the latest ten automatic reports are
 kept, with a maximum of 10,000 records per run. Serialization, disk writes and

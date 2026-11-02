@@ -2,6 +2,16 @@
 
 Open **Tools → Proxy Manager…**. The dialog reads configuration in the background;
 opening it never writes proxy settings. Developer-tool changes are **off by default**.
+Inside Developer Tools, **Set Proxy** and **Clear Proxy** target only the selected
+supported tools, independently of the Windows scope selector. Enable the opt-in
+checkbox and select at least one tool to use them. They use the shared connection
+fields and the same complete backup, operation dialog and read-back verification
+as the main actions; they never change Windows proxy settings.
+
+Tools with a saved user-level proxy show a small blue **Proxy** label and endpoint
+below their name. Addresses refresh asynchronously during discovery, manual Refresh,
+and after Set/Clear/Restore. Credentials and URL paths are excluded. This reflects
+the managed user file, not a connectivity test or all environment/project overrides.
 No session-routing, VPN, driver or process injection is involved.
 
 The connection fields start empty. No example host, port or bypass list is supplied.
@@ -226,6 +236,16 @@ implicitly changed by restore; differences are reported as skipped. **Completene
 means the implemented managed User + Machine environment scope, not all Windows machine configurations.**
 Non-effective advanced WinHTTP configurations cannot currently be exported by
 this adapter, and full machine/other-account recovery is not implemented.
+
+If an installed tool's version probe fails but its managed file location is
+known, the complete original file bytes (or file absence) are still captured in
+the encrypted snapshot. The tool remains unselectable and inspection-only, so a
+Cargo version-detection failure does not block an unrelated Windows proxy clear.
+Unknown-version configurations cannot be mutated or overwritten during restore;
+newer file changes are reported as skipped. Unverifiable configuration locations
+and actual file-read failures still block the backup and operation. Version
+probes for native executables use the Windows user profile as their working
+directory rather than inheriting a project's toolchain-selection directory.
 
 Restoration refreshes detected tools and versions, compares metadata, previews
 affected providers and requires confirmation before replacing newer values. A

@@ -18,12 +18,14 @@ public sealed partial class ProxyManagerWindow : Window
     private readonly ComboBox protocol = new() { ItemsSource = new[] { "HTTP" }, SelectedIndex = 0, MinWidth = 100 };
     private readonly TextBlock protocolHint = new() { TextWrapping = TextWrapping.Wrap, FontSize = 11, Margin = new Thickness(0, 8, 0, 0) };
     private readonly TextBlock protocolNotice = new() { TextWrapping = TextWrapping.Wrap, FontSize = 11, Margin = new Thickness(0, 4, 0, 0), Visibility = Visibility.Collapsed };
+    private readonly TextBlock connectionError = new() { TextWrapping = TextWrapping.Wrap, FontSize = 12, Margin = new Thickness(0, 6, 0, 0), Visibility = Visibility.Collapsed };
     private sealed record ConnectionDraft(string Host, string Port, string Bypass, string Protocol, bool Manual, bool AutoDetect, string Pac);
     private readonly Dictionary<int, ConnectionDraft> connectionDrafts = [];
     private int editorScope, readGeneration;
     private readonly ListBox section = new() { ItemsSource = new[] { "All", "Environment", "Windows System", "WinHTTP" }, SelectedIndex = 0 };
     private readonly Button setProxy;
     private readonly Button clearProxy;
+    private readonly Button setToolProxy, clearToolProxy;
     private readonly Expander developerPanel = new() { IsExpanded = false };
     private readonly TextBox diagnostics = new() { IsReadOnly = true, TextWrapping = TextWrapping.Wrap, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, MinHeight = 95, MaxHeight = 155 };
     private readonly TextBlock result = new() { TextWrapping = TextWrapping.Wrap }, loading = new() { Text = "Discovering installed tools…" }, selected = new();
@@ -68,6 +70,11 @@ public sealed partial class ProxyManagerWindow : Window
         bypass.ToolTip = "Localhost and loopback are always included when setting a proxy.";
         protocolHint.SetResourceReference(TextBlock.ForegroundProperty, "MutedForegroundBrush"); connection.Children.Add(protocolHint); scope.Children.Add(connection);
         protocolNotice.SetResourceReference(TextBlock.ForegroundProperty, "AccentBrush"); connection.Children.Add(protocolNotice);
+        connectionError.Foreground = new SolidColorBrush(Color.FromRgb(225, 85, 100)); connection.Children.Add(connectionError);
+        host.TextChanged += (_, _) => connectionError.Visibility = Visibility.Collapsed;
+        port.TextChanged += (_, _) => connectionError.Visibility = Visibility.Collapsed;
+        bypass.TextChanged += (_, _) => connectionError.Visibility = Visibility.Collapsed;
+        pac.TextChanged += (_, _) => connectionError.Visibility = Visibility.Collapsed;
         section.ToolTip = "Environment includes User + Machine (UAC). Windows System and WinHTTP use the current user.";
         foreach (var check in new[] { optIn, manual, autoDetect })
         {
@@ -88,7 +95,14 @@ public sealed partial class ProxyManagerWindow : Window
         var controls = new WrapPanel { Margin = new Thickness(0, 6, 0, 6) };
         controls.Children.Add(Action("Select All", () => { foreach (var (_, card) in tools.Where(t => t.Tool.Provider != null)) card.IsChecked = true; UpdateCards(); }, track: false));
         controls.Children.Add(Action("Deselect All", () => { foreach (var (_, card) in tools) card.IsChecked = false; UpdateCards(); }, track: false));
-        refresh = Action("Refresh", () => _ = Detect(true), track: false); controls.Children.Add(refresh); developerContent.Children.Add(controls);
+        refresh = Action("Refresh", () => _ = Detect(true), track: false); controls.Children.Add(refresh);
+        setToolProxy = Action("Set Proxy", () => Operate(false, toolsOnly: true));
+        clearToolProxy = Action("Clear Proxy", () => Operate(true, toolsOnly: true));
+        setToolProxy.ToolTip = clearToolProxy.ToolTip = "Only selected developer tools. Windows proxy settings remain unchanged.";
+        controls.Children.Add(setToolProxy); controls.Children.Add(clearToolProxy); developerContent.Children.Add(controls);
+        var toolConnectionHint = new TextBlock { Text = "Set Proxy uses Host / IP, Port and Protocol from Configuration scope above.", FontSize = 11, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 6) };
+        toolConnectionHint.SetResourceReference(TextBlock.ForegroundProperty, "MutedForegroundBrush"); developerContent.Children.Add(toolConnectionHint);
+        setToolProxy.IsEnabled = clearToolProxy.IsEnabled = false;
         var toolScroll = new ScrollViewer { MaxHeight = 245, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled, Content = cards };
         developerContent.Children.Add(toolScroll); toolScroll.SizeChanged += (_, _) => ResizeCards(toolScroll.ActualWidth - 12); body.Children.Add(Card(developer));
         var historySection = new Expander { Header = new TextBlock { Text = "Configuration History", FontSize = 15, FontWeight = FontWeights.SemiBold }, IsExpanded = openHistory, Style = (Style)FindResource("ProxyDeveloperPanel") };
@@ -159,6 +173,8 @@ public sealed partial class ProxyManagerWindow : Window
             providers.AddRange(tools.Where(t => t.Card.IsChecked == true && t.Tool.Provider != null).Select(t => t.Tool.Provider!));
         return providers.DistinctBy(p => p.Name).ToList();
     }
+    private List<IProxyProvider> SelectedToolProviders() => optIn.IsChecked == true
+        ? tools.Where(t => t.Card.IsChecked == true && t.Tool.Provider != null).Select(t => t.Tool.Provider!).DistinctBy(p => p.Name).ToList() : [];
     private async Task ReadSelected(bool loadEndpoint = true)
     {
         using var timing = StartupPerformance.Measure("ProxyManager.ReadConfiguration");
@@ -278,17 +294,11 @@ public sealed partial class ProxyManagerWindow : Window
                 var previous = tools.FirstOrDefault(t => t.Tool.Name == tool.Name);
                 var wasSelected = previous.Card?.IsChecked == true || selections.Contains(tool.Name);
                 if (previous.Card != null) { cards.Children.Remove(previous.Card); tools.Remove(previous); }
-                var card = new CheckBox { Content = new TextBlock { Text = "›_  " + tool.Name + " " + (tool.Capabilities?.Version ?? "…") + "\n" + (tool.Provider == null ? "Inherited / inspection" : "User settings"), TextWrapping = TextWrapping.Wrap },
+                var card = new CheckBox {
                     ToolTip = tool.Status + "\n" + tool.Executable, Margin = new Thickness(3), Padding = new Thickness(10), MinHeight = 57, IsChecked = wasSelected };
                 card.Style = (Style)FindResource("ProxyToolCard");
                 ToolTipService.SetShowOnDisabled(card, true);
-                if (card.Content is TextBlock label)
-                {
-                    card.Content = null;
-                    label.SetResourceReference(TextBlock.ForegroundProperty, "ChromeForegroundBrush");
-                    var tile = new Border { Padding = new Thickness(0), Background = Brushes.Transparent, Child = label };
-                    card.Content = tile;
-                }
+                UpdateToolCardContent(tool, card);
                 card.Checked += (_, _) => UpdateCards(); card.Unchecked += (_, _) => UpdateCards();
                 tools.Add((tool, card)); cards.Children.Add(card); ResizeCards(Math.Max(500, cards.ActualWidth)); UpdateCards();
             }), force, token);
@@ -304,31 +314,89 @@ public sealed partial class ProxyManagerWindow : Window
     {
         foreach (var (tool, card) in tools) { card.IsEnabled = !busy && optIn.IsChecked == true && tool.Provider != null; card.Opacity = card.IsEnabled ? 1 : .65; }
         selected.Text = tools.Count(t => t.Card.IsChecked == true && t.Tool.Provider != null) + " selected";
+        var canModify = !busy && detectionComplete && SelectedToolProviders().Count > 0;
+        setToolProxy.IsEnabled = clearToolProxy.IsEnabled = canModify;
     }
-    private async void Operate(bool clear)
+    private void UpdateToolCardContent(DetectedProxyTool tool, CheckBox card)
+    {
+        var stack = new StackPanel();
+        var name = new TextBlock { Text = "›_  " + tool.Name + " " + (tool.Capabilities?.Version ?? "…"), TextWrapping = TextWrapping.Wrap, Tag = "ProxyLiteral" };
+        name.SetResourceReference(TextBlock.ForegroundProperty, "ChromeForegroundBrush"); stack.Children.Add(name);
+        var scope = new TextBlock { Text = tool.Provider == null ? "Inherited / inspection" : "User settings", FontSize = 10, Margin = new Thickness(0, 2, 0, 0) };
+        scope.SetResourceReference(TextBlock.ForegroundProperty, "MutedForegroundBrush"); stack.Children.Add(scope);
+        if (tool.ProxyAddresses.Length > 0)
+        {
+            var blue = new SolidColorBrush(AppTheme.IsLight ? Color.FromRgb(0, 91, 173) : Color.FromRgb(118, 188, 255));
+            stack.Children.Add(new TextBlock { Text = "Proxy", FontSize = 10, Foreground = blue, Margin = new Thickness(0, 4, 0, 0) });
+            var address = new TextBlock { Text = string.Join("\n", tool.ProxyAddresses), FontSize = 11, Foreground = blue,
+                TextWrapping = TextWrapping.Wrap, Tag = "ProxyLiteral", FlowDirection = FlowDirection.LeftToRight };
+            stack.ToolTip = "Saved user configuration; environment or project overrides may still apply.";
+            stack.Children.Add(address);
+        }
+        if (tool.ProxyReadFailed) stack.Children.Add(new TextBlock { Text = "Proxy status unavailable", FontSize = 10, TextWrapping = TextWrapping.Wrap });
+        card.Content = new Border { Background = Brushes.Transparent, Child = stack };
+    }
+    private async Task RefreshToolProxyStatuses()
+    {
+        foreach (var entry in tools.ToArray())
+        {
+            var updated = await Task.Run(() => DeveloperProxySummary.ReadAsync(entry.Tool, lifetime.Token), lifetime.Token);
+            if (closed) return;
+            var index = tools.FindIndex(t => ReferenceEquals(t.Card, entry.Card));
+            if (index < 0) continue;
+            tools[index] = (updated, entry.Card); UpdateToolCardContent(updated, entry.Card);
+        }
+    }
+    private bool ValidateConnection(ProxyEndpoint endpoint, bool clear)
+    {
+        connectionError.Visibility = Visibility.Collapsed;
+        if (clear) return true;
+        try { endpoint.Validate(); return true; }
+        catch (ArgumentException ex)
+        {
+            connectionError.Text = ex.Message.StartsWith("Enter a host or IP", StringComparison.Ordinal)
+                ? "Please enter a valid IP address or host and port first." : ex.Message;
+            connectionError.Visibility = Visibility.Visible;
+            connectionError.BringIntoView();
+            var field = ex.Message.StartsWith("PAC", StringComparison.Ordinal) ? pac : ex.Message.StartsWith("Bypass", StringComparison.Ordinal) ? bypass :
+                string.IsNullOrWhiteSpace(host.Text) ? host : endpoint.Port is < 1 or > 65535 ? port : host;
+            field.Focus(); field.SelectAll();
+            return false;
+        }
+    }
+    private async void Operate(bool clear, bool toolsOnly = false)
     {
         if (busy || !detectionComplete) return;
+        var endpoint = new ProxyEndpoint(protocol.SelectedItem?.ToString() ?? "HTTP", host.Text.Trim(), int.TryParse(port.Text.Trim(), out var n) ? n : 0, bypass.Text);
+        var all = section.SelectedIndex == 0;
+        if (!toolsOnly && !all && section.SelectedIndex >= 2) endpoint = endpoint with { ManualEnabled = manual.IsChecked == true, AutoDetect = autoDetect.IsChecked == true, Pac = pac.Text.Trim() };
+        if (!ValidateConnection(endpoint, clear))
+        {
+            var field = System.Windows.Input.Keyboard.FocusedElement as TextBox;
+            new ProxyInfoWindow("Check proxy connection", [], connectionError.Text)
+                { Owner = this, Width = 480, Height = 220, MinHeight = 180 }.ShowDialog();
+            field?.Focus();
+            return;
+        }
         try
         {
-            var endpoint = new ProxyEndpoint(protocol.SelectedItem?.ToString() ?? "HTTP", host.Text, int.TryParse(port.Text, out var n) ? n : 0, bypass.Text);
-            var all = section.SelectedIndex == 0;
-            if (!all && section.SelectedIndex >= 2) endpoint = endpoint with { ManualEnabled = manual.IsChecked == true, AutoDetect = autoDetect.IsChecked == true, Pac = pac.Text.Trim() };
-            var providers = SelectedProviders();
+            var providers = toolsOnly ? SelectedToolProviders() : SelectedProviders();
+            if (providers.Count == 0) return;
             if ((providers.Count > 1 || clear) && ProxyUiLanguage.Show(this, (clear ? "Clear persistent proxy configuration for the listed scopes (including their NO_PROXY or bypass/PAC/auto-detection settings):" : "Set persistent proxy configuration for:") + "\n\n" + string.Join("\n", providers.Select(p => p.Name)) + "\n\nAn encrypted recovery snapshot will be saved before changes." + (providers.Any(p => p is MachineEnvironmentProxyProvider) ? "\nAdministrator approval is required for Machine environment variables before any changes begin." : "") + (clear ? "\nUnselected scopes, project proxies and running processes may retain settings; removing bypass rules can affect those configurations." : ""), "Confirm proxy changes", MessageBoxButton.OKCancel, MessageBoxImage.Warning) != MessageBoxResult.OK) return;
             SetBusy(true); lastProviders = providers;
             var dialog = new ProxyOperationWindow(providers.Select(p => p.Name), clear, async updates =>
             {
                 if (!clear) { endpoint.Validate(); foreach (var provider in providers) provider.Validate(endpoint); }
                 var inventory = Inventory();
-                return await WithMachinePermission(providers, () => service.ExecuteAsync(providers, endpoint, clear, lifetime.Token, inventory, all ? clear ? "Clear All Proxies" : "Set All Proxies" : clear ? "Clear Proxy" : "Set Proxy", updates), updates);
+                return await WithMachinePermission(providers, () => service.ExecuteAsync(providers, endpoint, clear, lifetime.Token, inventory, toolsOnly ? clear ? "Clear developer tool proxies" : "Set developer tool proxies" : all ? clear ? "Clear All Proxies" : "Set All Proxies" : clear ? "Clear Proxy" : "Set Proxy", updates), updates);
             });
             dialog.ShowModal(this);
             result.Text = string.Join("\n", dialog.State.Rows.Select(r => r.DisplayName + ": " + r.Detail));
             if (dialog.State.Error != null) result.Text += "\n" + dialog.State.Error;
-            await ReadSelected();
+            await ReadSelected(loadEndpoint: !toolsOnly);
         }
         catch (Exception ex) { result.Text = ProxyService.SafeError(ex); }
-        finally { await ReadHistory(); await RefreshStatus(); SetBusy(false); }
+        finally { try { await ReadHistory(); await RefreshStatus(); await RefreshToolProxyStatuses(); } finally { SetBusy(false); } }
     }
     private async void Restore()
     {
@@ -352,14 +420,14 @@ public sealed partial class ProxyManagerWindow : Window
             result.Text = string.Join("\n", results.Select(r => (r.Success ? "✓ Restored " : "! " + r.Outcome + " ") + r.Provider + ": " + r.Message)); await ReadSelected();
         }
         catch (Exception ex) { result.Text = ProxyService.SafeError(ex); }
-        finally { await ReadHistory(); await RefreshStatus(); SetBusy(false); }
+        finally { try { await ReadHistory(); await RefreshStatus(); await RefreshToolProxyStatuses(); } finally { SetBusy(false); } }
     }
     private List<IProxyProvider> Inventory()
     {
-        var incomplete = tools.Where(t => t.Tool.Name is "Git" or "npm" or "pnpm" or "Python pip" or "Gradle" or "Maven" or "NuGet / .NET" or "Cargo").Where(t => t.Tool.Provider == null).Select(t => t.Tool.Name).ToArray();
+        var incomplete = tools.Where(t => t.Tool.Name is "Git" or "npm" or "pnpm" or "Python pip" or "Gradle" or "Maven" or "NuGet / .NET" or "Cargo").Where(t => t.Tool.Provider == null && t.Tool.BackupProvider == null).Select(t => t.Tool.Name).ToArray();
         if (incomplete.Length > 0) throw new NotSupportedException("Complete backup blocked: adapter version or configuration location could not be verified for " + string.Join(", ", incomplete) + ". No proxy configuration has been changed.");
         return systems.Concat<IProxyProvider>([machineEnvironment, new EnvironmentScopeInspectionProvider(EnvironmentVariableTarget.Process), new EnvironmentScopeInspectionProvider(EnvironmentVariableTarget.Machine), new WinHttpBasicInspectionProvider()])
-            .Concat(tools.Where(t => t.Tool.Provider != null).Select(t => t.Tool.Provider!)).DistinctBy(p => p.Name).ToList();
+            .Concat(tools.Select(t => t.Tool.Provider ?? t.Tool.BackupProvider).OfType<IProxyProvider>()).DistinctBy(p => p.Name).ToList();
     }
     private async Task<IReadOnlyList<ProxyResult>> WithMachinePermission(IEnumerable<IProxyProvider> providers, Func<Task<IReadOnlyList<ProxyResult>>> operation, IProgress<ProxyOperationUpdate>? progress = null)
     {
@@ -396,6 +464,7 @@ public sealed partial class ProxyManagerWindow : Window
     private void SetBusy(bool value)
     {
         busy = value; foreach (var b in mutations) b.IsEnabled = !value && detectionComplete;
+        refresh.IsEnabled = !value && detectionComplete;
         clearHistory.IsEnabled = !value;
         restore.IsEnabled = !value && detectionComplete && historyList.SelectedItem is ProxyHistoryItem; section.IsEnabled = !value; optIn.IsEnabled = !value; UpdateCards();
         if (value) result.Text = "Saving and verifying configuration…";
