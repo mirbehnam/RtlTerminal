@@ -13,6 +13,10 @@ public static class ShortcutCatalog
         var entries = new List<ShortcutEntry>();
         void Add(string group, string keys, string en, string fa, string ar) => entries.Add(new(group, keys, L(en, fa, ar)));
         var tabs = L("Tabs and panes", "تب‌ها و پنل‌ها", "علامات التبويب والأجزاء");
+        Add(tabs, "Ctrl+Shift+Space", "Open Quick Input", "بازکردن ورودی سریع", "فتح الإدخال السريع");
+        var quick = L("Quick Input", "ورودی سریع", "الإدخال السريع");
+        Add(quick, "Ctrl+Enter / Ctrl+Shift+Enter", "In Quick Input: Send / Insert", "در ورودی سریع: ارسال / درج بدون Enter نهایی", "في الإدخال السريع: إرسال / إدراج دون Enter نهائي");
+        Add(quick, "Enter / Shift+Enter / Escape", "In Quick Input: new line / new line / close and keep draft", "در ورودی سریع: خط جدید / خط جدید / بستن و حفظ پیش‌نویس", "في الإدخال السريع: سطر جديد / سطر جديد / إغلاق مع حفظ المسودة");
         Add(tabs, "Ctrl+Shift+T", "New tab with the default profile", "تب جدید با پروفایل پیش‌فرض", "علامة تبويب جديدة بملف التعريف الافتراضي");
         Add(tabs, "Ctrl+Shift+1 … 8", "Open an available profile by its position in the profile menu", "بازکردن پروفایل بر اساس ترتیب آن در منوی پروفایل‌ها (در صورت وجود)", "فتح ملف تعريف متاح حسب ترتيبه في القائمة");
         Add(tabs, "Ctrl+Tab", "Next tab", "تب بعدی", "علامة التبويب التالية");

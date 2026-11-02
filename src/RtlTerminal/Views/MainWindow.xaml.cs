@@ -73,6 +73,7 @@ public partial class MainWindow : Window
         using (StartupPerformance.Measure("MainWindow.Fonts")) { ApplySavedFontSettings(); UpdateFontMetrics(); }
         using (StartupPerformance.Measure("MainWindow.Language")) InitializeUiLanguage();
         InitializeWindowStatus();
+        InitializeQuickInput();
         AllowDrop = true;
         PreviewDragOver += Window_PreviewDragOver;
         PreviewDrop += Window_PreviewDrop;
@@ -398,6 +399,7 @@ public partial class MainWindow : Window
 
     private void Window_PreviewKeyDown(object sender, KeyEventArgs e)
     {
+        if (_quickGesture.Matches(this, e)) { e.Handled = true; OpenQuickInput(); return; }
         if (HandleTabRenameKey(e)) return;
         if (HandleMacroKey(e)) { e.Handled = true; return; }
 
@@ -1340,7 +1342,7 @@ public partial class MainWindow : Window
             var bashPath = ShellProfiles.GitBashPath ?? "bash.exe";
             return ShellPath.WindowsArgument(bashPath) + " --login -i";
         }
-        const string powerShellDirectoryPrompt = "$global:__RtlOriginalPrompt=$function:prompt; function global:prompt { [Console]::Write(([char]27).ToString()+']9;9;'+$executionContext.SessionState.Path.CurrentFileSystemLocation.ProviderPath+[char]7); & $global:__RtlOriginalPrompt }; ";
+        const string powerShellDirectoryPrompt = "$global:__RtlOriginalPrompt=$function:prompt; function global:prompt { [Console]::Write(([char]27).ToString()+']9;9;'+$executionContext.SessionState.Path.CurrentFileSystemLocation.ProviderPath+[char]7); $__rtlPrompt=& $global:__RtlOriginalPrompt; [Console]::Write(([char]27).ToString()+']133;B'+[char]7); $__rtlPrompt }; ";
         var pwshPath = ShellProfiles.PowerShell7Path ?? "pwsh.exe";
         var command =
         !showIntroduction ? profile switch

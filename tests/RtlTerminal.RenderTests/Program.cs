@@ -19,6 +19,8 @@ internal static partial class Program
     }
     private static void Run()
     {
+        if (Environment.GetCommandLineArgs().Contains("--quick-input-tests")) { CheckQuickInput(); return; }
+        if (Environment.GetCommandLineArgs().Contains("--quick-input-cli-probe")) { ProbeQuickInputClis().GetAwaiter().GetResult(); return; }
         if (Environment.GetCommandLineArgs().Contains("--optional-font-tests")) { CheckOptionalFonts(Environment.GetCommandLineArgs().Contains("--live")); return; }
         if (Environment.GetCommandLineArgs().Contains("--performance-tests")) { CheckPerformanceLogging(); return; }
         if (Environment.GetCommandLineArgs().Contains("--tab-overflow-tests")) { CheckTabOverflow(); return; }
@@ -69,6 +71,7 @@ internal static partial class Program
         MacroTests.Run().GetAwaiter().GetResult();
         MacroV2Tests.Run().GetAwaiter().GetResult();
         CheckMacroUi();
+        CheckQuickInput();
         CheckDirectoryHistory();
         CheckTerminalSearchAndZoom();
         CheckBundledFonts();

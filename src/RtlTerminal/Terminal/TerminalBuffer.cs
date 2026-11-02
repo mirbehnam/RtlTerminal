@@ -65,6 +65,9 @@ public sealed record TerminalSnapshot(
 
 public sealed partial class TerminalBuffer
 {
+    private bool _quickInputReady;
+    public (bool BracketedPaste, bool Ready) QuickInputMode { get { lock (_syncRoot) return (_bracketedPaste, _quickInputReady); } }
+    public void InvalidateQuickInput() { lock (_syncRoot) _quickInputReady = false; }
     private string? _workingDirectory;
     private const int DefaultMaximumScrollbackRows = 2000;
     internal static readonly TerminalColor[] AnsiColors =
@@ -449,6 +452,10 @@ public sealed partial class TerminalBuffer
 
         switch (command)
         {
+            case 133:
+            case 633:
+                _quickInputReady = value == "B" || value.StartsWith("B;", StringComparison.Ordinal);
+                return;
             case 7:
                 if (Uri.TryCreate(value, UriKind.Absolute, out var location) && location.IsFile)
                     _workingDirectory = value;

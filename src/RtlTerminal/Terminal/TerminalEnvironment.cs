@@ -18,6 +18,9 @@ public static class TerminalEnvironment
         var prompt = values.GetValueOrDefault("PROMPT", "$P$G");
         if (!prompt.Contains("$e]9;9;", StringComparison.OrdinalIgnoreCase))
             values["PROMPT"] = "$e]9;9;$P$e\\" + prompt;
+        var integratedPrompt = values.GetValueOrDefault("PROMPT", prompt);
+        if (!integratedPrompt.Contains("$e]133;B", StringComparison.OrdinalIgnoreCase))
+            values["PROMPT"] = integratedPrompt + "$e]133;B$e\\";
         if (sessionId is not null) values[SessionVariable] = sessionId;
         var entries = values.GetValueOrDefault("WSLENV", "").Split(':', StringSplitOptions.RemoveEmptyEntries)
             .Where(e => !e.Split('/')[0].Equals("COLORTERM", StringComparison.OrdinalIgnoreCase) &&

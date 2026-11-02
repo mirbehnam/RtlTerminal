@@ -24,6 +24,7 @@ Download `RtlTerminal-Setup-…-x64.exe` from the [latest release](https://githu
 
 ### Features
 
+- **Quick Input.** Write multiline text with image/file tokens in a native editor using `Ctrl+Shift+Space`; Insert or Send to the captured pane, with in-memory drafts and safe-paste checks. [Guide](docs/quick-input.md).
 - **Readable mixed text.** Smart RTL displays Persian, Arabic and English together, with word wrapping and ANSI, 256-color and true-color support.
 - **Tabs and split panes.** Run PowerShell, Command Prompt and installed WSL distributions; split the active pane, combine tabs, rename them and assign tab colors.
 - **Terminal macros.** Record commands and interactive keys, edit steps and replay with pause, resume or single-step controls. Files are encrypted, with optional password protection and sensitive inputs requested at runtime.
@@ -76,6 +77,7 @@ For rendering issues, include your Windows version, shell, command, expected res
 
 ### قابلیت‌ها
 
+- **ورودی سریع:** نوشتن متن چندخطی و پیوست تصویر و فایل با `Ctrl+Shift+Space`، درج یا ارسال به همان پنل، جهت RTL قابل تنظیم و پیش‌نویس مستقل در حافظه. [راهنما](docs/quick-input.md).
 - **نمایش خوانای متن ترکیبی:** پشتیبانی از فارسی، عربی و انگلیسی در کنار هم، انتقال کلمات به خط بعد و رنگ‌های ANSI، پالت ۲۵۶‌رنگ و True Color.
 - **تب‌ها و پنل‌های مجزا:** اجرای PowerShell، Command Prompt و توزیع‌های نصب‌شدهٔ WSL، تقسیم پنل فعال، ترکیب تب‌ها، تغییر نام و رنگ تب.
 - **ماکروهای ترمینال:** ضبط فرمان‌ها و کلیدهای تعاملی، ویرایش مراحل و اجرای مجدد با امکان مکث، ادامه و اجرای گام‌به‌گام. فایل‌ها رمزگذاری می‌شوند و می‌توان برایشان رمز مستقل تعیین کرد یا ورودی‌های حساس را هنگام اجرا پرسید.
@@ -128,6 +130,7 @@ For rendering issues, include your Windows version, shell, command, expected res
 
 ### المميزات
 
+- **الإدخال السريع:** كتابة نص متعدد الأسطر مع مرفقات الصور والملفات عبر `Ctrl+Shift+Space`، وإدراجه أو إرساله إلى الجزء نفسه، مع اتجاه RTL اختياري ومسودة مستقلة في الذاكرة. [الدليل](docs/quick-input.md).
 - **نصوص مختلطة واضحة:** العربية والفارسية والإنجليزية مع التفاف الكلمات ودعم ألوان ANSI و256 لوناً والألوان الحقيقية.
 - **علامات تبويب وأجزاء مستقلة:** تشغيل PowerShell وCommand Prompt وتوزيعات WSL المثبّتة، مع تقسيم الجزء النشط ودمج العلامات وتغيير أسمائها وألوانها.
 - **ماكرو الطرفية:** تسجيل الأوامر والمفاتيح التفاعلية، وتحرير الخطوات وإعادة تشغيلها مع الإيقاف المؤقت والمتابعة والتنفيذ خطوة بخطوة. تُشفّر الملفات مع كلمة مرور اختيارية وإمكانية طلب المدخلات الحساسة أثناء التشغيل.

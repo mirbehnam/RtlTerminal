@@ -16,7 +16,7 @@ namespace RtlTerminal;
 
 
 
-public sealed class ConPtySession : IDisposable
+public sealed partial class ConPtySession : IDisposable
 
 {
     public string SessionId { get; } = Guid.NewGuid().ToString("N");

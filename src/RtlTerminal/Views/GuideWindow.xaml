@@ -163,6 +163,8 @@
                 </Border>
                 <Border Style="{StaticResource GuideCardStyle}">
                     <StackPanel>
+                        <TextBlock x:Name="QuickInputGuideTitle" Style="{StaticResource GuideTitleStyle}"/>
+                        <TextBlock x:Name="QuickInputGuideText" Style="{StaticResource GuideTextStyle}" Margin="0,0,0,16"/>
                         <TextBlock x:Name="ProxyGuideTitle" Style="{StaticResource GuideTitleStyle}"/>
                         <TextBlock x:Name="ProxyGuideLocation" Style="{StaticResource GuideTextStyle}" Margin="0,0,0,10"/>
                         <ItemsControl x:Name="ProxyGuideSections">

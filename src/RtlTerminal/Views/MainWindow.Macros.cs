@@ -19,6 +19,7 @@ public partial class MainWindow
 
     private void SendUserInput(TerminalPane? pane, string input)
     {
+        if (input.Any(c => char.IsControl(c) && c is not ('\t' or '\b'))) pane?.Buffer?.InvalidateQuickInput();
         if (pane?.Session is not { } session || pane.SessionEnded) return;
         if (_macroPane == pane && (_macroCancellation is not null || _macroPreparing)) return;
         if (_macroPane == pane && _macroRecorder is { } recorder)
@@ -44,6 +45,7 @@ public partial class MainWindow
 
     private void SendUserKey(TerminalPane? pane, string input, Key key, ModifierKeys modifiers)
     {
+        if (input.Any(c => char.IsControl(c) && c is not ('\t' or '\b'))) pane?.Buffer?.InvalidateQuickInput();
         if (pane?.Session is not { } session || pane.SessionEnded) return;
         if (_macroPane == pane && (_macroCancellation is not null || _macroPreparing)) return;
         var name = MacroKeys.Name(key, modifiers);
@@ -170,6 +172,7 @@ public partial class MainWindow
             await playback.RunAsync(macro, input =>
             {
                 if (pane.Session != session || pane.SessionEnded) throw new IOException("The target terminal has closed.");
+                if (input.Any(c => char.IsControl(c) && c is not ('\t' or '\b'))) pane.Buffer?.InvalidateQuickInput();
                 session.Write(input);
             }, _macroSettings.TimeoutSeconds, (step, waiting) =>
                 SetMacroStatus($"{(waiting ? "◷" : "▶")} {step}/{macro.Steps.Count} · {pane.Number}"), cancellation.Token,

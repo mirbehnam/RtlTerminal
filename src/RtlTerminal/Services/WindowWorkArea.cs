@@ -6,6 +6,22 @@ namespace RtlTerminal;
 
 internal static class WindowWorkArea
 {
+    public static void PlaceDialog(Window window, FrameworkElement target)
+    {
+        var handle = new WindowInteropHelper(window).Handle;
+        var monitor = MonitorFromWindow(new WindowInteropHelper(Window.GetWindow(target)).Handle, 2);
+        var info = new MonitorInfo { Size = Marshal.SizeOf<MonitorInfo>() };
+        if (!GetMonitorInfo(monitor, ref info)) return;
+        var dpi = System.Windows.Media.VisualTreeHelper.GetDpi(target);
+        var point = target.PointToScreen(new Point(0, 0));
+        var width = Math.Min(window.Width * dpi.DpiScaleX, info.Work.Right - info.Work.Left);
+        var height = Math.Min(window.Height * dpi.DpiScaleY, info.Work.Bottom - info.Work.Top);
+        window.MinWidth = Math.Min(window.MinWidth, width / dpi.DpiScaleX); window.MinHeight = Math.Min(window.MinHeight, height / dpi.DpiScaleY);
+        var x = Math.Clamp(point.X + (target.ActualWidth * dpi.DpiScaleX - width) / 2, info.Work.Left, info.Work.Right - width);
+        var y = Math.Clamp(point.Y + (target.ActualHeight * dpi.DpiScaleY - height) / 2, info.Work.Top, info.Work.Bottom - height);
+        SetWindowPos(handle, IntPtr.Zero, (int)x, (int)y, (int)width, (int)height, 0x14);
+    }
+    [DllImport("user32.dll")] private static extern bool SetWindowPos(IntPtr hwnd, IntPtr after, int x, int y, int width, int height, uint flags);
     public static void Attach(Window window, Func<bool>? isFullScreen = null)
     {
         var source = HwndSource.FromHwnd(new WindowInteropHelper(window).Handle);

@@ -107,6 +107,42 @@ Machine|سیستم|الجهاز
 Flags|پرچم‌ها|الأعلام
 Proxy|پراکسی|الوكيل
 Proxy status unavailable|وضعیت پراکسی در دسترس نیست|حالة الوكيل غير متاحة
+Quick Input|ورودی سریع|الإدخال السريع
+characters|کاراکتر|محرف
+words|کلمه|كلمة
+Write your text here\nInsert adds text without submitting\nSend adds text and presses Enter|متن خود را اینجا بنویسید\nدرج فقط متن را وارد می‌کند\nارسال متن را وارد می‌کند و اینتر می‌فرستد|اكتب نصك هنا\nإدراج يضيف النص دون إرسال\nإرسال يضيف النص ثم يؤكد الإدخال
+Right-to-left writing direction|جهت نوشتن راست‌به‌چپ|اتجاه الكتابة من اليمين إلى اليسار
+The writing direction could not be saved.|جهت نوشتن ذخیره نشد.|تعذر حفظ اتجاه الكتابة.
+Multiline input|ورودی چندخطی|إدخال متعدد الأسطر
+✕  Cancel|✕  لغو|✕  إلغاء
+✓  Confirm|✓  تأیید|✓  تأكيد
+No terminal was selected. Open a terminal, then recover this draft.|نشستی انتخاب نشده بود. یک ترمینال باز کنید و سپس این پیش‌نویس را بازیابی کنید.|لم تُحدد طرفية. افتح طرفية ثم استعد هذه المسودة.
+The clipboard image is too large. Use an image file instead.|تصویر کلیپ‌بورد بیش از حد بزرگ است؛ فایل تصویر را پیوست کنید.|صورة الحافظة كبيرة جداً. أرفق ملف الصورة بدلاً منها.
+Quick Input...|ورودی سریع...|الإدخال السريع...
+Write, edit and insert text into the active terminal.|نوشتن، ویرایش و درج متن در ترمینال فعال.|اكتب النص وحرره وأدرجه في الطرفية النشطة.
+Insert|درج|إدراج
+Send|ارسال|إرسال
+Recover draft|بازیابی پیش‌نویس|استعادة المسودة
+Clear undo history|پاک‌کردن سابقهٔ ویرایش|مسح سجل التراجع
+The clipboard is busy. Please try again.|کلیپ‌بورد در دسترس نیست. دوباره تلاش کنید.|الحافظة مشغولة. حاول مجدداً.
+Invalid clipboard content.|محتوای کلیپ‌بورد معتبر نیست.|محتوى الحافظة غير صالح.
+The destination terminal is no longer available. Your draft was preserved.|نشست مقصد دیگر در دسترس نیست. پیش‌نویس حفظ شد.|الطرفية المستهدفة لم تعد متاحة. تم الاحتفاظ بالمسودة.
+Could not transfer text. Your draft was preserved.|انتقال متن انجام نشد. پیش‌نویس حفظ شد.|تعذر نقل النص. تم الاحتفاظ بالمسودة.
+Write some text before inserting it.|ابتدا متنی بنویسید.|اكتب نصاً أولاً.
+Nothing was inserted. Your draft was preserved.|متنی درج نشد. پیش‌نویس حفظ شد.|لم يُدرج نص. تم الاحتفاظ بالمسودة.
+An attached file is no longer available.|یکی از فایل‌های پیوست دیگر در دسترس نیست.|أحد الملفات المرفقة لم يعد متاحاً.
+The destination changed. Review it and try again.|وضعیت مقصد تغییر کرد. آن را بررسی و دوباره تلاش کنید.|تغيرت حالة الوجهة. راجعها وحاول مجدداً.
+Stop macro playback before inserting text.|پیش از درج متن، اجرای ماکرو را متوقف کنید.|أوقف تشغيل الماكرو قبل إدراج النص.
+Quick Input supports up to 1 MB of text. Shorten the text and try again.|ورودی سریع حداکثر یک مگابایت متن می‌پذیرد. متن را کوتاه‌تر کنید.|يدعم الإدخال السريع نصاً بحجم 1 ميغابايت كحد أقصى. اختصر النص.
+Remove control characters from the text before inserting it.|پیش از درج، کاراکترهای کنترلی را از متن حذف کنید.|أزل محارف التحكم من النص قبل إدراجه.
+This terminal has not enabled safe multiline paste.|این ترمینال درج امن متن چندخطی را فعال نکرده است.|لم تفعّل هذه الطرفية اللصق الآمن متعدد الأسطر.
+This terminal has not enabled safe multiline paste. Insert the text as one line? Line breaks become spaces and tabs become four spaces. Your original draft is preserved.|این ورودی درج امن متن چندخطی را فعال نکرده است. آیا متن به صورت یک خط درج شود؟ شکست خطوط به فاصله و Tab به چهار فاصله تبدیل می‌شود. پیش‌نویس اصلی حفظ می‌شود.|لم تفعّل الطرفية اللصق الآمن متعدد الأسطر. هل تريد إدراج النص كسطر واحد؟ تتحول فواصل الأسطر إلى مسافات وTab إلى أربع مسافات. تبقى المسودة الأصلية محفوظة.
+Terminal input timed out or was cancelled.|مهلت انتقال ورودی تمام شد یا انتقال لغو شد.|انتهت مهلة نقل الإدخال أو أُلغي.
+The terminal input connection is closed.|اتصال ورودی ترمینال بسته است.|اتصال إدخال الطرفية مغلق.
+All 20 temporary images are still in use. Remove an attachment and clear its undo history before adding another image.|هر ۲۰ تصویر موقت هنوز موردنیاز است. یک پیوست را حذف و سابقهٔ ویرایش را پاک کنید، سپس تصویر جدید اضافه کنید.|الصور المؤقتة العشرون لا تزال قيد الاستخدام. احذف مرفقاً وامسح سجل التراجع قبل إضافة صورة أخرى.
+Some text may already have reached the terminal. No further Enter was sent. Your draft was preserved; check the terminal before retrying.|ممکن است بخشی از متن به ترمینال رسیده باشد. Enter دیگری ارسال نشد. پیش‌نویس حفظ شد؛ پیش از تلاش مجدد ترمینال را بررسی کنید.|ربما وصل جزء من النص إلى الطرفية. لم يُرسل Enter إضافي. احتُفظ بالمسودة؛ تحقق من الطرفية قبل المحاولة مجدداً.
+The final Enter may already have reached the terminal. Your draft was preserved; check the terminal before retrying.|ممکن است Enter نهایی به ترمینال رسیده باشد. پیش‌نویس حفظ شد؛ پیش از تلاش مجدد ترمینال را بررسی کنید.|ربما وصل Enter النهائي إلى الطرفية. احتُفظ بالمسودة؛ تحقق من الطرفية قبل المحاولة مجدداً.
+The destination terminal closed during transfer. Some input may have reached it. Your draft was preserved.|نشست مقصد هنگام انتقال بسته شد. ممکن است بخشی از ورودی به آن رسیده باشد. پیش‌نویس حفظ شد.|أُغلقت الطرفية أثناء النقل. ربما وصل جزء من الإدخال. تم الاحتفاظ بالمسودة.
 Download|دانلود|تنزيل
 Download from GitHub|دانلود از گیت‌هاب|تنزيل من GitHub
 Only required font files are downloaded from GitHub.|فقط فایل‌های موردنیاز فونت از گیت‌هاب دانلود می‌شوند.|تُنزّل ملفات الخط المطلوبة فقط من GitHub.
