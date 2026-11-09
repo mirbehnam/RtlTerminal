@@ -1,5 +1,9 @@
 # Terminal macros
 
+The Tools macro menu lists recordings in creation-date order, oldest first.
+Renaming or editing a recording does not move it. Existing recordings without
+creation metadata use their file creation date, preserved when next saved.
+
 Open **Tools → Macros → Start recording** in the terminal pane you want to record. Type the command and respond to its prompts. Choose **Stop recording** (the same menu item), or click the recording indicator beside the preview controls. Enter a name, optionally assign a password and a shortcut, review the expected prompts, and save.
 
 **Tools → Macros → Run** lists saved recordings. **Manage recorded macros** lets you search by name, run, step through, rename, assign shortcuts, change password protection, or delete a recording. The editor has a numbered step list, input/key descriptions, per-step conditions and sensitivity. Add, duplicate, reorder and delete steps; input stays hidden until you choose **Reveal / edit input**. **Macro settings** opens the Macros tab of the application Settings dialog; changes take effect with Apply.

@@ -3,6 +3,27 @@ namespace RtlTerminal;
 public sealed partial class UiText
 {
     private const string TranslationData = """
+Open recent directories|بازکردن پوشه‌های اخیر|فتح المجلدات الأخيرة
+Smart mode|حالت هوشمند|الوضع الذكي
+Always open a new tab|همیشه تب جدید بساز|فتح علامة تبويب جديدة دائماً
+Always use the current tab|همیشه در تب فعلی|استخدام علامة التبويب الحالية دائماً
+Smart mode reuses an untouched tab. After any terminal input, it opens a new tab. In a split tab, only the active pane is replaced.|حالت هوشمند از تب استفاده‌نشده استفاده می‌کند و پس از هر ورودی تب جدید باز می‌کند در حالت اسپلیت فقط پنل فعال جایگزین می‌شود|يستخدم الوضع الذكي علامة التبويب غير المستخدمة ويفتح علامة جديدة بعد أي إدخال في الطرفية وفي العرض المقسّم يُستبدل الجزء النشط فقط
+Replace the current terminal?|آیا ترمینال فعلی جایگزین شود؟|هل تريد استبدال الطرفية الحالية؟
+This tab has received input. Replacing the active pane closes its running session.|در این تب ورودی ثبت شده است جایگزینی پنل فعال نشست در حال اجرای آن را می‌بندد|تلقّت علامة التبويب إدخالاً استبدال الجزء النشط يغلق جلسته الحالية
+No|خیر|لا
+New tab|تب جدید|علامة تبويب جديدة
+Move tab|انتقال تب|نقل علامة التبويب
+Stop macro recording or playback before replacing this terminal.|پیش از جایگزینی ترمینال ضبط یا اجرای ماکرو را متوقف کنید|أوقف تسجيل الماكرو أو تشغيله قبل استبدال الطرفية
+Stop macro recording or playback before moving this tab.|پیش از انتقال تب ضبط یا اجرای ماکرو را متوقف کنید|أوقف تسجيل الماكرو أو تشغيله قبل نقل علامة التبويب
+Terminal bell|زنگ ترمینال|جرس الطرفية
+Play a sound|پخش صدا|تشغيل صوت
+Only when the window is inactive|فقط وقتی پنجره فعال نیست|فقط عندما تكون النافذة غير نشطة
+Bell sound|صدای زنگ|صوت الجرس
+Notification sound|صدای اعلان|صوت الإشعار
+Information sound|صدای اطلاعات|صوت المعلومات
+Warning sound|صدای هشدار|صوت التحذير
+Error sound|صدای خطا|صوت الخطأ
+Test sound|تست صدا|اختبار الصوت
 Scroll tabs left|پیمایش تب‌ها به چپ|تمرير علامات التبويب لليسار
 Scroll tabs right|پیمایش تب‌ها به راست|تمرير علامات التبويب لليمين
 Close terminal|بستن ترمینال|إغلاق الطرفية

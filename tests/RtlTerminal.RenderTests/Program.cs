@@ -19,6 +19,10 @@ internal static partial class Program
     }
     private static void Run()
     {
+        if (Environment.GetCommandLineArgs().Contains("--tab-history-tests")) { CheckTabHistoryFeatures(); return; }
+        if (Environment.GetCommandLineArgs().Contains("--quick-input-fluent-tests")) { CheckQuickInputFluent(); return; }
+        if (Environment.GetCommandLineArgs().Contains("--net10-tests")) { CheckNet10Compatibility(); return; }
+        if (Environment.GetCommandLineArgs().Contains("--bell-tests")) { CheckTerminalBell(); return; }
         if (Environment.GetCommandLineArgs().Contains("--quick-input-tests")) { CheckQuickInput(); return; }
         if (Environment.GetCommandLineArgs().Contains("--quick-input-cli-probe")) { ProbeQuickInputClis().GetAwaiter().GetResult(); return; }
         if (Environment.GetCommandLineArgs().Contains("--optional-font-tests")) { CheckOptionalFonts(Environment.GetCommandLineArgs().Contains("--live")); return; }
@@ -57,6 +61,8 @@ internal static partial class Program
         if (Environment.GetCommandLineArgs().Contains("--conpty-child")) { ConPtyPersianProbe.Child(); return; }
         if (Environment.GetCommandLineArgs().Contains("--conpty-persian")) { ConPtyPersianProbe.Run(); return; }
         UiText.Select(UiLanguage.English, persist: false);
+        CheckNet10Compatibility();
+        CheckTerminalBell();
         CheckProxyManager();
         CheckProxyStatus();
         CheckProxyDefaultsAndHelp();
@@ -72,7 +78,9 @@ internal static partial class Program
         MacroV2Tests.Run().GetAwaiter().GetResult();
         CheckMacroUi();
         CheckQuickInput();
+        CheckQuickInputFluent();
         CheckDirectoryHistory();
+        CheckTabHistoryFeatures();
         CheckTerminalSearchAndZoom();
         CheckBundledFonts();
         var view = new TerminalView

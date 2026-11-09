@@ -12,7 +12,7 @@ using Path = System.Windows.Shapes.Path;
 
 namespace RtlTerminal;
 
-public sealed class QuickInputWindow : Window
+public sealed partial class QuickInputWindow : Window
 {
     public const string ClipboardFormat = "RtlTerminal.QuickInput.v1";
     public const string IconData = "M2,2 H14 V14 H2 Z M5,5 H11 M5,8 H11 M5,11 H8";
@@ -31,7 +31,7 @@ public sealed class QuickInputWindow : Window
     private readonly Button sendAction, insertAction;
     private TaskCompletionSource<bool>? confirmation;
     private bool rtl = true;
-    private readonly TextBlock placeholder = new() { Text = "Write your text here\nInsert adds text without submitting\nSend adds text and presses Enter", FontSize = 15, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(14, 12, 28, 0), VerticalAlignment = VerticalAlignment.Top, IsHitTestVisible = false, Opacity = .7 };
+    private readonly TextBlock placeholder = new() { Text = "Write your text here", FontSize = 15, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(14, 12, 28, 0), VerticalAlignment = VerticalAlignment.Top, IsHitTestVisible = false, Opacity = .7 };
     private readonly TextBlock statistics = new() { FontSize = 11, VerticalAlignment = VerticalAlignment.Bottom, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(3, 0, 10, 3) };
     private readonly System.Windows.Threading.DispatcherTimer statisticsTimer = new(System.Windows.Threading.DispatcherPriority.Background) { Interval = TimeSpan.FromMilliseconds(180) };
     public bool Transferred { get; private set; }
@@ -44,10 +44,10 @@ public sealed class QuickInputWindow : Window
         WindowStartupLocation = WindowStartupLocation.CenterOwner; UseLayoutRounding = true;
         using (var settings = Registry.CurrentUser.OpenSubKey(@"Software\RtlTerminal"))
         { if (settings?.GetValue("QuickInputWidth") is int w && w >= 380) Width = w; if (settings?.GetValue("QuickInputHeight") is int h && h >= 240) Height = h; rtl = settings?.GetValue("QuickInputRtl") is not int direction || direction != 0; }
-        Resources.MergedDictionaries.Add(new() { Source = new Uri("/RtlTerminal;component/Views/ProxyManagerStyles.xaml", UriKind.Relative) });
+        InitializeFluentTheme();
         var frame = new Border { CornerRadius = new CornerRadius(10), BorderThickness = new Thickness(1), Padding = new Thickness(1),
             Effect = new System.Windows.Media.Effects.DropShadowEffect { BlurRadius = 12, ShadowDepth = 2, Opacity = .22 } };
-        frame.SetResourceReference(Border.BackgroundProperty, "MenuBackgroundBrush"); frame.SetResourceReference(Border.BorderBrushProperty, "ToolbarBorderBrush"); Content = frame;
+        frame.SetResourceReference(Border.BackgroundProperty, "QuickInputGlassBrush"); frame.SetResourceReference(Border.BorderBrushProperty, "ToolbarBorderBrush"); Content = frame;
         var layers = new Grid(); frame.Child = layers;
         var root = new DockPanel(); contentRoot = root; layers.Children.Add(root);
         confirmationOverlay = new Border { Visibility = Visibility.Collapsed, Padding = new Thickness(30), CornerRadius = new CornerRadius(9) };
@@ -58,7 +58,7 @@ public sealed class QuickInputWindow : Window
         var close = Button("", () => Close()); close.MinWidth = 28; close.Width = 28; close.Height = 26; close.Padding = new Thickness(7); close.VerticalAlignment = VerticalAlignment.Center;
         var cross = new Path { Data = Geometry.Parse("M1,1 L9,9 M9,1 L1,9"), StrokeThickness = 1.35, StrokeStartLineCap = PenLineCap.Round, StrokeEndLineCap = PenLineCap.Round, Stretch = Stretch.Uniform, Width = 10, Height = 10 };
         cross.SetBinding(Shape.StrokeProperty, new System.Windows.Data.Binding("Foreground") { Source = close }); close.Content = cross;
-        close.SetResourceReference(Control.BackgroundProperty, "MenuBackgroundBrush"); close.BorderThickness = new Thickness(0);
+        close.Background = Brushes.Transparent; close.BorderThickness = new Thickness(0);
         System.Windows.Automation.AutomationProperties.SetName(close, UiText.Get("Close")); DockPanel.SetDock(close, Dock.Right); header.Children.Add(close);
         close.ToolTip = "Escape";
         rtlButton = Button("RTL", ToggleRtl); rtlButton.MinWidth = 42; rtlButton.Height = 24; rtlButton.FontSize = 11;
@@ -91,10 +91,10 @@ public sealed class QuickInputWindow : Window
         var insertGroup = FooterAction("Insert", "Ctrl+Shift+Enter", () => _ = Transfer(false)); insertAction = (Button)insertGroup.Children[0]; buttons.Children.Add(insertGroup);
         var sendGroup = FooterAction("Send", "Ctrl+Enter", () => _ = Transfer(true)); var send = (Button)sendGroup.Children[0];
         sendAction = send;
-        send.SetResourceReference(Control.BackgroundProperty, "AccentBrush"); send.SetResourceReference(Control.ForegroundProperty, "TerminalBackgroundBrush"); buttons.Children.Add(sendGroup);
+        send.Style = (Style)FindResource("AccentButtonStyle"); buttons.Children.Add(sendGroup);
         var editorLayer = new Grid(); editorLayer.Children.Add(draft.Editor); editorLayer.Children.Add(placeholder);
         placeholder.SetResourceReference(TextBlock.ForegroundProperty, "MutedForegroundBrush");
-        draft.Editor.SetResourceReference(Control.BackgroundProperty, "DirectoryBadgeBrush");
+        draft.Editor.SetResourceReference(Control.BackgroundProperty, "QuickInputEditorGlassBrush");
         editorHost = new Border { Margin = new Thickness(8, 0, 8, 0), CornerRadius = new CornerRadius(6), Child = editorLayer }; root.Children.Add(editorHost);
         statisticsTimer.Tick += (_, _) => { statisticsTimer.Stop(); UpdateStatistics(); };
         draft.Editor.TextChanged += EditorTextChanged; UpdateStatistics();
@@ -160,8 +160,7 @@ public sealed class QuickInputWindow : Window
         placeholder.FlowDirection = direction; placeholder.TextAlignment = rtl ? TextAlignment.Right : TextAlignment.Left;
         draft.Editor.FlowDirection = direction; draft.Editor.Document.FlowDirection = direction;
         foreach (var paragraph in draft.Editor.Document.Blocks.OfType<Paragraph>()) paragraph.FlowDirection = direction;
-        rtlButton.SetResourceReference(Control.BackgroundProperty, rtl ? "AccentBrush" : "DirectoryBadgeBrush");
-        rtlButton.SetResourceReference(Control.ForegroundProperty, rtl ? "TerminalBackgroundBrush" : "ChromeForegroundBrush");
+        rtlButton.Style = (Style)FindResource(rtl ? "AccentButtonStyle" : typeof(Button));
         System.Windows.Automation.AutomationProperties.SetName(rtlButton, "RTL " + (rtl ? "On" : "Off"));
     }
     public Task<bool> ConfirmSingleLineAsync()
@@ -174,7 +173,7 @@ public sealed class QuickInputWindow : Window
         var buttons = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 24, 0, 0) };
         var cancel = new Button { Content = "✕  Cancel", Padding = new Thickness(16, 8, 16, 8), Margin = new Thickness(0, 0, 10, 0) };
         var accept = new Button { Content = "✓  Confirm", Padding = new Thickness(16, 8, 16, 8) };
-        accept.SetResourceReference(Control.BackgroundProperty, "AccentBrush"); accept.SetResourceReference(Control.ForegroundProperty, "TerminalBackgroundBrush");
+        accept.Style = (Style)FindResource("AccentButtonStyle");
         cancel.Click += (_, _) => CompleteConfirmation(false); accept.Click += (_, _) => CompleteConfirmation(true);
         buttons.Children.Add(cancel); buttons.Children.Add(accept); body.Children.Add(buttons);
         body.SetResourceReference(TextBlock.ForegroundProperty, "ChromeForegroundBrush");
@@ -247,7 +246,7 @@ public sealed class QuickInputWindow : Window
         pasting = true; draft.Editor.IsReadOnly = true; foreach (var button in actions) button.IsEnabled = false;
         try
         {
-            if (e.SourceDataObject.GetData(ClipboardFormat) is string internalClip && internalClip.Length <= 2_000_000)
+            if (e.SourceDataObject.TryGetData<string>(ClipboardFormat, out var internalClip) && internalClip.Length <= 2_000_000)
             {
                 var clip = JsonSerializer.Deserialize<ClipboardParts>(internalClip) ?? throw new ArgumentException("Invalid clipboard content.");
                 if (clip.Text == null || clip.Attachments == null || clip.Attachments.Count > 1000 ||
@@ -269,18 +268,18 @@ public sealed class QuickInputWindow : Window
                     draft.InsertAttachment(next.Pair.Value.Path, next.Pair.Value.Image); remaining = remaining[(next.Index + next.Pair.Key.Length)..];
                 }
             }
-            else if (e.SourceDataObject.GetData(DataFormats.FileDrop) is string[] files)
+            else if (e.SourceDataObject.TryGetData<string[]>(DataFormats.FileDrop, out var files))
             {
                 foreach (var file in files) { ShellPath.Validate(file); draft.InsertAttachment(System.IO.Path.GetFullPath(file), false); }
             }
-            else if (e.SourceDataObject.GetData(DataFormats.Bitmap) is System.Windows.Media.Imaging.BitmapSource bitmap)
+            else if (e.SourceDataObject.TryGetData<System.Windows.Media.Imaging.BitmapSource>(DataFormats.Bitmap, out var bitmap))
             {
                 if ((long)bitmap.PixelWidth * bitmap.PixelHeight > 50_000_000) throw new ArgumentException("The clipboard image is too large. Use an image file instead.");
                 var frozen = bitmap.Clone(); frozen.Freeze(); var retained = pinned();
                 var path = await Task.Run(() => images.Save(frozen, retained));
                 if (IsVisible) draft.InsertAttachment(path, true);
             }
-            else if (e.SourceDataObject.GetData(DataFormats.UnicodeText) is string text) draft.InsertText(text);
+            else if (e.SourceDataObject.TryGetData<string>(DataFormats.UnicodeText, out var text)) draft.InsertText(text);
         }
         catch (Exception ex) when (ex is IOException or ArgumentException or JsonException or System.Runtime.InteropServices.COMException or UnauthorizedAccessException or NotSupportedException)
         { ShowError(ex is System.Runtime.InteropServices.COMException ? "The clipboard is busy. Please try again." : ex.Message); }

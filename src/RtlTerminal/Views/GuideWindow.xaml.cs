@@ -49,6 +49,10 @@ public partial class GuideWindow : Window
         _shortcutLanguage = language switch { GuideLanguage.Persian => UiLanguage.Persian, GuideLanguage.Arabic => UiLanguage.Arabic, _ => UiLanguage.English };
         string L(string en, string fa, string ar) => ShortcutCatalog.Text(_shortcutLanguage, en, fa, ar);
         FeaturesTab.Header = L("Guide", "راهنما", "الدليل");
+        BellGuideText.Text = L(
+            "Terminal bell: apps can request a Windows sound by sending BEL. Settings → General → Terminal bell lets you disable it, choose a sound, test it, or play only when the window is inactive. This does not detect agent completion; the CLI must send BEL. Windows sound settings may mute playback.",
+            "زنگ ترمینال: برنامه‌ها با ارسال BEL صدای ویندوز را درخواست می‌کنند. در تنظیمات ← عمومی ← زنگ ترمینال، صدا را خاموش، انتخاب یا تست کنید و پخش را به پنجره غیرفعال محدود کنید. پایان کار ایجنت تشخیص داده نمی‌شود؛ ابزار باید BEL بفرستد. تنظیمات صدای ویندوز ممکن است پخش را بی‌صدا کند.",
+            "جرس الطرفية: يمكن للتطبيقات طلب صوت Windows بإرسال BEL. من الإعدادات ← عام ← جرس الطرفية يمكنك تعطيله واختيار الصوت واختباره أو قصره على النافذة غير النشطة. لا يتم اكتشاف انتهاء الوكيل؛ يجب أن ترسل الأداة BEL. قد تكتم إعدادات Windows الصوت.");
         ProxyGuideTitle.Text = L("Proxy Manager", "مدیریت پراکسی", "إدارة الوكيل");
         ProxyGuideLocation.Text = L("Open Tools → Proxy Manager. Use Help inside the dialog for a quick guide.", "از Tools → Proxy Manager باز کنید. راهنمای کوتاه با دکمهٔ راهنما در همان پنجره در دسترس است.", "افتح Tools → Proxy Manager. يتوفر دليل سريع عبر زر المساعدة داخل النافذة.");
         ProxyGuideSections.ItemsSource = ProxyHelpContent.Get(_shortcutLanguage);

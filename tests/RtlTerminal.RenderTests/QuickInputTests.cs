@@ -141,6 +141,7 @@ internal static partial class Program
         var emptyWindow = new QuickInputWindow(emptyDraft, _ => Task.FromResult(new TerminalInputResult(false, false, "test")), emptyImages, () => new HashSet<string>());
         var hint = (TextBlock)typeof(QuickInputWindow).GetField("placeholder", flags)!.GetValue(emptyWindow)!;
         if (hint.Visibility != Visibility.Visible) throw new Exception("Empty editor hint was not visible");
+        if (hint.Text != "Write your text here") throw new Exception("Quick Input must show only the short hint");
         emptyDraft.InsertText("hello دنیا 😀");
         typeof(QuickInputWindow).GetMethod("UpdateStatistics", flags)!.Invoke(emptyWindow, null);
         var count = (TextBlock)typeof(QuickInputWindow).GetField("statistics", flags)!.GetValue(emptyWindow)!;

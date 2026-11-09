@@ -44,7 +44,7 @@ public sealed class DeveloperToolDetectionService
                     "Git" => new GitProxyProvider(executable),
                     "npm" or "pnpm" when string.IsNullOrEmpty(Environment.GetEnvironmentVariable("NPM_CONFIG_USERCONFIG")) => new ProxyFileProvider("npm / pnpm user", Path.Combine(home, ".npmrc"), "", ["proxy", "https-proxy"], false),
                     "Python pip" when string.IsNullOrEmpty(Environment.GetEnvironmentVariable("PIP_CONFIG_FILE")) => new ProxyFileProvider("pip user", Path.Combine(app, "pip", "pip.ini"), "global", ["proxy"], false),
-                    "Gradle" => new ProxyFileProvider("Gradle user", Path.Combine(Environment.GetEnvironmentVariable("GRADLE_USER_HOME") ?? Path.Combine(home, ".gradle"), "gradle.properties"), "", ["systemProp.http.proxyHost", "systemProp.http.proxyPort", "systemProp.https.proxyHost", "systemProp.https.proxyPort", "systemProp.http.nonProxyHosts"], true),
+                    "Gradle" => new ProxyFileProvider("Gradle user", Path.Combine(EnvironmentPaths.ReadOrDefault("GRADLE_USER_HOME", Path.Combine(home, ".gradle")), "gradle.properties"), "", ["systemProp.http.proxyHost", "systemProp.http.proxyPort", "systemProp.https.proxyHost", "systemProp.https.proxyPort", "systemProp.http.nonProxyHosts"], true),
                     "Cargo" => new ProxyFileProvider("Cargo user", CargoPath(home), "http", ["proxy"], false, true),
                     "Maven" => new XmlProxyProvider("Maven user", Path.Combine(home, ".m2", "settings.xml"), true),
                     "NuGet / .NET" => new XmlProxyProvider("NuGet user", Path.Combine(app, "NuGet", "NuGet.Config"), false),
@@ -68,7 +68,7 @@ public sealed class DeveloperToolDetectionService
     }
     private static string CargoPath(string home)
     {
-        var folder = Environment.GetEnvironmentVariable("CARGO_HOME") ?? Path.Combine(home, ".cargo");
+        var folder = EnvironmentPaths.ReadOrDefault("CARGO_HOME", Path.Combine(home, ".cargo"));
         return File.Exists(Path.Combine(folder, "config")) ? Path.Combine(folder, "config") : Path.Combine(folder, "config.toml");
     }
 }
@@ -94,9 +94,9 @@ public sealed class GitProxyProvider(string executable, string? configurationPat
         if (configurationPath != null) return Path.GetFullPath(configurationPath);
         var configured = Environment.GetEnvironmentVariable("GIT_CONFIG_GLOBAL");
         if (!string.IsNullOrEmpty(configured)) return Path.GetFullPath(configured);
-        var home = Environment.GetEnvironmentVariable("HOME") ?? Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        var home = EnvironmentPaths.ReadOrDefault("HOME", Environment.GetFolderPath(Environment.SpecialFolder.UserProfile));
         var conventional = Path.Combine(home, ".gitconfig");
-        var xdg = Path.Combine(Environment.GetEnvironmentVariable("XDG_CONFIG_HOME") ?? Path.Combine(home, ".config"), "git", "config");
+        var xdg = Path.Combine(EnvironmentPaths.ReadOrDefault("XDG_CONFIG_HOME", Path.Combine(home, ".config")), "git", "config");
         return File.Exists(conventional) || !File.Exists(xdg) ? conventional : xdg;
     }
     public ProxyDescriptor Descriptor => new(Name, "schema-1", ConfigPath(), "User");

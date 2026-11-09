@@ -16,6 +16,30 @@ public static class AppSettings
     private const string SettingsKey = @"Software\RtlTerminal";
     private static readonly int[] SupportedHistorySizes = [2000, 5000, 10000];
 
+    public static DirectoryOpenMode LoadDirectoryOpenMode()
+    {
+        using var key = Registry.CurrentUser.OpenSubKey(SettingsKey);
+        return Enum.TryParse<DirectoryOpenMode>(key?.GetValue("DirectoryOpenMode") as string, out var mode) && Enum.IsDefined(mode) ? mode : DirectoryOpenMode.Smart;
+    }
+
+    public static void SaveDirectoryOpenMode(DirectoryOpenMode mode)
+    {
+        using var key = Registry.CurrentUser.CreateSubKey(SettingsKey);
+        key.SetValue("DirectoryOpenMode", (Enum.IsDefined(mode) ? mode : DirectoryOpenMode.Smart).ToString());
+    }
+
+    public static TerminalBellSettings LoadBellSettings()
+    {
+        using var key = Registry.CurrentUser.OpenSubKey(SettingsKey);
+        return TerminalBellSettings.Read(key);
+    }
+
+    public static void SaveBellSettings(TerminalBellSettings settings)
+    {
+        using var key = Registry.CurrentUser.CreateSubKey(SettingsKey);
+        settings.Write(key);
+    }
+
     public static string? LoadTerminalProfile()
     {
         using var key = Registry.CurrentUser.OpenSubKey(SettingsKey);

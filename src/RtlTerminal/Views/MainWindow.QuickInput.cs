@@ -16,7 +16,7 @@ public partial class MainWindow
     private void InitializeQuickInput()
     {
         UpdateQuickInputIcon();
-        Closed += (_, _) => { _quickImages.Dispose(); _quickDrafts.Clear(); };
+        Closed += (_, _) => { RetireQuickInputImages(); _quickDrafts.Clear(); };
         PreProcessInputEventHandler handler = (_, e) =>
         {
             if (e.StagingItem.Input is not KeyEventArgs key || (key.RoutedEvent != Keyboard.PreviewKeyDownEvent && key.RoutedEvent != Keyboard.KeyDownEvent) ||
@@ -79,11 +79,12 @@ public partial class MainWindow
             if (!Valid() || pane.Buffer.QuickInputMode.BracketedPaste != mode.BracketedPaste) return new(false, false, "The destination changed. Review it and try again.");
             pane.Buffer.InvalidateQuickInput();
             var result = await session!.WriteInputAsync(prepared, send, CancellationToken.None);
+            if (result.Success || result.MayHaveWritten) pane.HasUserInput = true;
             if (!Valid()) return new(false, result.MayHaveWritten, "The destination terminal closed during transfer. Some input may have reached it. Your draft was preserved.");
             if (result.Success && _macroPane == pane && _macroRecorder is { } recorder)
                 try { recorder.Record(prepared + (send ? "\r" : ""), MacroRecorder.Prompt(pane.Buffer.CaptureSnapshot())); } catch { RecordingFailed(); }
             return result.Success ? result : result with { Error = result.EnterAttempted ? "The final Enter may already have reached the terminal. Your draft was preserved; check the terminal before retrying." : result.MayHaveWritten ? "Some text may already have reached the terminal. No further Enter was sent. Your draft was preserved; check the terminal before retrying." : result.Error };
-        }, _quickImages, () => _quickDrafts.Values.SelectMany(d => d.RetainedImages).ToHashSet(StringComparer.OrdinalIgnoreCase), orphans)
+        }, _quickImages, () => Application.Current.Windows.OfType<MainWindow>().SelectMany(w => w._quickDrafts.Values).SelectMany(d => d.RetainedImages).ToHashSet(StringComparer.OrdinalIgnoreCase), orphans)
         { Owner = this, PlacementTarget = pane?.Frame ?? (FrameworkElement)this };
         _quickWindow = dialog;
         try { dialog.ShowDialog(); }

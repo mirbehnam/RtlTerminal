@@ -52,6 +52,7 @@ public partial class MainWindow : Window
         _directoryHistory = directoryHistory;
         using var constructionTiming = StartupPerformance.Measure("MainWindow.Initialize");
         using (StartupPerformance.Measure("MainWindow.Xaml")) InitializeComponent();
+        InitializeTerminalBell();
         using (StartupPerformance.Measure("MainWindow.DirectoryHistory")) InitializeDirectoryHistory();
         WireTerminalView(TerminalTextBox);
         UpdateShortcutLabels();
@@ -74,6 +75,7 @@ public partial class MainWindow : Window
         using (StartupPerformance.Measure("MainWindow.Language")) InitializeUiLanguage();
         InitializeWindowStatus();
         InitializeQuickInput();
+        InitializeTabDetach();
         AllowDrop = true;
         PreviewDragOver += Window_PreviewDragOver;
         PreviewDrop += Window_PreviewDrop;
@@ -114,11 +116,11 @@ public partial class MainWindow : Window
     private async Task DropIntoPaneAsync(TerminalPane pane, IDataObject data)
     {
         // Read IDataObject on the UI thread before awaiting; preserve this pane across conversion.
-        if (data.GetData(DataFormats.FileDrop) is string[] files && files.Length > 0)
+        if (data.TryGetData<string[]>(DataFormats.FileDrop, out var files) && files.Length > 0)
             await WriteClipboardPathsAsync(pane, files.Where(f => !string.IsNullOrWhiteSpace(f)).ToArray());
-        else if (data.GetDataPresent(DataFormats.Bitmap) && data.GetData(DataFormats.Bitmap) is BitmapSource bitmap)
+        else if (data.TryGetData<BitmapSource>(DataFormats.Bitmap, out var bitmap))
             await WriteClipboardPathsAsync(pane, [SaveTemporaryImage(bitmap)]);
-        else if (data.GetData(DataFormats.UnicodeText) is string text && text.Length > 0)
+        else if (data.TryGetData<string>(DataFormats.UnicodeText, out var text) && text.Length > 0)
             WritePanePaste(pane, text.Replace("\r\n", "\r").Replace("\n", "\r"));
     }
 
@@ -139,6 +141,7 @@ public partial class MainWindow : Window
     private void StartInitialTerminalAfterRender(object? sender, EventArgs e)
     {
         ContentRendered -= StartInitialTerminalAfterRender;
+        if (_receivingDetachedTab) return;
         StartupPerformance.Mark("MainWindow.FirstFrameBeforeTerminal");
         Dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(() =>
         {
@@ -210,6 +213,7 @@ public partial class MainWindow : Window
     private TerminalPane CreatePane(TerminalProfile profile)
     {
         var pane = new TerminalPane(_nextTabNumber++, profile, GetProfileTitle(profile));
+        pane.Window = this;
         var inUse = _tabs.SelectMany(tab => tab.Panes).Any(other => ReferenceEquals(other.View, TerminalTextBox));
         pane.View = inUse ? CreateTerminalView() : TerminalTextBox;
         // A closed first pane may still own the XAML template through its old frame.
@@ -317,12 +321,7 @@ public partial class MainWindow : Window
 
     private void WireTerminalView(TerminalView view)
     {
-        view.LinkRequested += uri =>
-        {
-            try { Process.Start(new ProcessStartInfo(uri.AbsoluteUri) { UseShellExecute = true }); }
-            catch (Exception exception)
-            { UiText.Show(this, exception.Message, "Open link", MessageBoxButton.OK, MessageBoxImage.Error); }
-        };
+        view.LinkRequested += TerminalView_LinkRequested;
         view.AddHandler(ScrollViewer.ScrollChangedEvent, new ScrollChangedEventHandler(TerminalTextBox_ScrollChanged));
         view.PreviewKeyDown += TerminalTextBox_PreviewKeyDown;
         view.PreviewKeyUp += TerminalTextBox_PreviewKeyUp;
@@ -342,6 +341,7 @@ public partial class MainWindow : Window
         ContentRendered -= StartInitialTerminalAfterRender;
         UiText.Changed -= ApplyUiLanguage;
         _directoryPollTimer.Stop();
+        _renderTimer.Stop(); _resizeTimer.Stop();
         _macroCancellation?.Cancel();
         _macroRecorder = null;
         foreach (var pane in _tabs.SelectMany(tab => tab.Panes))
@@ -989,7 +989,10 @@ public partial class MainWindow : Window
             return;
 
         _macroSettings = settingsWindow.SelectedMacroSettings;
+        AppSettings.SaveBellSettings(settingsWindow.SelectedBellSettings);
+        _terminalBell.UpdateSettings(settingsWindow.SelectedBellSettings);
         _directoryHistory.SetEnabled(settingsWindow.SelectedDirectoryHistoryEnabled);
+        AppSettings.SaveDirectoryOpenMode(settingsWindow.SelectedDirectoryOpenMode);
         _macroSettings.Save();
         ApplyHistorySize(settingsWindow.SelectedHistorySize);
         ApplyFontSettings(settingsWindow.SelectedSettings);
@@ -1913,6 +1916,7 @@ public partial class MainWindow : Window
             };
             System.Windows.Automation.AutomationProperties.SetName(selectButton, tab.Title);
             selectButton.Click += TabButton_Click;
+            WireTabDrag(selectButton, tab);
             selectButton.ContextMenu = CreateTabContextMenu(tab);
             panel.Children.Add(selectButton);
             var grid = new Grid { Width = 248, Height = 32, Margin = new Thickness(-4, 8, -4, 0), Background = Brushes.Transparent, Tag = tab };
@@ -2270,7 +2274,10 @@ public partial class MainWindow : Window
 
     private void CleanupTemporaryClipboardFiles()
     {
-        foreach (var path in _temporaryClipboardFiles)
+        DeferredClipboardFiles.UnionWith(_temporaryClipboardFiles);
+        _temporaryClipboardFiles.Clear();
+        if (OtherTerminalWindowsOpen()) return;
+        foreach (var path in DeferredClipboardFiles)
         {
             try
             {
@@ -2284,7 +2291,7 @@ public partial class MainWindow : Window
             }
         }
 
-        _temporaryClipboardFiles.Clear();
+        DeferredClipboardFiles.Clear();
     }
 
     private void ReadOutputLoop(TerminalPane pane)
@@ -2339,17 +2346,20 @@ public partial class MainWindow : Window
             var output = new string(characters, 0, characterCount);
 
             var snapshot = buffer.Process(output);
+            var window = pane.Window ?? this;
+            if (buffer.ConsumePendingBells() > 0 && !window._windowClosed)
+                window._terminalBell.Notify(window._bellWindowActive);
             pane.Playback?.Observe(snapshot);
             pane.Recorder?.Observe(snapshot);
-            ObserveDirectory(pane, TerminalDirectory.FromReport(snapshot.WorkingDirectory, pane.WslDistribution));
+            window.ObserveDirectory(pane, TerminalDirectory.FromReport(snapshot.WorkingDirectory, pane.WslDistribution));
 
             foreach (var response in snapshot.Responses)
                 session.Write(response);
 
             if (snapshot.Modes.SynchronizedOutput)
-                SuspendRendering(pane, snapshot.Revision);
+                window.SuspendRendering(pane, snapshot.Revision);
             else
-                QueueRender(pane, snapshot);
+                window.QueueRender(pane, snapshot);
         }
         pane.SessionEnded = true;
         pane.Playback?.Close();
@@ -2359,6 +2369,7 @@ public partial class MainWindow : Window
     {
         lock (_renderLock)
         {
+            if (pane.Window is { } owner && !ReferenceEquals(owner, this)) { owner.SuspendRendering(pane, revision); return; }
             pane.LatestQueuedRevision = Math.Max(
                 pane.LatestQueuedRevision,
                 revision);
@@ -2370,6 +2381,7 @@ public partial class MainWindow : Window
     {
         lock (_renderLock)
         {
+            if (pane.Window is { } owner && !ReferenceEquals(owner, this)) { owner.QueueRender(pane, snapshot); return; }
             if (snapshot.Revision < pane.LatestQueuedRevision)
                 return;
 
@@ -2606,6 +2618,8 @@ public partial class MainWindow : Window
         public string? LastHistoryDirectory { get; set; }
         public bool DirectoryPollPending { get; set; }
         public volatile bool SessionEnded;
+        public bool HasUserInput { get; set; }
+        public volatile MainWindow? Window;
         public TerminalBuffer? Buffer { get; set; }
         public CancellationTokenSource? CancellationTokenSource { get; set; }
         public TerminalSnapshot? PendingSnapshot { get; set; }

@@ -163,6 +163,7 @@
                 </Border>
                 <Border Style="{StaticResource GuideCardStyle}">
                     <StackPanel>
+                        <TextBlock x:Name="BellGuideText" Style="{StaticResource GuideTextStyle}" Margin="0,0,0,12"/>
                         <TextBlock x:Name="QuickInputGuideTitle" Style="{StaticResource GuideTitleStyle}"/>
                         <TextBlock x:Name="QuickInputGuideText" Style="{StaticResource GuideTextStyle}" Margin="0,0,0,16"/>
                         <TextBlock x:Name="ProxyGuideTitle" Style="{StaticResource GuideTitleStyle}"/>

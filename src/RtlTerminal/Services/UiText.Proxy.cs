@@ -110,7 +110,7 @@ Proxy status unavailable|وضعیت پراکسی در دسترس نیست|حال
 Quick Input|ورودی سریع|الإدخال السريع
 characters|کاراکتر|محرف
 words|کلمه|كلمة
-Write your text here\nInsert adds text without submitting\nSend adds text and presses Enter|متن خود را اینجا بنویسید\nدرج فقط متن را وارد می‌کند\nارسال متن را وارد می‌کند و اینتر می‌فرستد|اكتب نصك هنا\nإدراج يضيف النص دون إرسال\nإرسال يضيف النص ثم يؤكد الإدخال
+Write your text here|متن خود را اینجا بنویسید|اكتب نصك هنا
 Right-to-left writing direction|جهت نوشتن راست‌به‌چپ|اتجاه الكتابة من اليمين إلى اليسار
 The writing direction could not be saved.|جهت نوشتن ذخیره نشد.|تعذر حفظ اتجاه الكتابة.
 Multiline input|ورودی چندخطی|إدخال متعدد الأسطر

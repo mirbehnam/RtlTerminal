@@ -2,6 +2,16 @@
 
 Open `RtlTerminal.sln` from the repository root in Visual Studio.
 
+Use a stable **.NET 10 SDK** and an IDE with .NET 10/WPF support. The app and
+render tests target `net10.0-windows`; the portable buffer tests target `net10.0`.
+`global.json` accepts stable .NET 10 feature bands and prevents accidental builds
+with an older or preview SDK. GitHub validation and release builds also use .NET 10.
+Self-contained Windows releases include their runtime; framework-dependent local
+builds require the .NET 10 Desktop Runtime.
+
+See the [.NET 10 migration review](dotnet-10-migration.md) for compatibility
+decisions and the self-contained startup verification commands.
+
 | Directory | Contents |
 | --- | --- |
 | `src/RtlTerminal/` | WPF project, application startup and assembly metadata |

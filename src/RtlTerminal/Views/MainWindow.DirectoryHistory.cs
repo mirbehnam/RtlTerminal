@@ -66,7 +66,33 @@ public partial class MainWindow
                 "PowerShell" => TerminalProfile.PowerShell,
                 _ => TerminalProfile.CommandPrompt
             };
-            CreateTerminalTab(profile, entry.Path, entry.Distribution);
+            var tab = _activeTab;
+            var pane = ActivePane;
+            var action = pane is null || tab is null ? DirectoryOpenAction.NewTab :
+                DirectoryOpenPolicy.Decide(AppSettings.LoadDirectoryOpenMode(), tab.Panes.Any(p => p.HasUserInput));
+            if (action == DirectoryOpenAction.Confirm)
+            {
+                var dialog = new DirectoryReplaceWindow { Owner = this };
+                dialog.ShowDialog(); action = dialog.Action;
+                // A dialog must not accidentally replace a different tab or pane.
+                if (!ReferenceEquals(tab, _activeTab) || !ReferenceEquals(pane, ActivePane)) return;
+            }
+            if (action == DirectoryOpenAction.Cancel) return;
+            if (action == DirectoryOpenAction.NewTab) { CreateTerminalTab(profile, entry.Path, entry.Distribution); return; }
+            if (pane is null || tab is null) return;
+            if (tab.Panes.Any(p => p == _macroPane) && (_macroRecorder != null || _macroCancellation != null || _macroPreparing))
+            { UiText.Show(this, "Stop macro recording or playback before replacing this terminal.", "Directory history"); return; }
+            StorePaneSizes();
+            var replacement = CreatePane(profile);
+            replacement.WslDistribution = entry.Distribution;
+            tab.LayoutRoot = tab.LayoutRoot.Replace(pane, new PaneLayout(replacement));
+            tab.Panes[tab.Panes.IndexOf(pane)] = replacement;
+            tab.ActivePane = replacement;
+            pane.IsShown = false;
+            ShowTab(tab);
+            _ = pane.DisposeAsync();
+            StartPane(replacement, entry.Path);
+            replacement.View.Focus();
         }
         catch (Exception ex) { UiText.Show(this, ex.Message, "Directory history"); }
     }

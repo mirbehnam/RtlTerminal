@@ -65,6 +65,16 @@ public sealed record TerminalSnapshot(
 
 public sealed partial class TerminalBuffer
 {
+    private int _pendingBells;
+    public int ConsumePendingBells()
+    {
+        lock (_syncRoot)
+        {
+            var count = _pendingBells;
+            _pendingBells = 0;
+            return count;
+        }
+    }
     private bool _quickInputReady;
     public (bool BracketedPaste, bool Ready) QuickInputMode { get { lock (_syncRoot) return (_bracketedPaste, _quickInputReady); } }
     public void InvalidateQuickInput() { lock (_syncRoot) _quickInputReady = false; }
@@ -354,7 +364,9 @@ public sealed partial class TerminalBuffer
                 _cursorColumn = Math.Min(_columns - 1, ((_cursorColumn / 8) + 1) * 8);
                 break;
             case '\0':
+                break;
             case '\a':
+                if (_pendingBells < int.MaxValue) _pendingBells++;
                 break;
             default:
                 if (char.IsHighSurrogate(character))

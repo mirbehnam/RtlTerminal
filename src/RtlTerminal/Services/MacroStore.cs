@@ -8,6 +8,7 @@ namespace RtlTerminal;
 
 public sealed record MacroEntry(Guid Id, string Name, MacroMode Mode, int Shortcut, bool PasswordProtected)
 {
+    public DateTimeOffset? CreatedAt { get; init; }
     public override string ToString() => Name + " · " + UiText.Get(Mode.ToString()) + " · " + UiText.Get(PasswordProtected ? "Password protected" : "Windows protected") +
         (Shortcut > 0 ? $"  (Ctrl+Shift+Alt+{Shortcut})" : "");
 }
@@ -58,7 +59,8 @@ public sealed class MacroStore
         // Report damaged files instead of silently hiding recordings.
         return Directory.EnumerateFiles(DirectoryPath, "*.rtmacro")
             .Select(path => Guid.TryParseExact(Path.GetFileNameWithoutExtension(path), "N", out var id)
-                ? Read(id).Entry : throw new InvalidDataException("Invalid macro filename."))
+                ? Read(id).Entry is { } entry ? entry with { CreatedAt = entry.CreatedAt ?? new DateTimeOffset(File.GetCreationTimeUtc(path)) } : throw new InvalidDataException("Invalid macro entry.")
+                : throw new InvalidDataException("Invalid macro filename."))
             .OrderBy(e => e.Name, StringComparer.CurrentCultureIgnoreCase).ToArray();
     }
 
@@ -68,7 +70,9 @@ public sealed class MacroStore
         macro.FormatVersion = 2;
         macro.Validate();
         EnsureDirectory();
-        if (List().Any(e => e.Id != macro.Id && macro.Shortcut != 0 && e.Shortcut == macro.Shortcut))
+        var entries = List();
+        var createdAt = entries.FirstOrDefault(e => e.Id == macro.Id)?.CreatedAt ?? DateTimeOffset.UtcNow;
+        if (entries.Any(e => e.Id != macro.Id && macro.Shortcut != 0 && e.Shortcut == macro.Shortcut))
             throw new InvalidOperationException("This macro shortcut is already assigned.");
         var payload = JsonSerializer.SerializeToUtf8Bytes(macro);
         byte[] salt = [], nonce = [], tag = [];
@@ -91,7 +95,7 @@ public sealed class MacroStore
                 }
                 finally { CryptographicOperations.ZeroMemory(key); }
             }
-            var envelope = new Envelope(2, new(macro.Id, macro.Name, macro.Mode, macro.Shortcut, locked), payload, salt, nonce, tag);
+            var envelope = new Envelope(2, new MacroEntry(macro.Id, macro.Name, macro.Mode, macro.Shortcut, locked) { CreatedAt = createdAt }, payload, salt, nonce, tag);
             var clear = JsonSerializer.SerializeToUtf8Bytes(envelope);
             byte[] protectedBytes;
             try { protectedBytes = ProtectedData.Protect(clear, null, DataProtectionScope.CurrentUser); }

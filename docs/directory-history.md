@@ -1,5 +1,23 @@
 # Directory history
 
+## Opening a saved directory
+
+**Settings → History → Open recent directories** offers three modes, saved per user:
+
+- **Smart mode** (default): reuse an untouched tab; open a new tab after any terminal
+  input, including pasted text, Quick Input, macros and interactive keys. Deleting
+  previously typed text does not make a tab untouched again. Terminal output alone
+  does not count as user input.
+- **Always open a new tab**: leave existing sessions intact.
+- **Always use the current tab**: an untouched pane is replaced directly. If the
+  tab has received input, a themed **Yes / No / New tab** confirmation appears.
+  No and Escape preserve the session. Yes closes and replaces the active session.
+
+In split tabs, only the active pane is replaced; neighboring panes keep running.
+The saved shell and WSL distribution are used in all modes. The same preference
+applies to menu entries and selections from the full directory-history window.
+Macro recording/playback must be stopped before replacing its target terminal.
+
 The toolbar folder button after Help shows the last component of the selected pane's live directory. Its tooltip shows the full path; click to use the same Explorer action as the File menu. It follows pane/tab selection and directory changes even when history recording is disabled. Long names are truncated to keep the toolbar compact. A drive root is shown as its drive path; an unknown directory remains disabled until detected.
 
 **File → Last directories** shows the 20 most recently entered directories across tabs and split panes. Visits are detected from each pane, including inactive panes, rather than only recording CMD's startup folder. Command Prompt, PowerShell and WSL retain their shell/distribution information when a history entry is reopened in a new tab.

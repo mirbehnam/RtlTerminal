@@ -113,6 +113,20 @@
         </Grid>
 
         <StackPanel Grid.Row="1" Margin="0,14,0,0">
+            <StackPanel Margin="0,0,0,12">
+                <TextBlock Text="{local:UiText Key='Terminal bell'}" FontWeight="SemiBold" Margin="0,0,0,6" />
+                <WrapPanel VerticalAlignment="Center">
+                    <CheckBox x:Name="BellEnabledCheckBox" Content="{local:UiText Key='Play a sound'}" Margin="0,0,18,0" VerticalAlignment="Center" />
+                    <CheckBox x:Name="BellBackgroundCheckBox" Content="{local:UiText Key='Only when the window is inactive'}" Margin="0,0,18,0" VerticalAlignment="Center" IsEnabled="{Binding IsChecked, ElementName=BellEnabledCheckBox}" />
+                    <ComboBox x:Name="BellSoundComboBox" Width="125" Margin="0,0,8,0" AutomationProperties.Name="{local:UiText Key='Bell sound'}">
+                        <ComboBoxItem Content="{local:UiText Key='Notification sound'}" />
+                        <ComboBoxItem Content="{local:UiText Key='Information sound'}" />
+                        <ComboBoxItem Content="{local:UiText Key='Warning sound'}" />
+                        <ComboBoxItem Content="{local:UiText Key='Error sound'}" />
+                    </ComboBox>
+                    <Button Content="{local:UiText Key='Test sound'}" Click="TestBell_Click" Padding="9,3" />
+                </WrapPanel>
+            </StackPanel>
             <TextBlock Text="{local:UiText Key='HTML preview range'}" Margin="0,0,0,5" />
             <ComboBox x:Name="PreviewScopeComboBox">
                 <ComboBoxItem Content="{local:UiText Key='Current page only'}" />

@@ -27,6 +27,7 @@ public partial class MainWindow
             try { recorder.Record(input, pane.Buffer is { } buffer ? MacroRecorder.Prompt(buffer.CaptureSnapshot()) : ""); }
             catch (Exception) { RecordingFailed(); }
         }
+        if (input.Length > 0) pane.HasUserInput = true;
         session.Write(input);
     }
 
@@ -54,6 +55,7 @@ public partial class MainWindow
             try { recorder.RecordKey(input, pane.Buffer is { } buffer ? MacroRecorder.Prompt(buffer.CaptureSnapshot()) : "", name, MacroKeys.IsIndependent(name)); }
             catch { RecordingFailed(); }
         }
+        if (input.Length > 0) pane.HasUserInput = true;
         session.Write(input);
     }
 
@@ -136,7 +138,7 @@ public partial class MainWindow
         MacroRunMenu.Items.Clear();
         try
         {
-            foreach (var entry in _macroStore.List())
+            foreach (var entry in _macroStore.List().OrderBy(e => e.CreatedAt).ThenBy(e => e.Id))
             {
                 var item = new MenuItem { Header = entry.ToString(), IsEnabled = _macroRecorder is null && _macroCancellation is null && !_macroPreparing };
                 item.Click += async (_, _) => await RunMacro(entry);
@@ -172,6 +174,7 @@ public partial class MainWindow
             await playback.RunAsync(macro, input =>
             {
                 if (pane.Session != session || pane.SessionEnded) throw new IOException("The target terminal has closed.");
+                if (input.Length > 0) pane.HasUserInput = true;
                 if (input.Any(c => char.IsControl(c) && c is not ('\t' or '\b'))) pane.Buffer?.InvalidateQuickInput();
                 session.Write(input);
             }, _macroSettings.TimeoutSeconds, (step, waiting) =>

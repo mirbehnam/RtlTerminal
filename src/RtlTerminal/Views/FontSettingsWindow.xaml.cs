@@ -50,6 +50,7 @@ public partial class FontSettingsWindow : Window
         PaneShortcutSettings? shortcuts = null)
     {
         InitializeComponent();
+        InitializeBellSettings();
         InitializeMacroSettings();
         InitializeDirectoryHistorySettings();
         _fontFamilies = BundledFonts.CatalogNames.Concat(Fonts.SystemFontFamilies

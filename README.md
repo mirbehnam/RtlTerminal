@@ -173,7 +173,7 @@ For rendering issues, include your Windows version, shell, command, expected res
 
 ## Development
 
-Build on Windows with the **.NET 8 SDK**, or open `RtlTerminal.sln` in Visual Studio 2022 with WPF support.
+Build on Windows with the **.NET 10 SDK**, or open `RtlTerminal.sln` in an IDE that supports .NET 10 and WPF. `global.json` selects a stable .NET 10 SDK. Self-contained releases include the runtime, so users do not need to install .NET separately.
 
 ```powershell
 git clone https://github.com/mirbehnam/RtlTerminal.git
