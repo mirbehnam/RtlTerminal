@@ -60,11 +60,15 @@ public sealed record TerminalSnapshot(
     long Revision)
 {
     public int Columns { get; init; }
+    public bool PreserveTuiGrid { get; init; }
+    public bool ClaudeLayout { get; init; }
     public string? WorkingDirectory { get; init; }
 }
 
 public sealed partial class TerminalBuffer
 {
+    public bool PreserveTuiGrid { get; set; }
+    public bool ClaudeLayout { get; set; }
     private int _pendingBells;
     public int ConsumePendingBells()
     {
@@ -1560,7 +1564,7 @@ public sealed partial class TerminalBuffer
                 _sgrMouse,
                 _synchronizedOutput),
             responses,
-            ++_revision) { Columns = _columns, WorkingDirectory = _workingDirectory };
+            ++_revision) { Columns = _columns, WorkingDirectory = _workingDirectory, PreserveTuiGrid = PreserveTuiGrid, ClaudeLayout = ClaudeLayout };
     }
 
     private TerminalLine CreateLine(Cell[] cells, int cellLength, bool preserveTrailingSpaces)

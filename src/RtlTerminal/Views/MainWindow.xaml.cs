@@ -2311,6 +2311,7 @@ public partial class MainWindow : Window
         var characters = new char[Encoding.UTF8.GetMaxCharCount(bytes.Length)];
         var decoder = Encoding.UTF8.GetDecoder();
         var firstOutput = true;
+        long nextCompatibilityCheck = 0;
         var cancellationToken = cancellationTokenSource.Token;
 
         while (!cancellationToken.IsCancellationRequested)
@@ -2345,6 +2346,13 @@ public partial class MainWindow : Window
 
             var output = new string(characters, 0, characterCount);
 
+            if (Environment.TickCount64 >= nextCompatibilityCheck)
+            {
+                var profile = session.ReadTuiCompatibility();
+                buffer.PreserveTuiGrid = profile == TuiCompatibilityProfile.OpenTui;
+                buffer.ClaudeLayout = profile == TuiCompatibilityProfile.Claude;
+                nextCompatibilityCheck = Environment.TickCount64 + 1000;
+            }
             var snapshot = buffer.Process(output);
             var window = pane.Window ?? this;
             if (buffer.ConsumePendingBells() > 0 && !window._windowClosed)

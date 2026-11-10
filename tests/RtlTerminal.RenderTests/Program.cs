@@ -19,6 +19,10 @@ internal static partial class Program
     }
     private static void Run()
     {
+        if (Environment.GetCommandLineArgs().Contains("--claude-demo")) { RunClaudeDemo(); return; }
+        if (Environment.GetCommandLineArgs().Contains("--claude-ui-probe")) { ProbeClaudeUi(); return; }
+        if (Environment.GetCommandLineArgs().Contains("--claude-layout-tests")) { CheckClaudeLayout(); return; }
+        if (Environment.GetCommandLineArgs().Contains("--opentui-probe")) { ProbeOpenTuiPersian(); return; }
         if (Environment.GetCommandLineArgs().Contains("--tab-history-tests")) { CheckTabHistoryFeatures(); return; }
         if (Environment.GetCommandLineArgs().Contains("--quick-input-fluent-tests")) { CheckQuickInputFluent(); return; }
         if (Environment.GetCommandLineArgs().Contains("--net10-tests")) { CheckNet10Compatibility(); return; }
@@ -139,6 +143,7 @@ internal static partial class Program
         CheckLinksAndMenu();
         CheckWrappedLinks();
         CheckRtlModes();
+        CheckClaudeLayout();
         CheckGlyphReuse();
         CheckDialogRedraw();
         CheckCodexPersian();
@@ -304,7 +309,23 @@ internal static partial class Program
         var alternatePositions = Items("Cells").Select(X).ToArray();
         if (positions.Length != alternatePositions.Length || positions.Zip(alternatePositions).Any(pair =>
             Math.Abs((pair.First - minimum) - (pair.Second - alternatePositions.Min())) > .01))
-            throw new Exception("Alternate screen changed mixed-text ordering");
+            throw new Exception("Default/Codex alternate-screen ordering changed");
+        if (positions.Length != alternatePositions.Length || !Items("Glyphs").Any(g => (bool)g.GetType().GetProperty("Rtl")!.GetValue(g)!))
+            throw new Exception("Alternate screen must preserve local Persian shaping");
+        buffer.PreserveTuiGrid = true;
+        var framed = buffer.Process("\x1b[2J\x1b[H│ menu │ سلام English دنیا │ status │");
+        Render(view, framed, "rtl-tui-grid.png");
+        var tuiCells = Items("Cells");
+        double At(int offset) => X(tuiCells.Single(c => (int)c.GetType().GetProperty("Start")!.GetValue(c)! == offset));
+        if (At(framed.Lines[0].Text.IndexOf("English", StringComparison.Ordinal)) >= At(framed.Lines[0].Text.IndexOf("سلام", StringComparison.Ordinal)))
+            throw new Exception("Persian-first mixed TUI text must reorder inside its widget");
+        var logical = ((string)Layout().GetType().GetProperty("Text")!.GetValue(Layout())!);
+        foreach (var cell in Items("Cells"))
+        {
+            var start = (int)cell.GetType().GetProperty("Start")!.GetValue(cell)!;
+            if (logical[start] == '│' && Math.Abs(X(cell) - start * 10.8) > .01)
+                throw new Exception("Persian input moved a TUI border from its fixed column");
+        }
         Render(view, alternate, "rtl-row.png", smartRtl: false, rowRtl: true);
         if (Items("Cells").Select(X).Min() < 100) throw new Exception("Row RTL did not right-align alternate screen text");
         var surface = typeof(TerminalView).GetField("_surface", flags)!.GetValue(view)!;

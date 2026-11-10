@@ -10,6 +10,78 @@ internal readonly record struct DirectionalSpan(
 
 internal static class SmartRtl
 {
+    internal static bool FirstStrongRtl(string text) => text.EnumerateRunes().Where(Rune.IsLetter).Select(GetStrongDirection).FirstOrDefault(d => d >= 0, 0) == 1;
+    internal static bool IsClaudeCodeLine(string text)
+    {
+        var value = text.TrimStart(' ', '\t', '●', '>', '❯');
+        return System.Text.RegularExpressions.Regex.IsMatch(value,
+            @"^(?:[A-Za-z_$][A-Za-z0-9_.$]*\s*(?:\(|=|:)|(?:const|let|var|return|import|from|using|public|private|class|def|function|if|for|while)\b|[{}\[\]]|//|/\*)",
+            System.Text.RegularExpressions.RegexOptions.CultureInvariant, TimeSpan.FromMilliseconds(50));
+    }
+    internal static IReadOnlyList<DirectionalSpan> GetCodeSpans(string text)
+    {
+        var result = new List<DirectionalSpan>();
+        var start = 0;
+        bool RtlAt(int offset) => Rune.TryGetRuneAt(text, offset, out var rune) && IsStrongRtlLetter(rune);
+        for (var i = 0; i < text.Length;)
+        {
+            if (text[i] is '"' or '\'' or '`')
+            {
+                var quote = text[i];
+                result.Add(new(start, i + 1 - start, false));
+                var contentStart = ++i;
+                while (i < text.Length && text[i] != quote)
+                {
+                    if (text[i] == '\\' && i + 1 < text.Length) i += 2; else i++;
+                }
+                var content = text[contentStart..i]; var rtl = FirstStrongRtl(content);
+                var inner = GetDirectionalSpans(content, rtl);
+                foreach (var span in rtl ? inner.Reverse() : inner) result.Add(span with { Start = span.Start + contentStart });
+                if (i < text.Length) { result.Add(new(i, 1, false)); i++; }
+                start = i; continue;
+            }
+            if (!RtlAt(i)) { i++; continue; }
+            if (i > start) result.Add(new(start, i - start, false));
+            start = i;
+            do { i += char.IsSurrogatePair(text, i) ? 2 : 1; }
+            while (i < text.Length && (RtlAt(i) || text[i] == '\u200c' || CharUnicodeInfo.GetUnicodeCategory(text, i) is UnicodeCategory.NonSpacingMark or UnicodeCategory.SpacingCombiningMark));
+            result.Add(new(start, i - start, true)); start = i;
+        }
+        if (start < text.Length) result.Add(new(start, text.Length - start, false));
+        return result;
+    }
+    // Reorder text inside a widget without moving the widget's grid position.
+    // Borders and multi-cell padding separate independent TUI text regions.
+    internal static IReadOnlyList<DirectionalSpan> GetFixedGridSpans(string text)
+    {
+        var result = new List<DirectionalSpan>();
+        var start = 0;
+        void Add(int end)
+        {
+            if (end <= start) return;
+            var content = text[start..end];
+            var first = content.EnumerateRunes().Select(GetStrongDirection).FirstOrDefault(d => d >= 0, 0);
+            var spans = GetDirectionalSpans(content, first == 1);
+            foreach (var span in first == 1 ? spans.Reverse() : spans)
+                result.Add(span with { Start = span.Start + start });
+        }
+        for (var i = 0; i < text.Length;)
+        {
+            var end = i;
+            if (text[i] is >= '\u2500' and <= '\u257f') end = i + 1;
+            else if (char.IsWhiteSpace(text[i]))
+            {
+                while (end < text.Length && char.IsWhiteSpace(text[end])) end++;
+                if (end - i < 2 && i != 0 && end != text.Length) { i = end; continue; }
+            }
+            else { i++; continue; }
+            Add(i);
+            result.Add(new DirectionalSpan(i, end - i, false));
+            start = end; i = end;
+        }
+        Add(text.Length);
+        return result;
+    }
     public static bool IsRightToLeft(TerminalLine line)
     {
         return line.ContainsRightToLeft;

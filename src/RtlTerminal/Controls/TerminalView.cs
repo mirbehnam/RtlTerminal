@@ -122,6 +122,7 @@ public sealed class TerminalView : ContentControl
     {
         // Reflow the presentation only; application cursor commands still target the VT grid.
         var sourceStart = snapshot.ScrollbackStartIndex;
+        var compatibilityChanged = _snapshot?.PreserveTuiGrid != snapshot.PreserveTuiGrid || _snapshot?.ClaudeLayout != snapshot.ClaudeLayout;
         if (sourceStart != _sourceScrollbackStart || lineHeight != _lineHeight ||
             _snapshot?.Modes.AlternateScreen != snapshot.Modes.AlternateScreen) CancelWheelScroll();
         if (sourceStart != _sourceScrollbackStart) ClearSelection();
@@ -147,8 +148,9 @@ public sealed class TerminalView : ContentControl
             previous.CursorColumn == snapshot.CursorColumn && previous.Lines.Count == snapshot.Lines.Count &&
             previous.Lines.Zip(snapshot.Lines).All(pair => ReferenceEquals(pair.First, pair.Second) ||
                 pair.First.CellLength == pair.Second.CellLength && pair.First.WrappedFromPrevious == pair.Second.WrappedFromPrevious && pair.First.Runs.SequenceEqual(pair.Second.Runs));
+        sameFrame &= !compatibilityChanged;
         if (!sameFrame) _rowLinks.Clear();
-        if (trimmed != 0 || _smartRtl != smartRtl || _rowRtl != rowRtl || _cellWidth != cellWidth ||
+        if (compatibilityChanged || trimmed != 0 || _smartRtl != smartRtl || _rowRtl != rowRtl || _cellWidth != cellWidth ||
             _lineHeight != lineHeight || _fontKey != fontKey ||
             _snapshot?.Modes.AlternateScreen != snapshot.Modes.AlternateScreen)
         {
@@ -434,11 +436,22 @@ public sealed class TerminalView : ContentControl
              cached.Source.CellLength == line.CellLength && cached.Source.Runs.SequenceEqual(line.Runs)))
             return cached;
         var text = Text(line);
-        var rightAlign = _rowRtl || SmartRtl.ShouldRightAlign(line, _smartRtl, _snapshot.Modes.AlternateScreen);
+        var claude = _snapshot.ClaudeLayout && _smartRtl && !_rowRtl && line.ContainsRightToLeft;
+        var claudeCode = claude && SmartRtl.IsClaudeCodeLine(text);
+        var claudeGrid = claude && (_snapshot.Modes.AlternateScreen || text.Any(c => c is >= '\u2500' and <= '\u257f'));
+        var claudeRtl = claude && !claudeCode && !claudeGrid && SmartRtl.FirstStrongRtl(text);
+        var rightAlign = _rowRtl || (claude ? claudeRtl : SmartRtl.ShouldRightAlign(line, _smartRtl, _snapshot.Modes.AlternateScreen));
         // Paragraph direction is independent of screen-grid alignment. Shaping
         // Arabic/Persian spans remains active even when Smart RTL is disabled.
-        var baseRtl = _rowRtl || (_smartRtl && line.ContainsRightToLeft);
-        var spans = line.ContainsRightToLeft
+        // A TUI owns absolute screen columns: Persian text must not reverse the
+        // surrounding padding, borders, status labels or neighboring widgets.
+        // Keep local RTL shaping, but only reverse a whole row when explicitly requested.
+        var baseRtl = _rowRtl || (claude ? claudeRtl : _smartRtl && !(_snapshot.Modes.AlternateScreen && _snapshot.PreserveTuiGrid) && line.ContainsRightToLeft);
+        var spans = claudeCode ? SmartRtl.GetCodeSpans(text)
+            : claudeGrid ? SmartRtl.GetFixedGridSpans(text)
+            : line.ContainsRightToLeft && _smartRtl && !_rowRtl && _snapshot.Modes.AlternateScreen && _snapshot.PreserveTuiGrid
+            ? SmartRtl.GetFixedGridSpans(text)
+            : line.ContainsRightToLeft
             ? SmartRtl.GetDirectionalSpans(text, baseRtl)
             : text.Length == 0 ? [] : new[] { new DirectionalSpan(0, text.Length, false) };
         var cells = new List<DrawCell>();
@@ -582,6 +595,13 @@ public sealed class TerminalView : ContentControl
                 foreach (var cell in layout.Cells.OrderBy(cell => cell.Start))
                 { if (_snapshot.CursorColumn >= column && _snapshot.CursorColumn < column + cell.GridWidth / _cellWidth) { cursor = cell; break; } column += (int)Math.Round(cell.GridWidth / _cellWidth); }
                 var rect = new Rect(cursor?.X ?? _snapshot.CursorColumn * _cellWidth, y, Math.Max(_cellWidth, cursor?.Width ?? _cellWidth), _lineHeight);
+                if (_snapshot.PreserveTuiGrid && _snapshot.Modes.AlternateScreen && _smartRtl && !_rowRtl &&
+                    cursor is not null && char.IsWhiteSpace(layout.Text[cursor.Start]))
+                {
+                    var previousCell = layout.Cells.FirstOrDefault(c => c.Start + c.Length == cursor.Start);
+                    if (previousCell is not null && !char.IsWhiteSpace(layout.Text[previousCell.Start]))
+                        rect.X = previousCell.Rtl ? previousCell.X - _cellWidth : previousCell.X + previousCell.Width;
+                }
                 dc.DrawRectangle(new SolidColorBrush(AppTheme.CursorFill), new Pen(new SolidColorBrush(AppTheme.CursorBorder), 1), rect);
             }
         }
