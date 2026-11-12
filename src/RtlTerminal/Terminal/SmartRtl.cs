@@ -10,6 +10,29 @@ internal readonly record struct DirectionalSpan(
 
 internal static class SmartRtl
 {
+    // Already reordered terminal output needs contextual Arabic shaping only.
+    // Keep spaces, numbers, code punctuation and all other VT cells in place.
+    internal static IReadOnlyList<DirectionalSpan> GetVisualOrderSpans(string text)
+    {
+        var spans = new List<DirectionalSpan>();
+        var start = 0;
+        var offset = 0;
+        bool? previous = null;
+        foreach (var rune in text.EnumerateRunes())
+        {
+            var rtl = IsStrongRtlLetter(rune) || rune.Value is 0x200c or 0x200d ||
+                (previous == true && Rune.GetUnicodeCategory(rune) is UnicodeCategory.NonSpacingMark or UnicodeCategory.SpacingCombiningMark);
+            if (previous is not null && previous != rtl)
+            {
+                spans.Add(new DirectionalSpan(start, offset - start, previous.Value));
+                start = offset;
+            }
+            previous = rtl;
+            offset += rune.Utf16SequenceLength;
+        }
+        if (previous is not null) spans.Add(new DirectionalSpan(start, offset - start, previous.Value));
+        return spans;
+    }
     internal static bool FirstStrongRtl(string text) => text.EnumerateRunes().Where(Rune.IsLetter).Select(GetStrongDirection).FirstOrDefault(d => d >= 0, 0) == 1;
     internal static bool IsClaudeCodeLine(string text)
     {

@@ -12,6 +12,7 @@ dotnet publish (Join-Path $projectRoot "src\RtlTerminal\RtlTerminal.csproj") `
     -p:PublishSingleFile=true `
     -p:IncludeNativeLibrariesForSelfExtract=true `
     -p:PublishTrimmed=false `
+    -p:EnableCliTestLab=false `
     -o $publishDirectory
 if ($LASTEXITCODE -ne 0) { throw "dotnet publish failed (exit $LASTEXITCODE)." }
 

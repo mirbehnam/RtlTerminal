@@ -30,6 +30,6 @@ public static class TerminalEnvironment
             ? new[] { "COLORTERM", "TERM_PROGRAM" } : new[] { "COLORTERM", "TERM_PROGRAM", SessionVariable }));
         return values;
     }
-    public static string Block(string? sessionId = null) => string.Join('\0', Create(Environment.GetEnvironmentVariables(), sessionId)
+    public static string Block(string? sessionId = null, IDictionary? inherited = null) => string.Join('\0', Create(inherited ?? Environment.GetEnvironmentVariables(), sessionId)
         .OrderBy(p => p.Key, StringComparer.OrdinalIgnoreCase).Select(p => p.Key + "=" + p.Value)) + "\0\0";
 }

@@ -76,6 +76,9 @@ public partial class MainWindow : Window
         InitializeWindowStatus();
         InitializeQuickInput();
         InitializeTabDetach();
+#if CLI_TEST_LAB
+        InitializeCliTestLab();
+#endif
         AllowDrop = true;
         PreviewDragOver += Window_PreviewDragOver;
         PreviewDrop += Window_PreviewDrop;
@@ -2467,6 +2470,7 @@ public partial class MainWindow : Window
     private void Render(TerminalPane pane, TerminalSnapshot snapshot)
     {
         pane.LastRenderedSnapshot = snapshot;
+        snapshot = TuiCompatibility.ApplyOverride(snapshot, pane.CompatibilityOverride);
         _restoringScrollPosition = true;
         pane.View.Present(snapshot, SmartRtlMenuItem.IsChecked,
             _cellWidth, _lineHeight, pane.FollowOutput, RowRtlMenuItem.IsChecked);
@@ -2627,6 +2631,10 @@ public partial class MainWindow : Window
         public bool DirectoryPollPending { get; set; }
         public volatile bool SessionEnded;
         public bool HasUserInput { get; set; }
+#if CLI_TEST_LAB
+        public IDisposable? CliLabLifetime { get; set; }
+#endif
+        public TuiCompatibilityProfile? CompatibilityOverride { get; set; }
         public volatile MainWindow? Window;
         public TerminalBuffer? Buffer { get; set; }
         public CancellationTokenSource? CancellationTokenSource { get; set; }
@@ -2658,6 +2666,10 @@ public partial class MainWindow : Window
                 }
                 finally
                 {
+#if CLI_TEST_LAB
+                    CliLabLifetime?.Dispose();
+                    CliLabLifetime = null;
+#endif
                     cancellationTokenSource?.Cancel();
                     cancellationTokenSource?.Dispose();
                 }

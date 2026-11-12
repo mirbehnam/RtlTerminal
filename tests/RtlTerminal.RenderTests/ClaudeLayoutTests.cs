@@ -32,6 +32,16 @@ internal static partial class Program
             if (frame.Lines[0].Text.TrimEnd() != code) throw new Exception("Claude layout changed underlying text");
         }
         var english = new TerminalBuffer(70, 16) { ClaudeLayout = true }.Process("English first سپس فارسی");
+        if (!ReferenceEquals(english, TuiCompatibility.ApplyOverride(english, null))) throw new Exception("Auto must preserve detected profile");
+        foreach (var profile in Enum.GetValues<TuiCompatibilityProfile>())
+        {
+            var overridden = TuiCompatibility.ApplyOverride(english, profile);
+            if (overridden.ClaudeLayout != (profile == TuiCompatibilityProfile.Claude) ||
+                overridden.PreserveTuiGrid != (profile == TuiCompatibilityProfile.OpenTui))
+                throw new Exception("Manual compatibility profile was not applied: " + profile);
+            if (!ReferenceEquals(overridden.Lines, english.Lines) || overridden.Modes != english.Modes)
+                throw new Exception("Profile override changed terminal data");
+        }
         Render(view, english, "claude-english-first.png");
         if (X(0) > 1) throw new Exception("Claude English-first paragraph must stay LTR");
         Render(view, english with { ClaudeLayout = false }, "claude-default-unchanged.png");
@@ -40,5 +50,6 @@ internal static partial class Program
         Render(view, persian, "claude-persian-first.png");
         if (X(0) < 100) throw new Exception("Claude Persian-first paragraph lost RTL alignment");
         Console.WriteLine("PASS Claude-only code punctuation, string shaping, mixed text, emoji, raw-text preservation and default-profile isolation");
+        CheckClaudeVisualInput();
     }
 }

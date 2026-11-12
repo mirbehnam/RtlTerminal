@@ -122,12 +122,16 @@ public sealed class TerminalView : ContentControl
     {
         // Reflow the presentation only; application cursor commands still target the VT grid.
         var sourceStart = snapshot.ScrollbackStartIndex;
-        var compatibilityChanged = _snapshot?.PreserveTuiGrid != snapshot.PreserveTuiGrid || _snapshot?.ClaudeLayout != snapshot.ClaudeLayout;
+        var visualOrder = snapshot.ClaudeLayout ? TuiCompatibility.ReadClaudeVisualOrder(snapshot) ?? _claudeVisualOrder : _claudeVisualOrder;
+        var compatibilityChanged = _snapshot?.PreserveTuiGrid != snapshot.PreserveTuiGrid || _snapshot?.ClaudeLayout != snapshot.ClaudeLayout || visualOrder != _claudeVisualOrder;
+        _claudeVisualOrder = visualOrder;
         if (sourceStart != _sourceScrollbackStart || lineHeight != _lineHeight ||
             _snapshot?.Modes.AlternateScreen != snapshot.Modes.AlternateScreen) CancelWheelScroll();
         if (sourceStart != _sourceScrollbackStart) ClearSelection();
         _sourceScrollbackStart = sourceStart;
-        if (smartRtl) snapshot = TerminalWordWrap.Reflow(snapshot);
+        // Claude's visual-order output is already wrapped by its own bidi renderer.
+        // Reflowing those cells as logical paragraphs would reorder wrapped responses.
+        if (smartRtl && !(snapshot.ClaudeLayout && visualOrder && !rowRtl)) snapshot = TerminalWordWrap.Reflow(snapshot);
         IsUpdatingScroll = true;
         Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.ContextIdle,
             () => IsUpdatingScroll = false);
@@ -427,11 +431,14 @@ public sealed class TerminalView : ContentControl
         return (row, (after != closest.Rtl) ? closest.Start + closest.Length : closest.Start);
     }
 
+    private bool _claudeVisualOrder;
+
     private RowLayout Layout(int row)
     {
         var line = _snapshot!.Lines[row];
+        var visualOrder = _snapshot.ClaudeLayout && _claudeVisualOrder && !_rowRtl;
         // Screen snapshots recreate line objects even when their contents are unchanged.
-        if (_layouts.TryGetValue(row, out var cached) &&
+        if (_layouts.TryGetValue(row, out var cached) && cached.VisualOrder == visualOrder &&
             (ReferenceEquals(cached.Source, line) ||
              cached.Source.CellLength == line.CellLength && cached.Source.Runs.SequenceEqual(line.Runs)))
             return cached;
@@ -440,14 +447,15 @@ public sealed class TerminalView : ContentControl
         var claudeCode = claude && SmartRtl.IsClaudeCodeLine(text);
         var claudeGrid = claude && (_snapshot.Modes.AlternateScreen || text.Any(c => c is >= '\u2500' and <= '\u257f'));
         var claudeRtl = claude && !claudeCode && !claudeGrid && SmartRtl.FirstStrongRtl(text);
-        var rightAlign = _rowRtl || (claude ? claudeRtl : SmartRtl.ShouldRightAlign(line, _smartRtl, _snapshot.Modes.AlternateScreen));
+        var rightAlign = !visualOrder && (_rowRtl || (claude ? claudeRtl : SmartRtl.ShouldRightAlign(line, _smartRtl, _snapshot.Modes.AlternateScreen)));
         // Paragraph direction is independent of screen-grid alignment. Shaping
         // Arabic/Persian spans remains active even when Smart RTL is disabled.
         // A TUI owns absolute screen columns: Persian text must not reverse the
         // surrounding padding, borders, status labels or neighboring widgets.
         // Keep local RTL shaping, but only reverse a whole row when explicitly requested.
-        var baseRtl = _rowRtl || (claude ? claudeRtl : _smartRtl && !(_snapshot.Modes.AlternateScreen && _snapshot.PreserveTuiGrid) && line.ContainsRightToLeft);
-        var spans = claudeCode ? SmartRtl.GetCodeSpans(text)
+        var baseRtl = !visualOrder && (_rowRtl || (claude ? claudeRtl : _smartRtl && !(_snapshot.Modes.AlternateScreen && _snapshot.PreserveTuiGrid) && line.ContainsRightToLeft));
+        var spans = visualOrder ? SmartRtl.GetVisualOrderSpans(text)
+            : claudeCode ? SmartRtl.GetCodeSpans(text)
             : claudeGrid ? SmartRtl.GetFixedGridSpans(text)
             : line.ContainsRightToLeft && _smartRtl && !_rowRtl && _snapshot.Modes.AlternateScreen && _snapshot.PreserveTuiGrid
             ? SmartRtl.GetFixedGridSpans(text)
@@ -475,9 +483,9 @@ public sealed class TerminalView : ContentControl
             foreach (var member in members)
             {
                 var width = member.Width * _cellWidth;
-                var cellX = x + (span.IsRightToLeft ? spanWidth - advance - width : advance);
+                var cellX = x + (span.IsRightToLeft && !visualOrder ? spanWidth - advance - width : advance);
                 var style = StyleAt(line, member.Start);
-                cells.Add(new DrawCell(member.Start, member.Length, cellX, width, span.IsRightToLeft, style));
+                cells.Add(new DrawCell(member.Start, member.Length, cellX, width, span.IsRightToLeft && !visualOrder, style));
                 advance += width;
                 // Latin and box-drawing glyphs are positioned at exact cell boundaries.
                 if (!span.IsRightToLeft && width > 0)
@@ -496,14 +504,24 @@ public sealed class TerminalView : ContentControl
                     var firstOffset = members[start].Start;
                     var endOffset = members[i - 1].Start + members[i - 1].Length;
                     var segment = cells.Where(cell => cell.Start >= firstOffset && cell.Start < endOffset).ToArray();
-                    glyphs.Add(new DrawGlyph(text.Substring(firstOffset, endOffset - firstOffset),
+                    var glyph = new DrawGlyph(text.Substring(firstOffset, endOffset - firstOffset),
                         segment.Min(cell => cell.X), segment.Sum(cell => cell.Width), true,
-                        firstOffset, StyleAt(line, firstOffset)));
+                        firstOffset, StyleAt(line, firstOffset));
+                    if (visualOrder && !whitespace)
+                    {
+                        // Claude already chose visual cell order. Reverse only the shaping
+                        // input, retaining an exact map to original VT cells and styles.
+                        var offsets = new List<int>();
+                        foreach (var member in members[start..i].Reverse())
+                            for (var offset = member.Start; offset < member.Start + member.Length; offset++) offsets.Add(offset);
+                        glyph = glyph with { Text = string.Concat(offsets.Select(offset => text[offset])), SourceOffsets = offsets.ToArray() };
+                    }
+                    glyphs.Add(glyph);
                 }
             }
             x += spanWidth;
         }
-        var result = new RowLayout(line, text, cells, glyphs);
+        var result = new RowLayout(line, text, cells, glyphs) { VisualOrder = visualOrder };
         _layouts[row] = result;
         return result;
     }
@@ -638,7 +656,7 @@ public sealed class TerminalView : ContentControl
             var cacheable = !glyph.Rtl && glyph.Text.Length == 1;
             // A uniform Persian word can share shaping and character hit bounds
             // across rows. Mixed ANSI words and links retain their own formatting.
-            var wordCacheable = glyph.Rtl && glyph.Text.Length <= 256 &&
+            var wordCacheable = glyph.SourceOffsets is null && glyph.Rtl && glyph.Text.Length <= 256 &&
                 !links.Any(link => link.Start < glyph.Start + glyph.Text.Length && link.Start + link.Length > glyph.Start) &&
                 HasUniformStyle(layout.Source, glyph.Start, glyph.Text.Length, glyph.Style);
             var wordKey = (glyph.Text, glyph.Style);
@@ -660,9 +678,9 @@ public sealed class TerminalView : ContentControl
                 BrushFor(Colors(glyph.Style).Foreground), VisualTreeHelper.GetDpi(this).PixelsPerDip);
             for (var index = 0; index < glyph.Text.Length;)
             {
-                var style = StyleAt(layout.Source, glyph.Start + index);
+                var style = StyleAt(layout.Source, glyph.SourceOffset(index));
                 var end = index + 1;
-                while (end < glyph.Text.Length && StyleAt(layout.Source, glyph.Start + end) == style) end++;
+                while (end < glyph.Text.Length && StyleAt(layout.Source, glyph.SourceOffset(end)) == style) end++;
                 formatted.SetForegroundBrush(BrushFor(Colors(style).Foreground), index, end - index);
                 formatted.SetFontWeight(style.Bold ? FontWeights.Bold : FontWeight, index, end - index);
                 formatted.SetFontStyle(style.Italic ? FontStyles.Italic : FontStyle, index, end - index);
@@ -677,8 +695,12 @@ public sealed class TerminalView : ContentControl
                 var start = Math.Max(glyph.Start, link.Start); var end = Math.Min(glyph.Start + glyph.Text.Length, link.Start + link.Length);
                 if (end <= start) continue;
                 if (glyph.Style.Hidden) continue;
-                formatted.SetForegroundBrush(Brushes.CornflowerBlue, start - glyph.Start, end - start);
-                formatted.SetTextDecorations(TextDecorations.Underline, start - glyph.Start, end - start);
+                for (var index = 0; index < glyph.Text.Length; index++)
+                    if (glyph.SourceOffset(index) >= start && glyph.SourceOffset(index) < end)
+                    {
+                        formatted.SetForegroundBrush(Brushes.CornflowerBlue, index, 1);
+                        formatted.SetTextDecorations(TextDecorations.Underline, index, 1);
+                    }
             }
             glyph.Formatted = formatted;
             if (wordCacheable && !_wordCache.ContainsKey(wordKey))
@@ -708,7 +730,8 @@ public sealed class TerminalView : ContentControl
                     var cell = layout.Cells[i];
                     if (cell.Start < glyph.Start || cell.Start >= glyph.Start + glyph.Text.Length) continue;
                     var boundsCache = glyph.HighlightBounds ??= [];
-                    var key = (cell.Start - glyph.Start, cell.Length);
+                    var key = (glyph.SourceOffsets is null ? cell.Start - glyph.Start : Array.IndexOf(glyph.SourceOffsets, cell.Start), cell.Length);
+                    if (key.Item1 < 0) continue;
                     if (!boundsCache.TryGetValue(key, out var bounds))
                     {
                         bounds = formatted.BuildHighlightGeometry(new Point(0, 0), key.Item1, key.Item2)?.Bounds ?? Rect.Empty;
@@ -796,12 +819,15 @@ public sealed class TerminalView : ContentControl
     }
     private sealed record DrawGlyph(string Text, double X, double Width, bool Rtl, int Start, TerminalStyle Style)
     {
+        public int[]? SourceOffsets { get; init; }
+        public int SourceOffset(int offset) => SourceOffsets is null ? Start + offset : SourceOffsets[offset];
         public FormattedText? Formatted { get; set; }
         public Dictionary<(int Start, int Length), Rect>? HighlightBounds { get; set; }
     }
     private sealed record ShapedWord(FormattedText Formatted, Dictionary<(int Start, int Length), Rect> HighlightBounds);
     private sealed record RowLayout(TerminalLine Source, string Text, List<DrawCell> Cells, List<DrawGlyph> Glyphs)
     {
+        public bool VisualOrder { get; init; }
         public DrawingGroup? Drawing { get; set; }
         public IReadOnlyList<TerminalLinkSpan> Links { get; set; } = [];
     }

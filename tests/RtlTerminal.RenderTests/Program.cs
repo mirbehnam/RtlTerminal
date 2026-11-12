@@ -19,6 +19,10 @@ internal static partial class Program
     }
     private static void Run()
     {
+        if (Environment.GetCommandLineArgs().Contains("--cli-lab-tests")) { CheckCliLab(); return; }
+#if CLI_TEST_LAB
+        if (Environment.GetCommandLineArgs().Contains("--cli-lab-live")) { ProbeCliLab().GetAwaiter().GetResult(); return; }
+#endif
         if (Environment.GetCommandLineArgs().Contains("--claude-demo")) { RunClaudeDemo(); return; }
         if (Environment.GetCommandLineArgs().Contains("--claude-ui-probe")) { ProbeClaudeUi(); return; }
         if (Environment.GetCommandLineArgs().Contains("--claude-layout-tests")) { CheckClaudeLayout(); return; }

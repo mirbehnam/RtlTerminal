@@ -22,7 +22,7 @@
 
     <Description>RTL-enabled terminal for Persian language users.</Description>
 
-    <Version>1.1.8</Version>
+    <Version>1.1.9</Version>
 
     <Nullable>enable</Nullable>
 
@@ -31,8 +31,14 @@
     <UseWPF>true</UseWPF>
 
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <EnableCliTestLab Condition="'$(EnableCliTestLab)' == '' and '$(Configuration)' != 'Release'">true</EnableCliTestLab>
+    <EnableCliTestLab Condition="'$(EnableCliTestLab)' == ''">false</EnableCliTestLab>
+    <DefineConstants Condition="'$(EnableCliTestLab)' == 'true'">$(DefineConstants);CLI_TEST_LAB</DefineConstants>
 
   </PropertyGroup>
+  <ItemGroup Condition="'$(EnableCliTestLab)' != 'true'">
+    <Compile Remove="Diagnostics/CliLab/**/*.cs" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Windows.Console.ConPTY" Version="1.25.260930003" GeneratePathProperty="true" ExcludeAssets="build;runtime;native" />

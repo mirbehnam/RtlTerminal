@@ -105,7 +105,7 @@ private const int PROC_THREAD_ATTRIBUTE_PSEUDOCONSOLE = 0x00020016;
 
 
 
-    public void Start(string commandLine, string? workingDirectory = null)
+    public void Start(string commandLine, string? workingDirectory = null, System.Collections.IDictionary? environment = null)
 
     {
         using var timing = StartupPerformance.Measure("ConPty.Start");
@@ -165,20 +165,20 @@ private const int PROC_THREAD_ATTRIBUTE_PSEUDOCONSOLE = 0x00020016;
 
 
 
-        IntPtr environment;
-        using (StartupPerformance.Measure("ConPty.EnvironmentBlock")) environment = Marshal.StringToHGlobalUni(TerminalEnvironment.Block(SessionId));
+        IntPtr environmentBlock;
+        using (StartupPerformance.Measure("ConPty.EnvironmentBlock")) environmentBlock = Marshal.StringToHGlobalUni(TerminalEnvironment.Block(SessionId, environment));
         try
         {
             bool success;
             using (StartupPerformance.Measure("ConPty.CreateProcess"))
             {
                 success = CreateProcess(null, command, IntPtr.Zero, IntPtr.Zero, false,
-                    EXTENDED_STARTUPINFO_PRESENT | 0x00000400, environment, workingDirectory,
+                    EXTENDED_STARTUPINFO_PRESENT | 0x00000400, environmentBlock, workingDirectory,
                     ref startupInfo, out _processInfo);
                 if (!success) throw new Win32Exception(Marshal.GetLastWin32Error());
             }
         }
-        finally { Marshal.FreeHGlobal(environment); }
+        finally { Marshal.FreeHGlobal(environmentBlock); }
     }
 
 

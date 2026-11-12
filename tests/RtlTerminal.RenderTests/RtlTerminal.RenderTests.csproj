@@ -5,6 +5,8 @@
     <UseWPF>true</UseWPF>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <EnableCliTestLab Condition="'$(EnableCliTestLab)' == '' and '$(Configuration)' != 'Release'">true</EnableCliTestLab>
+    <DefineConstants Condition="'$(EnableCliTestLab)' == 'true'">$(DefineConstants);CLI_TEST_LAB</DefineConstants>
   </PropertyGroup>
   <ItemGroup><ProjectReference Include="../../src/RtlTerminal/RtlTerminal.csproj" /></ItemGroup>
 </Project>

@@ -707,6 +707,12 @@
                           ToolTip="{local:UiText Key='Use right-to-left layout only for lines containing RTL letters'}"
                           Checked="SmartRtlMenuItem_Changed"
                           Unchecked="SmartRtlMenuItem_Changed" />
+                <MenuItem x:Name="CompatibilityMenuItem" Header="{local:UiText Key='Compatibility profile'}" SubmenuOpened="CompatibilityMenu_Opened">
+                    <MenuItem Header="Auto" Tag="Auto" IsCheckable="True" Click="CompatibilityProfile_Click" />
+                    <MenuItem Header="Default" Tag="Default" IsCheckable="True" Click="CompatibilityProfile_Click" />
+                    <MenuItem Header="Claude" Tag="Claude" IsCheckable="True" Click="CompatibilityProfile_Click" />
+                    <MenuItem Header="OpenCode–MiMo" Tag="OpenTui" IsCheckable="True" Click="CompatibilityProfile_Click" />
+                </MenuItem>
                 <MenuItem x:Name="RowRtlMenuItem" Header="{local:UiText Key='Row RTL'}" IsCheckable="True" IsChecked="False"
                           ToolTip="{local:UiText Key='Force right-to-left direction and right alignment for every row, including full-screen applications. This may move application borders.'}"
                           Checked="SmartRtlMenuItem_Changed" Unchecked="SmartRtlMenuItem_Changed" />
@@ -717,7 +723,7 @@
                 <Separator x:Name="ResetZoomSeparator" Visibility="Collapsed" />
                 <MenuItem Header="{local:UiText Key='Full screen'}" InputGestureText="F11" Click="FullScreenMenuItem_Click" />
             </MenuItem>
-            <MenuItem Header="{local:UiText Key='_Tools'}">
+            <MenuItem x:Name="ToolsMenuItem" Header="{local:UiText Key='_Tools'}">
                 <MenuItem Header="{local:UiText Key='Quick Input...'}" InputGestureText="Ctrl+Shift+Space" Click="QuickInput_Click">
                     <MenuItem.Icon><Path Data="M2,2 H14 V14 H2 Z M5,5 H11 M5,8 H11 M5,11 H8" Width="14" Height="14" Stretch="Uniform" Stroke="{DynamicResource ChromeForegroundBrush}" StrokeThickness="1.3"/></MenuItem.Icon>
                 </MenuItem>

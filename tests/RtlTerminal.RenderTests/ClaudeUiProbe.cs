@@ -10,6 +10,9 @@ internal static partial class Program
     private static void ProbeClaudeUi()
     {
         var exe = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Microsoft", "WinGet", "Packages", "Anthropic.ClaudeCode_Microsoft.Winget.Source_8wekyb3d8bbwe", "claude.exe");
+        var arguments = Environment.GetCommandLineArgs();
+        var executableArgument = Array.IndexOf(arguments, "--claude-exe");
+        if (executableArgument >= 0) exe = Path.GetFullPath(arguments[executableArgument + 1]);
         if (!File.Exists(exe)) throw new FileNotFoundException("Claude Code executable not found", exe);
         var root = Path.GetFullPath(Path.Combine("artifacts", "claude-ui-probe-" + Guid.NewGuid().ToString("N"))); Directory.CreateDirectory(root);
         var emptyMcp = Path.Combine(root, "mcp.json"); File.WriteAllText(emptyMcp, "{\"mcpServers\":{}}");
@@ -59,7 +62,12 @@ internal static partial class Program
                 {
                     var setup = string.Join("\n", frame.Lines.Select(l => l.Text));
                     if (setup.Contains("Yes, I trust this folder", StringComparison.Ordinal))
-                    { session.Write("\r"); await Task.Delay(2000); frame = buffer.CaptureSnapshot(); }
+                    {
+                        // Newer Claude defaults to No. Confirm only this generated test workspace.
+                        if (setup.Contains("> No, exit", StringComparison.Ordinal) || setup.Contains("❯ No, exit", StringComparison.Ordinal))
+                        { session.Write("\x1b[B"); await Task.Delay(250); }
+                        session.Write("\r"); await Task.Delay(2000); frame = buffer.CaptureSnapshot();
+                    }
                     setup = string.Join("\n", frame.Lines.Select(l => l.Text));
                     if (setup.Contains("Do you want to use this API key?", StringComparison.Ordinal))
                     { session.Write("\x1b[A"); await Task.Delay(250); session.Write("\r"); await Task.Delay(2000); frame = buffer.CaptureSnapshot(); }
@@ -71,7 +79,10 @@ internal static partial class Program
                         var written = await session.WriteInputAsync(cases[i], false, default);
                         if (!written.Success) throw new Exception("Local UI input transfer failed");
                         await Task.Delay(500); frame = buffer.CaptureSnapshot();
-                        var visible = frame.Lines.Any(l => l.Text.Contains(cases[i], StringComparison.Ordinal));
+                        var expectedVisual = new[] { "hello English", "ایند مالس", "src/test.cs ایند English مالس" };
+                        var modernVisual = TuiCompatibility.ReadClaudeVisualOrder(frame) == true;
+                        var visible = frame.Lines.Any(l => l.Text.Contains(modernVisual ? expectedVisual[i] : cases[i], StringComparison.Ordinal));
+                        Console.WriteLine("Claude input cursor=" + frame.CursorRow + ", visual input region=" + TuiCompatibility.IsClaudeInputRow(frame, frame.CursorRow));
                         Console.WriteLine("Claude input case " + i + ": visible=" + visible);
                         if (!visible) failures.Add("Input fixture " + i + " was not visible");
                         captures.Add(("input-" + i, frame));
@@ -83,6 +94,10 @@ internal static partial class Program
                     captures.Add(("streamed-response", frame));
                     var received = frame.Lines.Any(l => l.Text.Contains("LOCAL_UI_TEST_OK"));
                     if (!received || mock.Requests == 0) failures.Add("Local streamed response was not verified");
+                    var submitted = mock.LastUserText ?? "";
+                    while (submitted.StartsWith("<system-reminder>", StringComparison.Ordinal) && submitted.IndexOf("</system-reminder>", StringComparison.Ordinal) is var end && end >= 0)
+                        submitted = submitted[(end + "</system-reminder>".Length)..].TrimStart('\r', '\n');
+                    if (submitted != cases[^1]) failures.Add("Submitted mixed prompt was not preserved in logical order");
                     Console.WriteLine("Claude local streamed response: marker=" + received + ", requests=" + mock.Requests);
                     session.Resize(70, 30); buffer.Resize(70, 30); await Task.Delay(600);
                     frame = buffer.CaptureSnapshot(); captures.Add(("resized", frame));
@@ -102,6 +117,7 @@ internal static partial class Program
         captures.Add(("startup", snapshot));
         foreach (var capture in captures)
         {
+        File.WriteAllText(Path.Combine(root, "claude-" + capture.Name + ".txt"), string.Join("\n", capture.Snapshot.Lines.Select(line => line.Text)));
         var width = capture.Snapshot.Columns * 10.8 + 20;
         view.Width = width;
         view.Present(capture.Snapshot, true, 10.8, 25, true); view.Measure(new Size(width, 780)); view.Arrange(new Rect(0, 0, width, 780)); view.UpdateLayout();

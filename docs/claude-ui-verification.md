@@ -1,5 +1,66 @@
 # Claude Code UI verification
 
+## Claude 2.1.322 reproduction (2026-11-12)
+
+Downloaded the isolated Windows x64 binary from the official release endpoint;
+SHA-256 verified against its official manifest:
+`345996b4bdbae21d817f750fae2f34cbf8d81224a5444c78136091d121beb298`.
+The existing installed version was not replaced. The probe accepts `--claude-exe`
+to test another binary without installation:
+
+```powershell
+artifacts/claude-profile-validation/RtlTerminal.RenderTests.exe --claude-ui-probe --mock --claude-exe artifacts/claude-2.1.322/claude.exe
+```
+
+The new workspace trust screen defaults to No, unlike the earlier fixture.
+The probe now explicitly selects Yes only for its generated temporary workspace.
+English input passed and the local streamed response completed (one mock request).
+Persian and mixed input assertions failed: the captured buffer contains
+`ایند مالس` for input `سلام دنیا`, and
+`src/test.cs ایند English مالس` for `سلام English دنیا src/test.cs`.
+These reordered characters are present before WPF layout; this is not merely a
+failure to recognize `claude.exe`. The generated PNG also shows incorrect Persian
+ordering. This was the **pre-fix reproduction**; the older 2.1.50 result did not cover it.
+Captures and raw text: `artifacts/claude-ui-probe-621abcff9b134c33b960408588379948`.
+
+### Visual-order correction and verification
+
+The Claude profile recognizes the version banner and, for 2.1.322 and newer,
+preserves visual cell order for input, prompt history, responses and code alike.
+Persian words are converted back to logical order solely for contextual glyph
+shaping. A source-offset map preserves styles, links, selection hit testing and
+cursor positions; the VT buffer and transmitted input remain untouched.
+Spaces and ASCII punctuation stay in their original cells; only Arabic-script
+letter spans receive contextual shaping. The CLI owns wrapping of visual-order
+output, so logical Persian paragraph reflow is bypassed in this mode.
+Older Claude versions and other CLI profiles retain their existing layout.
+Explicit Row RTL remains an override.
+
+The updated 2.1.322 local integration probe passed English, Persian and mixed
+input, fixture response streaming, resize and exact logical prompt submission
+(excluding Claude's separately added system reminder). Post-fix captures:
+`artifacts/claude-ui-probe-005d623b86584e04bb63c58ce6644d8f`.
+The same probe also passed on 2.1.50. Renderer regressions cover the visual cell
+ordering, shaping-source mapping, ZWNJ, emoji and older-version isolation, plus
+response words, code strings, ASCII punctuation positions and visual wrapping.
+The complete existing render regression suite passed.
+
+This is a version-gated compatibility rule tested on 2.1.322, not a terminal
+protocol guarantee for future Claude releases. Detecting the version banner is
+required; sessions attached after the banner has disappeared may need a fresh
+Claude launch. Fullscreen mode has not been separately verified.
+The mock tests rendering and transport, not real model behavior.
+
+## Manual rendering profile
+
+View → Compatibility profile offers Auto (initial default), Default, Claude and
+OpenCode–MiMo. The choice affects only the active pane, survives moving that pane
+to another tab/window, and lasts for that pane's lifetime. It is not a global
+preference. Switching re-renders immediately, without requiring new CLI output;
+Auto returns to the latest automatically detected profile. Smart RTL and Row RTL
+remain separate controls. Claude enables the visual-order correction above when
+the version banner is available; Default disables it.
+
 ## Interactive local demo
 
 Run `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/start-claude-demo.ps1`.

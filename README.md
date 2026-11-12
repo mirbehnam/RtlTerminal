@@ -184,6 +184,8 @@ dotnet run --project src/RtlTerminal/RtlTerminal.csproj
 
 To create a self-contained build, run `./scripts/build-release.ps1`. With **Inno Setup 6** available on PATH, it also creates the installer. Keep the adjacent `ConPty` folder with the executable when distributing a portable build.
 
+Development builds include **Tools → CLI Test Lab** for testing installed Claude, OpenCode and MiMo versions with isolated configuration and local sample responses. Use `./scripts/build-preview.ps1` for an optimized preview; official release builds exclude the lab. See the [CLI Test Lab guide](docs/cli-test-lab.md).
+
 [Build, tests and repository layout](docs/project-layout.md) · [Renderer internals](docs/renderer.md) · [WinGet distribution](docs/winget.md) · [Security policy](SECURITY.md)
 
 Bug reports, translations and pull requests are welcome.

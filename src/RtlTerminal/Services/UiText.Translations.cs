@@ -3,6 +3,7 @@ namespace RtlTerminal;
 public sealed partial class UiText
 {
     private const string TranslationData = """
+Compatibility profile|پروفایل سازگاری|ملف التوافق
 Open recent directories|بازکردن پوشه‌های اخیر|فتح المجلدات الأخيرة
 Smart mode|حالت هوشمند|الوضع الذكي
 Always open a new tab|همیشه تب جدید بساز|فتح علامة تبويب جديدة دائماً

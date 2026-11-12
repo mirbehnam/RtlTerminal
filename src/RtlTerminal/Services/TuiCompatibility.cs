@@ -6,6 +6,37 @@ internal enum TuiCompatibilityProfile { Default, OpenTui, Claude }
 
 internal static class TuiCompatibility
 {
+    internal static bool? ReadClaudeVisualOrder(TerminalSnapshot snapshot)
+    {
+        foreach (var line in snapshot.Lines.Skip(snapshot.ScrollbackCount).Reverse())
+        {
+            if (!line.Text.Contains("Claude Code v", StringComparison.Ordinal)) continue;
+            var match = System.Text.RegularExpressions.Regex.Match(line.Text, @"Claude Code v(\d+\.\d+\.\d+)",
+                System.Text.RegularExpressions.RegexOptions.CultureInvariant, TimeSpan.FromMilliseconds(50));
+            if (match.Success && Version.TryParse(match.Groups[1].Value, out var version))
+                return version >= new Version(2, 1, 322);
+        }
+        return null;
+    }
+
+    internal static bool IsClaudeInputRow(TerminalSnapshot snapshot, int row)
+    {
+        var cursor = snapshot.CursorRow;
+        if (cursor < 0 || cursor >= snapshot.Lines.Count) return false;
+        static bool Border(TerminalLine line) => line.Text.Trim().Length >= 3 && line.Text.Trim().All(c => c is '─' or '━' or ' ');
+        var top = cursor - 1;
+        while (top >= 0 && !Border(snapshot.Lines[top])) top--;
+        var bottom = cursor + 1;
+        while (bottom < snapshot.Lines.Count && !Border(snapshot.Lines[bottom])) bottom++;
+        if (top < 0 || bottom >= snapshot.Lines.Count || row <= top || row >= bottom) return false;
+        var prompt = snapshot.Lines[top + 1].Text.TrimStart();
+        return prompt.Length >= 2 && prompt[0] is '>' or '❯' && char.IsWhiteSpace(prompt[1]);
+    }
+
+    internal static TerminalSnapshot ApplyOverride(TerminalSnapshot snapshot, TuiCompatibilityProfile? profile) => profile is null
+        ? snapshot
+        : snapshot with { ClaudeLayout = profile == TuiCompatibilityProfile.Claude, PreserveTuiGrid = profile == TuiCompatibilityProfile.OpenTui };
+
     internal static bool IsFixedGridApp(string name) => name.Equals("opencode.exe", StringComparison.OrdinalIgnoreCase) ||
         name.Equals("opencode2.exe", StringComparison.OrdinalIgnoreCase) || name.Equals("mimo.exe", StringComparison.OrdinalIgnoreCase);
 

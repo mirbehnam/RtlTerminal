@@ -10,6 +10,9 @@ internal static partial class Program
     private static void RunClaudeDemo()
     {
         var exe = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Microsoft", "WinGet", "Packages", "Anthropic.ClaudeCode_Microsoft.Winget.Source_8wekyb3d8bbwe", "claude.exe");
+        var arguments = Environment.GetCommandLineArgs();
+        var executableArgument = Array.IndexOf(arguments, "--claude-exe");
+        if (executableArgument >= 0) exe = Path.GetFullPath(arguments[executableArgument + 1]);
         if (!File.Exists(exe)) throw new FileNotFoundException("Claude Code is not installed at the expected location.", exe);
         var root = Path.GetFullPath(Path.Combine("artifacts", "claude-interactive-demo-mixed"));
         Directory.CreateDirectory(root);
@@ -35,7 +38,7 @@ internal static partial class Program
         var profileType = typeof(MainWindow).GetNestedType("TerminalProfile", BindingFlags.NonPublic)!;
         var pane = typeof(MainWindow).GetMethod("CreatePane", flags)!.Invoke(window, new[] { Enum.Parse(profileType, "CommandPrompt") })!;
         var tab = Activator.CreateInstance(typeof(MainWindow).GetNestedType("TerminalTab", BindingFlags.NonPublic)!, pane)!;
-        tab.GetType().GetProperty("CustomTitle")!.SetValue(tab, "Claude Code — MIXED RTL TEST");
+        tab.GetType().GetProperty("CustomTitle")!.SetValue(tab, executableArgument >= 0 ? "Claude Code — INPUT + RESPONSE FIX" : "Claude Code — MIXED RTL TEST");
         ((IList)typeof(MainWindow).GetField("_tabs", flags)!.GetValue(window)!).Add(tab);
         typeof(MainWindow).GetMethod("ShowTab", flags)!.Invoke(window, new[] { tab });
         using var session = new ConPtySession(100, 30);
@@ -44,7 +47,10 @@ internal static partial class Program
         try
         {
             foreach (var v in variables) Environment.SetEnvironmentVariable(v.Key, v.Value);
-            session.Start(ShellPath.WindowsArgument(exe) + " --tools \"\" --strict-mcp-config --mcp-config " + ShellPath.WindowsArgument(mcp) + " --setting-sources \"\" --no-chrome", root);
+            var command = ShellPath.WindowsArgument(exe) + " --tools \"\" --strict-mcp-config --mcp-config " + ShellPath.WindowsArgument(mcp) + " --setting-sources \"\" --no-chrome";
+            if (Environment.GetCommandLineArgs().Contains("--cmd"))
+                command = ShellPath.WindowsArgument(Path.Combine(Environment.SystemDirectory, "cmd.exe")) + " /d /s /k \"" + command + "\"";
+            session.Start(command, root);
         }
         finally { foreach (var v in previous) Environment.SetEnvironmentVariable(v.Key, v.Value); }
         void Set(string property, object value) => pane.GetType().GetProperty(property)!.SetValue(pane, value);

@@ -67,6 +67,7 @@ jobs:
           -p:PublishSingleFile=true
           -p:IncludeNativeLibrariesForSelfExtract=true
           -p:PublishTrimmed=false
+          -p:EnableCliTestLab=false
           --output artifacts/publish/win-x64
 
       - name: Build installer

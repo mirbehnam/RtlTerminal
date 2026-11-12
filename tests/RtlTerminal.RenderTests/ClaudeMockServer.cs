@@ -28,6 +28,7 @@ LOCAL_UI_TEST_OK
     private readonly Task accept;
     private readonly string? responseFile;
     public int Requests;
+    public string? LastUserText;
     public string Address { get; }
     public ClaudeMockServer(string? responseFile = null)
     {
@@ -66,6 +67,11 @@ LOCAL_UI_TEST_OK
             if (!path.StartsWith("/v1/messages")) { await Json(new { data = Array.Empty<object>() }); return; }
             Interlocked.Increment(ref Requests);
             using var parsed = JsonDocument.Parse(body);
+            if (parsed.RootElement.TryGetProperty("messages", out var messages))
+                foreach (var item in messages.EnumerateArray())
+                    if (item.TryGetProperty("role", out var role) && role.GetString() == "user" && item.TryGetProperty("content", out var input))
+                        LastUserText = input.ValueKind == JsonValueKind.String ? input.GetString()
+                            : string.Concat(input.EnumerateArray().Where(block => block.TryGetProperty("type", out var type) && type.GetString() == "text").Select(block => block.GetProperty("text").GetString()));
             if (!parsed.RootElement.TryGetProperty("stream", out var streaming) || streaming.ValueKind != JsonValueKind.True) { await Json(message); return; }
             await Write("HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nConnection: close\r\n\r\n");
             await Event("message_start", new { type = "message_start", message = new { id = "msg_local_test", type = "message", role = "assistant", model = "claude-sonnet-4-6", content = Array.Empty<object>(), stop_reason = (string?)null, stop_sequence = (string?)null, usage } });
