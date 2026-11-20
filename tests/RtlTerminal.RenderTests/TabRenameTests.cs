@@ -19,6 +19,7 @@ internal static partial class Program
         var window = new MainWindow(new DirectoryHistoryStore(registry));
         const BindingFlags flags = BindingFlags.Instance | BindingFlags.NonPublic;
         object? Call(string method, params object?[] args) => typeof(MainWindow).GetMethod(method, flags)!.Invoke(window, args);
+        Call("ApplyAutoHideMenu", false, false);
         var tabs = (IList)typeof(MainWindow).GetField("_tabs", flags)!.GetValue(window)!;
         var profile = typeof(MainWindow).GetNestedType("TerminalProfile", BindingFlags.NonPublic)!;
         var tabType = typeof(MainWindow).GetNestedType("TerminalTab", BindingFlags.NonPublic)!;

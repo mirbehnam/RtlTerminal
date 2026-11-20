@@ -17,6 +17,7 @@ internal static partial class Program
         var tabs = (IList)typeof(MainWindow).GetField("_tabs", flags)!.GetValue(window)!;
         object? Call(string name, params object?[] args) => typeof(MainWindow).GetMethods(flags | BindingFlags.Static)
             .Single(m => m.Name == name && m.GetParameters().Length == args.Length).Invoke(window,args);
+        Call("ApplyAutoHideMenu", false, false);
         object? Get(object o,string p) => o.GetType().GetProperty(p)!.GetValue(o);
         void Set(object o,string p,object? v) => o.GetType().GetProperty(p)!.SetValue(o,v);
         var tabType = typeof(MainWindow).GetNestedType("TerminalTab",BindingFlags.NonPublic)!;
@@ -114,7 +115,7 @@ internal static partial class Program
                     : $"1..12 | ForEach-Object {{ Write-Output ('{prefix}'+$_+'_{tail}') }}\r");
                 WaitFor(() => Text(pane).Contains(prefix + "12_"));
                 var before = ((TerminalBuffer)Get(pane, "Buffer")!).CaptureSnapshot().Columns;
-                Call("ZoomFontSize", 3); Call("ZoomFontSize", 3); Pump();
+                Call("ZoomFontSize", 3); Call("ZoomFontSize", 3);
                 Call("ApplyViewportResize");
                 if (((TerminalBuffer)Get(pane, "Buffer")!).CaptureSnapshot().Columns != before)
                     throw new Exception("Zoom resized the buffer before the debounce interval elapsed");

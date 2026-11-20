@@ -76,6 +76,7 @@ public partial class MainWindow : Window
         InitializeWindowStatus();
         InitializeQuickInput();
         InitializeTabDetach();
+        InitializeAutoHideMenu();
 #if CLI_TEST_LAB
         InitializeCliTestLab();
 #endif
@@ -992,6 +993,12 @@ public partial class MainWindow : Window
             return;
 
         _macroSettings = settingsWindow.SelectedMacroSettings;
+        if (_autoHideMenu != settingsWindow.SelectedAutoHideMenu || _hideTabsWithMenu != settingsWindow.SelectedHideTabsWithMenu)
+        {
+            AppSettings.SaveAutoHideMenu(settingsWindow.SelectedAutoHideMenu, settingsWindow.SelectedHideTabsWithMenu);
+            foreach (var window in Application.Current.Windows.OfType<MainWindow>())
+                window.ApplyAutoHideMenu(settingsWindow.SelectedAutoHideMenu, settingsWindow.SelectedHideTabsWithMenu);
+        }
         AppSettings.SaveBellSettings(settingsWindow.SelectedBellSettings);
         _terminalBell.UpdateSettings(settingsWindow.SelectedBellSettings);
         _directoryHistory.SetEnabled(settingsWindow.SelectedDirectoryHistoryEnabled);
@@ -1870,7 +1877,9 @@ public partial class MainWindow : Window
         {
             var isActive = ReferenceEquals(tab, _activeTab);
             var chromeColor = ((SolidColorBrush)FindResource("TitleBarBrush")).Color;
-            var displayColor = tab.BackgroundColor is { } tabColor ? TabColors.DisplayColor(tabColor, isActive, chromeColor) : (Color?)null;
+            Color? displayColor = isActive && _autoHideMenu
+                ? ((SolidColorBrush)FindResource("TerminalBackgroundBrush")).Color
+                : tab.BackgroundColor is { } tabColor ? TabColors.DisplayColor(tabColor, isActive, chromeColor) : null;
             var customText = displayColor is { } background ? new SolidColorBrush(TabColors.TextColor(background)) : null;
             var panel = new DockPanel { Height = 28 };
             var closeButton = new Button

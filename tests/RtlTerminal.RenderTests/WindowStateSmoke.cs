@@ -18,6 +18,7 @@ internal static class WindowStateSmoke
         try
         {
             window.Show(); Pump();
+            CheckAutoHideMenu(window);
             var menu = (System.Windows.Controls.ContextMenu)typeof(MainWindow)
                 .GetMethod("CreateTerminalContextMenu", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(window, null)!;
             menu.IsOpen = true; Pump();
@@ -153,6 +154,98 @@ internal static class WindowStateSmoke
         }
         Console.WriteLine("PASS real F11 monitor coverage, hidden headers, zero outer padding, activation, repeated toggles and exact normal/maximized restore bounds");
     }
+    private static void CheckAutoHideMenu(MainWindow window)
+    {
+        const BindingFlags flags = BindingFlags.Instance | BindingFlags.NonPublic;
+        var windowType = typeof(MainWindow);
+        var apply = windowType.GetMethod("ApplyAutoHideMenu", flags)!;
+        var reveal = windowType.GetMethod("RevealAutoHideMenu", flags)!;
+        var dismiss = windowType.GetMethod("DismissAutoHideMenu", flags)!;
+        var fullScreen = windowType.GetMethod("ToggleFullScreen", flags)!;
+        var overlay = (System.Windows.Controls.StackPanel)window.FindName("MenuBarOverlay");
+        var dock = (System.Windows.Controls.Grid)window.FindName("MenuBarDock");
+        var menu = (FrameworkElement)window.FindName("MenuBarArea");
+        var terminal = (FrameworkElement)window.FindName("TerminalArea");
+        var arrow = (System.Windows.Controls.Button)window.FindName("RevealMenuButton");
+        var compact = (FrameworkElement)window.FindName("CompactCaptionButtons");
+        var minimize = (System.Windows.Controls.Button)window.FindName("CompactMinimizeButton");
+        var maximize = (System.Windows.Controls.Button)window.FindName("CompactMaximizeButton");
+        var close = (System.Windows.Controls.Button)window.FindName("CompactCloseButton");
+        var titleBar = (FrameworkElement)window.FindName("TitleBarArea");
+        var titleDock = (FrameworkElement)window.FindName("TitleBarDock");
+        double CaptionHeight() => System.Windows.Shell.WindowChrome.GetWindowChrome(window).CaptionHeight;
+        var initialAutoHide = AppSettings.LoadAutoHideMenu();
+        try
+        {
+            apply.Invoke(window, [false, false]); Pump();
+            if (!ReferenceEquals(menu.Parent, dock) || dock.ActualHeight <= 0 || arrow.IsVisible)
+                throw new Exception("Standard menu did not reserve space above the terminal.");
+            apply.Invoke(window, [true, false]); Pump();
+            if (!ReferenceEquals(menu.Parent, overlay) || overlay.IsVisible || dock.ActualHeight > 0 || !arrow.IsVisible || compact.IsVisible)
+                throw new Exception("Auto-hidden menu still occupied terminal space.");
+            var viewport = terminal.RenderSize;
+            arrow.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent)); Pump();
+            if (!overlay.IsVisible || arrow.IsVisible || terminal.RenderSize != viewport)
+                throw new Exception("The menu arrow did not reveal the menu without resizing the terminal.");
+            dismiss.Invoke(window, [true]); Pump();
+            reveal.Invoke(window, [true]); Pump();
+            if (!overlay.IsVisible || !menu.IsKeyboardFocusWithin || terminal.RenderSize != viewport)
+                throw new Exception("Menu did not reveal over the terminal with keyboard focus.");
+            dismiss.Invoke(window, [true]); Pump();
+            if (overlay.IsVisible || terminal.RenderSize != viewport ||
+                !((TerminalView)window.FindName("TerminalTextBox")).IsKeyboardFocusWithin)
+                throw new Exception("Dismissing the overlay changed layout or lost terminal focus.");
+            reveal.Invoke(window, [false]); Pump();
+            fullScreen.Invoke(window, null); Pump();
+            reveal.Invoke(window, [false]); Pump();
+            if (!window.IsFullScreen || overlay.IsVisible || arrow.IsVisible)
+                throw new Exception("Menu overlay was visible in fullscreen.");
+            fullScreen.Invoke(window, null); Pump();
+            if (overlay.IsVisible || !arrow.IsVisible) throw new Exception("Leaving fullscreen did not restore the menu arrow.");
+            var normalCaption = CaptionHeight();
+            apply.Invoke(window, [true, true]); Pump();
+            if (!ReferenceEquals(overlay.Children[0], titleBar) || titleBar.IsVisible || titleDock.ActualHeight != 0 ||
+                !arrow.IsVisible || !compact.IsVisible || CaptionHeight() is <= 0 or >= 24)
+                throw new Exception("Tab-bar auto-hide did not reserve only the compact caption.");
+            var expandedViewport = terminal.RenderSize;
+            int HitTest(FrameworkElement element, Point point)
+            {
+                var screen = element.PointToScreen(point);
+                var packedPoint = ((int)screen.X & 0xFFFF) | (((int)screen.Y & 0xFFFF) << 16);
+                return (int)SendMessage(new WindowInteropHelper(window).Handle, 0x0084, IntPtr.Zero, (IntPtr)packedPoint);
+            }
+            if (HitTest(terminal, new Point(terminal.ActualWidth / 2, 9)) != 2 ||
+                HitTest(terminal, new Point(terminal.ActualWidth / 2, 30)) != 1)
+                throw new Exception("The compact drag zone did not return a native caption hit test.");
+            foreach (var button in new[] { arrow, minimize, maximize, close })
+                if (!button.IsVisible || HitTest(button, new Point(button.ActualWidth / 2, button.ActualHeight / 2)) != 1)
+                    throw new Exception("The compact caption button is not clickable in the native drag zone.");
+            maximize.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent)); Pump();
+            if (window.WindowState != WindowState.Maximized) throw new Exception("Compact maximize failed.");
+            maximize.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent)); Pump();
+            if (window.WindowState != WindowState.Normal) throw new Exception("Compact restore failed.");
+            minimize.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent)); Pump();
+            if (window.WindowState != WindowState.Minimized) throw new Exception("Compact minimize failed.");
+            window.WindowState = WindowState.Normal; window.Activate(); Pump();
+            arrow.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent)); Pump();
+            if (!titleBar.IsVisible || !menu.IsVisible || compact.IsVisible || terminal.RenderSize != expandedViewport || CaptionHeight() != normalCaption)
+                throw new Exception("The arrow did not restore both bars without resizing the terminal.");
+            fullScreen.Invoke(window, null); Pump();
+            fullScreen.Invoke(window, null); Pump();
+            if (titleBar.IsVisible || !arrow.IsVisible || !compact.IsVisible || CaptionHeight() is <= 0 or >= 24)
+                throw new Exception("Leaving fullscreen did not restore the hidden tab-bar mode.");
+            apply.Invoke(window, [false, true]); Pump();
+            if (!titleBar.IsVisible || arrow.IsVisible || CaptionHeight() != normalCaption)
+                throw new Exception("Disabling menu auto-hide did not restore the title bar.");
+            Console.WriteLine("PASS menu overlay layout, keyboard focus, dismissal and fullscreen");
+        }
+        finally
+        {
+            if (window.IsFullScreen) fullScreen.Invoke(window, null);
+            apply.Invoke(window, [initialAutoHide, AppSettings.LoadHideTabsWithMenu()]); Pump();
+        }
+    }
+
     private static void Pump()
     {
         var frame = new DispatcherFrame();
@@ -163,6 +256,7 @@ internal static class WindowStateSmoke
     [StructLayout(LayoutKind.Sequential)] private struct RectI { public int Left, Top, Right, Bottom; }
     [StructLayout(LayoutKind.Sequential)] private struct MonitorInfo { public int Size; public RectI Monitor, Work; public int Flags; }
     [DllImport("user32.dll")] private static extern IntPtr MonitorFromWindow(IntPtr hwnd, uint flags);
+    [DllImport("user32.dll")] private static extern IntPtr SendMessage(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam);
     [DllImport("dwmapi.dll")] private static extern int DwmGetWindowAttribute(IntPtr hwnd, int attribute, out int value, int size);
     [DllImport("user32.dll")] [return: MarshalAs(UnmanagedType.Bool)] private static extern bool IsWindowVisible(IntPtr hwnd);
     private delegate bool MonitorEnumProc(IntPtr monitor, IntPtr dc, ref RectI rect, IntPtr data);

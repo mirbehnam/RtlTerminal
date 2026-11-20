@@ -113,6 +113,12 @@
         </Grid>
 
         <StackPanel Grid.Row="1" Margin="0,14,0,0">
+            <CheckBox x:Name="AutoHideMenuCheckBox" Content="{local:UiText Key='Automatically hide the menu bar'}"
+                      ToolTip="{local:UiText Key='Press Alt or hover at the top edge of the terminal to show the menu.'}"
+                      Margin="0,0,0,5" />
+            <CheckBox x:Name="HideTabsWithMenuCheckBox" Content="{local:UiText Key='Hide the tab bar with the menu'}"
+                      IsEnabled="{Binding IsChecked, ElementName=AutoHideMenuCheckBox}"
+                      Margin="20,0,0,12" />
             <StackPanel Margin="0,0,0,12">
                 <TextBlock Text="{local:UiText Key='Terminal bell'}" FontWeight="SemiBold" Margin="0,0,0,6" />
                 <WrapPanel VerticalAlignment="Center">

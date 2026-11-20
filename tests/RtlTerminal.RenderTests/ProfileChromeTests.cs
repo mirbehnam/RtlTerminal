@@ -46,6 +46,8 @@ internal static partial class Program
             tabType.GetProperty("BackgroundColor")!.SetValue(tabs[0], Color.FromRgb(111,75,32));
             tabType.GetProperty("BackgroundColor")!.SetValue(tabs[1], Colors.Yellow);
             typeof(MainWindow).GetField("_activeTab", flags)!.SetValue(main, tabs[1]);
+            var autoHide = typeof(MainWindow).GetMethod("ApplyAutoHideMenu", flags)!;
+            autoHide.Invoke(main, [false, false]);
             typeof(MainWindow).GetMethod("RebuildTabStrip", flags)!.Invoke(main, null);
             root.Measure(new Size(980,620)); root.Arrange(new Rect(0,0,980,620)); root.UpdateLayout();
             for (var i = 0; i < strip.Children.Count; i++)
@@ -92,6 +94,14 @@ internal static partial class Program
             close.SetValue(mouseOverKey, true); root.UpdateLayout();
             SaveChrome(root, "tab-hover-close.png", 980, 80);
             close.SetValue(mouseOverKey, false);
+            autoHide.Invoke(main, [true, false]);
+            var selectedShape = ((Grid)strip.Children[1]).Children.OfType<System.Windows.Shapes.Path>().Single();
+            if (((SolidColorBrush)selectedShape.Fill).Color != ((SolidColorBrush)main.FindResource("TerminalBackgroundBrush")).Color)
+                throw new Exception("The selected tab must match the terminal background with auto-hide enabled.");
+            autoHide.Invoke(main, [false, false]);
+            selectedShape = ((Grid)strip.Children[1]).Children.OfType<System.Windows.Shapes.Path>().Single();
+            if (((SolidColorBrush)selectedShape.Fill).Color != Colors.Yellow)
+                throw new Exception("Turning off auto-hide must restore the selected tab's custom color.");
             Console.WriteLine("PASS native cached profile icons, compact tabs, grouped vector actions and accessible profile menu");
         }
         finally { main.Close(); }

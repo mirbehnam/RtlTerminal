@@ -13,6 +13,10 @@ public partial class MainWindow
         e.Cancel = true; _closeConfirmationOpen = true;
         try { e.Cancel = new CloseTabsWindow(_tabs.Count) { Owner = this }.ShowDialog() != true; }
         finally { _closeConfirmationOpen = false; }
-        if (e.Cancel) Dispatcher.BeginInvoke(DispatcherPriority.Input, new Action(() => { if (IsVisible) ActiveView.Focus(); }));
+        if (e.Cancel)
+        {
+            _menuLastInteraction = Environment.TickCount64;
+            Dispatcher.BeginInvoke(DispatcherPriority.Input, new Action(() => { if (IsVisible) ActiveView.Focus(); }));
+        }
     }
 }

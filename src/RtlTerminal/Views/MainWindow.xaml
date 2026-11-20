@@ -529,7 +529,8 @@
             </Style>
         </Border.Style>
     <DockPanel Background="{DynamicResource TerminalBackgroundBrush}">
-        <Grid x:Name="TitleBarArea" DockPanel.Dock="Top"
+        <Grid x:Name="TitleBarDock" DockPanel.Dock="Top">
+        <Grid x:Name="TitleBarArea"
               Height="40"
               Background="{DynamicResource TitleBarBrush}">
             <Grid.Style>
@@ -632,7 +633,9 @@
             </StackPanel>
         </Grid>
 
-        <Border x:Name="MenuBarArea" DockPanel.Dock="Top" Background="{DynamicResource ToolbarBrush}" BorderBrush="{DynamicResource ToolbarBorderBrush}" BorderThickness="0,0,0,1">
+        </Grid>
+        <Grid x:Name="MenuBarDock" DockPanel.Dock="Top">
+        <Border x:Name="MenuBarArea" Background="{DynamicResource ToolbarBrush}" BorderBrush="{DynamicResource ToolbarBorderBrush}" BorderThickness="0,0,0,1">
         <Border.Style>
             <Style TargetType="Border">
                 <Style.Triggers>
@@ -661,7 +664,7 @@
         </Button>
         <Grid ClipToBounds="True">
         <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-        <Menu Grid.Column="0" Height="28" FontFamily="Segoe UI" FontSize="12"
+        <Menu x:Name="MainMenu" Grid.Column="0" Height="28" FontFamily="Segoe UI" FontSize="12"
               Background="Transparent"
               Foreground="{DynamicResource ChromeForegroundBrush}"
               ItemContainerStyle="{StaticResource DarkTopLevelMenuItemStyle}">
@@ -793,8 +796,9 @@
         </Grid>
         </DockPanel>
         </Border>
+        </Grid>
 
-        <Grid>
+        <Grid x:Name="TerminalArea">
         <ScrollViewer x:Name="PaneScroller" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto"
                       CanContentScroll="False" Focusable="False" SizeChanged="PaneScroller_SizeChanged" ScrollChanged="PaneScroller_ScrollChanged">
         <Grid x:Name="PaneHost" HorizontalAlignment="Left">
@@ -887,6 +891,63 @@
                 </Button>
             </StackPanel>
         </Border>
+        <StackPanel x:Name="CompactWindowControls" Orientation="Horizontal"
+                HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,0,13,0"
+                shell:WindowChrome.IsHitTestVisibleInChrome="True">
+            <StackPanel.Resources>
+                <Style TargetType="Button">
+                    <Setter Property="Height" Value="12" />
+                    <Setter Property="Width" Value="24" />
+                    <Setter Property="Margin" Value="2,0,0,0" />
+                    <Setter Property="ToolTipService.InitialShowDelay" Value="350" />
+                    <Setter Property="Foreground" Value="{DynamicResource MutedForegroundBrush}" />
+                    <Setter Property="Background" Value="{DynamicResource ToolbarBrush}" />
+                    <Setter Property="Template">
+                        <Setter.Value>
+                            <ControlTemplate TargetType="Button">
+                                <Border x:Name="Surface" Background="{TemplateBinding Background}" CornerRadius="0,0,4,4">
+                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter TargetName="Surface" Property="Background" Value="{DynamicResource MenuHighlightBrush}" />
+                                        <Setter Property="Foreground" Value="{DynamicResource ChromeStrongForegroundBrush}" />
+                                    </Trigger>
+                                    <Trigger Property="IsKeyboardFocused" Value="True">
+                                        <Setter TargetName="Surface" Property="BorderBrush" Value="{DynamicResource FocusBrush}" />
+                                        <Setter TargetName="Surface" Property="BorderThickness" Value="1" />
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </Setter.Value>
+                    </Setter>
+                </Style>
+            </StackPanel.Resources>
+            <Button x:Name="RevealMenuButton" Width="38" Visibility="Collapsed" Click="RevealMenuButton_Click"
+                    AutomationProperties.Name="{local:UiText Key='Show menu bar'}" ToolTip="{local:UiText Key='Show menu bar'}">
+                <Path Width="8" Height="4" Stretch="Fill" Data="M 0,0 L 4,3 L 8,0" StrokeThickness="1"
+                      Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
+            </Button>
+            <StackPanel x:Name="CompactCaptionButtons" Orientation="Horizontal" Visibility="Collapsed">
+                <Button x:Name="CompactMinimizeButton" Click="MinimizeButton_Click"
+                        AutomationProperties.Name="{local:UiText Key='Minimize'}" ToolTip="{local:UiText Key='Minimize'}">
+                    <Path Width="7" Height="7" Data="M0,5 L7,5" StrokeThickness="1"
+                          Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
+                </Button>
+                <Button x:Name="CompactMaximizeButton" Click="MaximizeButton_Click"
+                        AutomationProperties.Name="{local:UiText Key='Maximize or restore'}" ToolTip="{local:UiText Key='Maximize / Restore'}">
+                    <Path Width="7" Height="7" Stretch="Uniform"
+                          StrokeThickness="1" Data="{Binding Data, ElementName=MaximizeGlyph}"
+                          Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
+                </Button>
+                <Button x:Name="CompactCloseButton" Click="CloseWindowButton_Click"
+                        AutomationProperties.Name="{local:UiText Key='Close window'}" ToolTip="{local:UiText Key='Close window'}">
+                    <Path Width="7" Height="7" Data="M0.5,0.5 L6.5,6.5 M6.5,0.5 L0.5,6.5" StrokeThickness="1"
+                          Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
+                </Button>
+            </StackPanel>
+        </StackPanel>
+        <StackPanel x:Name="MenuBarOverlay" VerticalAlignment="Top" Visibility="Collapsed" />
         </Grid>
     </DockPanel>
     </Border>

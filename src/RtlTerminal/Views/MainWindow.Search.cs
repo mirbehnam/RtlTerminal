@@ -277,6 +277,7 @@ public partial class MainWindow
 
     private void ApplyFullScreen()
     {
+        DismissAutoHideMenu();
         if (!IsFullScreen)
         {
             _previousWindowState = WindowState;
@@ -312,6 +313,7 @@ public partial class MainWindow
             }
             WindowState = _previousWindowState;
         }
+        UpdateMenuRevealButton();
         ActiveView.Focus();
         QueueViewportResize();
     }

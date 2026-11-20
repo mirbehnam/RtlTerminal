@@ -15,6 +15,8 @@ internal static partial class Program
         if (Application.Current == null) _ = new Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
         var originalLanguage = UiText.Current; UiText.Select(UiLanguage.English, persist: false); AppTheme.Apply(AppThemeKind.Dark);
         var window = new MainWindow();
+        var applyAutoHideMenu = typeof(MainWindow).GetMethod("ApplyAutoHideMenu", flags)!;
+        applyAutoHideMenu.Invoke(window, [false, false]);
         Check(window.Width == 1120, "Initial window width was not increased");
         var loaded = typeof(MainWindow).GetMethod("Window_Loaded", flags)!;
         window.Loaded -= (RoutedEventHandler)loaded.CreateDelegate(typeof(RoutedEventHandler), window);
@@ -62,9 +64,14 @@ internal static partial class Program
                 typeof(MainWindow).GetMethod("ExitMenuItem_Click", flags)!.Invoke(window, new object?[] { window, new RoutedEventArgs() }); Pump();
                 Check(window.IsVisible, "Exit bypassed Cancel");
             }
+            applyAutoHideMenu.Invoke(window, [true, true]); Pump();
+            var compactClose = (Button)window.FindName("CompactCloseButton");
+            Answer(dialog => ((Button)dialog.FindName("CancelButton")).RaiseEvent(new RoutedEventArgs(Button.ClickEvent)));
+            compactClose.RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); Pump();
+            Check(window.IsVisible && compactClose.IsVisible && tabs.Count == 10, "Compact close did not preserve the window after Cancel");
             var closed = false; window.Closed += (_, _) => closed = true;
             Answer(dialog => ((Button)dialog.FindName("ConfirmButton")).RaiseEvent(new RoutedEventArgs(Button.ClickEvent)));
-            typeof(MainWindow).GetMethod("CloseWindowButton_Click", flags)!.Invoke(window, new object?[] { window, new RoutedEventArgs() });
+            compactClose.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             Check(closed, "Yes did not close the window");
         }
         finally

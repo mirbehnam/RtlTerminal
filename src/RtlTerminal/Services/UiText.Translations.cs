@@ -82,6 +82,10 @@ Manage history…|مدیریت تاریخچه…|إدارة السجل…
 More… ({0} directories)|بیشتر… ({0} پوشه)|المزيد… ({0} مجلد)
 Settings|تنظیمات|الإعدادات
 General|عمومی|عام
+Automatically hide the menu bar|مخفی شدن خودکار منو|إخفاء شريط القوائم تلقائيًا
+Hide the tab bar with the menu|مخفی شدن نوار تب‌ها همراه منو|إخفاء شريط علامات التبويب مع القائمة
+Show menu bar|نمایش نوار منو|إظهار شريط القوائم
+Press Alt or hover at the top edge of the terminal to show the menu.|برای نمایش منو، Alt را بزنید یا نشانگر را روی لبهٔ بالای ترمینال نگه دارید.|اضغط على Alt أو مرّر المؤشر فوق الحافة العلوية للطرفية لعرض القائمة.
 Theme|تم|المظهر
 History|تاریخچه|السجل
 Macros|ماکروها|الماكرو

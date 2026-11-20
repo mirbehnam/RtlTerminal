@@ -20,6 +20,7 @@ internal static partial class Program
         var main = new MainWindow(history);
         const BindingFlags flags = BindingFlags.Instance | BindingFlags.NonPublic;
         object? Call(string name, params object?[] args) => typeof(MainWindow).GetMethod(name, flags | BindingFlags.Static)!.Invoke(main, args);
+        Call("ApplyAutoHideMenu", false, false);
         var root = (FrameworkElement)main.Content;
         void Layout(double width = 1400)
         {

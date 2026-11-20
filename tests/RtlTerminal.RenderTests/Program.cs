@@ -389,6 +389,7 @@ internal static partial class Program
         // Instantiate chrome without showing a window or starting any shell.
         var window = new MainWindow();
         const System.Reflection.BindingFlags flags = System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance;
+        typeof(MainWindow).GetMethod("ApplyAutoHideMenu", flags)!.Invoke(window, [false, false]);
         var tabs = (System.Collections.IList)typeof(MainWindow).GetField("_tabs", flags)!.GetValue(window)!;
         var tabType = typeof(MainWindow).GetNestedType("TerminalTab", System.Reflection.BindingFlags.NonPublic)!;
         var paneType = typeof(MainWindow).GetNestedType("TerminalPane", System.Reflection.BindingFlags.NonPublic)!;

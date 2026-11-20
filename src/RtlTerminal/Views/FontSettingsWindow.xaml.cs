@@ -40,6 +40,9 @@ public partial class FontSettingsWindow : Window
     private readonly string _initialFamily;
     private bool _synchronizingSelection;
 
+    internal bool SelectedAutoHideMenu => AutoHideMenuCheckBox.IsChecked == true;
+    internal bool SelectedHideTabsWithMenu => HideTabsWithMenuCheckBox.IsChecked == true;
+
     public FontSettingsWindow(
         string family,
         double size,
@@ -50,6 +53,8 @@ public partial class FontSettingsWindow : Window
         PaneShortcutSettings? shortcuts = null)
     {
         InitializeComponent();
+        AutoHideMenuCheckBox.IsChecked = AppSettings.LoadAutoHideMenu();
+        HideTabsWithMenuCheckBox.IsChecked = AppSettings.LoadHideTabsWithMenu();
         InitializeBellSettings();
         InitializeMacroSettings();
         InitializeDirectoryHistorySettings();

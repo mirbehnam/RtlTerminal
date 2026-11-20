@@ -16,6 +16,25 @@ public static class AppSettings
     private const string SettingsKey = @"Software\RtlTerminal";
     private static readonly int[] SupportedHistorySizes = [2000, 5000, 10000];
 
+    public static bool LoadAutoHideMenu()
+    {
+        using var key = Registry.CurrentUser.OpenSubKey(SettingsKey);
+        return key?.GetValue("AutoHideMenu") is 1;
+    }
+
+    public static bool LoadHideTabsWithMenu()
+    {
+        using var key = Registry.CurrentUser.OpenSubKey(SettingsKey);
+        return key?.GetValue("HideTabsWithMenu") is 1;
+    }
+
+    public static void SaveAutoHideMenu(bool enabled, bool hideTabs)
+    {
+        using var key = Registry.CurrentUser.CreateSubKey(SettingsKey);
+        key.SetValue("AutoHideMenu", enabled ? 1 : 0, RegistryValueKind.DWord);
+        key.SetValue("HideTabsWithMenu", hideTabs ? 1 : 0, RegistryValueKind.DWord);
+    }
+
     public static DirectoryOpenMode LoadDirectoryOpenMode()
     {
         using var key = Registry.CurrentUser.OpenSubKey(SettingsKey);

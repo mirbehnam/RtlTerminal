@@ -16,6 +16,7 @@ internal static partial class Program
         UiText.Select(UiLanguage.English, persist: false); AppTheme.Apply(AppThemeKind.Dark);
         var window = new MainWindow();
         const BindingFlags flags = BindingFlags.Instance | BindingFlags.NonPublic;
+        typeof(MainWindow).GetMethod("ApplyAutoHideMenu", flags)!.Invoke(window, [false, false]);
         var tabs = (IList)typeof(MainWindow).GetField("_tabs", flags)!.GetValue(window)!;
         var tabType = typeof(MainWindow).GetNestedType("TerminalTab", BindingFlags.NonPublic)!;
         var paneType = typeof(MainWindow).GetNestedType("TerminalPane", BindingFlags.NonPublic)!;

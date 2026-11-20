@@ -15,6 +15,7 @@ internal static partial class Program
     {
         const BindingFlags flags = BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly;
         var window = new MainWindow();
+        typeof(MainWindow).GetMethod("ApplyAutoHideMenu", flags)!.Invoke(window, [false, false]);
         var tabs = (IList)typeof(MainWindow).GetField("_tabs",flags)!.GetValue(window)!;
         var tabType = typeof(MainWindow).GetNestedType("TerminalTab",BindingFlags.NonPublic)!;
         var profile = typeof(MainWindow).GetNestedType("TerminalProfile",BindingFlags.NonPublic)!;
