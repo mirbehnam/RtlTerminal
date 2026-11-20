@@ -87,17 +87,19 @@ internal static partial class Program
         try { using var stopped = await http.GetAsync("/v1/models"); throw new Exception("Server remained available after close"); } catch (HttpRequestException) { }
     }
 
-    private static async Task ProbeCliLab(bool shiftEnter = false)
+    private static async Task ProbeCliLab(bool shiftEnter = false, Dictionary<string, TerminalSnapshot>? screenshots = null)
     {
         var root = Path.GetFullPath(Path.Combine("artifacts", "cli-lab-live")); Directory.CreateDirectory(root);
         var candidates = CliLabCatalog.Candidates().GroupBy(c => c.Tool).Select(g => g.First()).ToList();
         var newer = Path.GetFullPath("artifacts/claude-2.1.322/claude.exe"); if (File.Exists(newer)) candidates.Add((CliLabTool.Claude, newer));
+        if (screenshots is not null)
+            candidates = candidates.Where(c => c.Tool == CliLabTool.OpenCode || c.Tool == CliLabTool.Claude && (!File.Exists(newer) || string.Equals(c.Path, newer, StringComparison.OrdinalIgnoreCase))).ToList();
         var failures = new List<string>();
         foreach (var (tool, path) in candidates)
         {
             var installation = await CliLabCatalog.InspectAsync(tool, path, default);
             if (!installation.Supported) { failures.Add(installation.Label + ": " + installation.UnavailableReason); continue; }
-            using var lab = new CliLabSession(installation, LocalCliServer.DefaultResponse, root);
+            using var lab = new CliLabSession(installation, screenshots is null ? LocalCliServer.DefaultResponse : ScreenshotResponse, root);
             using var session = new ConPtySession(110, 35);
             var buffer = new TerminalBuffer(110, 35);
             session.Start(lab.Command, lab.Workspace, lab.Environment);
@@ -126,12 +128,19 @@ internal static partial class Program
                     if (result != "PASS") failures.Add(installation.Label + ": " + result);
                     continue;
                 }
-                var input = "سلام English local test";
+                var input = screenshots is null ? "سلام English local test" : "سلام، وضعیت build و فایل src/app.cs را بررسی کن";
                 if (buffer.CaptureSnapshot().Modes.BracketedPaste) input = "\x1b[200~" + input + "\x1b[201~";
                 await session.WriteInputAsync(input, true, default);
-                for (var i = 0; i < 100 && !Text().Contains("LOCAL_UI_TEST_OK"); i++) await Task.Delay(200);
+                var marker = screenshots is null ? "LOCAL_UI_TEST_OK" : "Build passed";
+                for (var i = 0; i < 100 && !Text().Contains(marker); i++) await Task.Delay(200);
                 File.WriteAllText(Path.Combine(lab.Directory, "final.txt"), Text());
-                var success = lab.Server.Requests > 0 && Text().Contains("LOCAL_UI_TEST_OK");
+                var success = lab.Server.Requests > 0 && Text().Contains(marker);
+                if (success && screenshots is not null)
+                {
+                    await Task.Delay(1400);
+                    screenshots[tool == CliLabTool.Claude ? "Claude Code" : "OpenCode"] = buffer.CaptureSnapshot() with
+                    { ClaudeLayout = tool == CliLabTool.Claude, PreserveTuiGrid = tool == CliLabTool.OpenCode };
+                }
                 Console.WriteLine(installation.Label + ": requests=" + lab.Server.Requests + ", response=" + success + ", artifacts=" + lab.Directory);
                 if (!success) failures.Add(installation.Label + " did not return the local fixture");
             }
@@ -181,7 +190,7 @@ internal static partial class Program
         if (result != "PASS") throw new Exception(result);
     }
 
-    private static async Task<string> ProbeCodexShiftEnter()
+    private static async Task<string> ProbeCodexShiftEnter(Dictionary<string, TerminalSnapshot>? screenshots = null)
     {
         var npm = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
         var vendor = Path.Combine(npm, "npm/node_modules/@openai/codex/node_modules/@openai/codex-win32-x64/vendor");
@@ -215,6 +224,28 @@ internal static partial class Program
         try
         {
             await Task.Delay(6000);
+            if (screenshots is not null)
+            {
+                var draft = "سلام، گزارش build را به فارسی بنویس\r\n" +
+                    "Review src/app.cs and summarize the changes in English.\r\n" +
+                    "نتیجهٔ تست‌ها و وضعیت HTTP 200 را هم اضافه کن\r\n" +
+                    "العربية: أضف ملخصًا قصيرًا عن نتائج الاختبارات";
+                var insert = await session.WriteInputAsync("\x1b[200~" + draft + "\x1b[201~", false, default);
+                if (!insert.Success) return "Could not insert mixed-direction screenshot draft";
+                for (var attempt = 0; attempt < 40; attempt++)
+                {
+                    var frame = buffer.CaptureSnapshot();
+                    if (frame.Lines.Any(l => l.Text.Contains("summarize the changes")) &&
+                        frame.Lines.Any(l => l.Text.Contains("HTTP 200")) &&
+                        frame.Lines.Any(l => l.Text.Contains("الاختبارات")))
+                    {
+                        screenshots["Codex"] = frame;
+                        return "PASS";
+                    }
+                    await Task.Delay(150);
+                }
+                return "The screenshot draft did not reach Codex";
+            }
             var result = await VerifyShiftEnter(session, buffer, () => mock.Requests);
             Directory.CreateDirectory("artifacts/cli-lab-live");
             File.WriteAllLines("artifacts/cli-lab-live/codex-shift-enter.txt", buffer.CaptureSnapshot().Lines.Select(l => l.Text));

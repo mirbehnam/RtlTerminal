@@ -7,12 +7,24 @@
   <p><a href="#english">English</a> · <a href="#فارسی">فارسی</a> · <a href="#العربية">العربية</a></p>
   <p><strong><a href="https://github.com/mirbehnam/RtlTerminal/releases/latest">Download for Windows · دانلود برای ویندوز · تنزيل لويندوز</a></strong></p>
   <p><a href="https://mirbehnam.github.io/RtlTerminal/">Website</a> · <a href="https://github.com/mirbehnam/RtlTerminal/issues">Report an issue</a> · <a href="LICENSE">GPLv3</a></p>
-  <img src="screenshots/main.png" width="900" alt="Rtl Terminal displaying English, Persian and Arabic output in a Codex session">
+  <a href="screenshots/claude-code.png"><img src="screenshots/claude-code.png" width="960" alt="Rtl Terminal running Claude Code with the menu hidden and the tab bar visible, displaying right-to-left Persian and Arabic alongside English"></a>
 </div>
 
 ## English
 
 **Rtl Terminal** is an open-source terminal emulator for Windows by **behnamapps**. It brings readable Persian and Arabic text to PowerShell, Command Prompt and WSL, with Smart RTL handling mixed text, numbers and punctuation alongside terminal colors and interactive applications.
+
+### Screenshots
+
+These examples show the actual CLI interfaces. Claude Code and OpenCode use local sample responses. The Codex screenshot shows an unsent draft.
+
+**Codex** · A multiline draft with right-aligned Persian and Arabic and left-aligned English.
+
+<a href="screenshots/codex.png"><img src="screenshots/codex.png" width="960" alt="Codex editing a multiline prompt with right-to-left Persian and Arabic lines, English text and a code path"></a>
+
+**OpenCode** · Persian, Arabic and English in the same response, with colored code and status text.
+
+<a href="screenshots/opencode.png"><img src="screenshots/opencode.png" width="960" alt="OpenCode in Rtl Terminal displaying right-to-left Persian and Arabic alongside English and code"></a>
 
 ### Install
 
