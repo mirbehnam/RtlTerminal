@@ -87,7 +87,7 @@ internal static partial class Program
         try { using var stopped = await http.GetAsync("/v1/models"); throw new Exception("Server remained available after close"); } catch (HttpRequestException) { }
     }
 
-    private static async Task ProbeCliLab()
+    private static async Task ProbeCliLab(bool shiftEnter = false)
     {
         var root = Path.GetFullPath(Path.Combine("artifacts", "cli-lab-live")); Directory.CreateDirectory(root);
         var candidates = CliLabCatalog.Candidates().GroupBy(c => c.Tool).Select(g => g.First()).ToList();
@@ -118,6 +118,14 @@ internal static partial class Program
                 }
                 if (Text().Contains("Do you want to use this API key?")) { session.Write("\x1b[A"); await Task.Delay(250); session.Write("\r"); await Task.Delay(1500); }
                 File.WriteAllText(Path.Combine(lab.Directory, "startup.txt"), Text());
+                if (shiftEnter)
+                {
+                    var result = await VerifyShiftEnter(session, buffer, () => lab.Server.Requests);
+                    Console.WriteLine(installation.Label + ": " + result);
+                    File.WriteAllText(Path.Combine(lab.Directory, "shift-enter.txt"), Text());
+                    if (result != "PASS") failures.Add(installation.Label + ": " + result);
+                    continue;
+                }
                 var input = "سلام English local test";
                 if (buffer.CaptureSnapshot().Modes.BracketedPaste) input = "\x1b[200~" + input + "\x1b[201~";
                 await session.WriteInputAsync(input, true, default);
@@ -129,7 +137,90 @@ internal static partial class Program
             }
             finally { session.Dispose(); await reader.WaitAsync(TimeSpan.FromSeconds(5)); }
         }
+        if (shiftEnter)
+        {
+            var comparison = await ProbeCodexShiftEnter();
+            Console.WriteLine("Codex: " + comparison);
+            if (comparison != "PASS") failures.Add("Codex: " + comparison);
+        }
         if (failures.Count > 0) throw new Exception(string.Join("; ", failures));
+    }
+
+    private static async Task<string> VerifyShiftEnter(ConPtySession session, TerminalBuffer buffer, Func<int> requests)
+    {
+        string[] Lines() => buffer.CaptureSnapshot().Lines.Select(l => l.Text).ToArray();
+        async Task<bool> InsertMarker(string marker)
+        {
+            var input = buffer.CaptureSnapshot().Modes.BracketedPaste ? "\x1b[200~" + marker + "\x1b[201~" : marker;
+            if (!(await session.WriteInputAsync(input, false, default)).Success) return false;
+            for (var attempt = 0; attempt < 40; attempt++)
+            {
+                if (Lines().Any(line => line.Contains(marker, StringComparison.Ordinal))) return true;
+                await Task.Delay(100);
+            }
+            return false;
+        }
+        if (!await InsertMarker("shift_probe_first")) return "Test input did not reach the composer";
+        const System.Windows.Input.Key enter = System.Windows.Input.Key.Enter;
+        var sequence = MainWindow.GetTerminalKeySequence(enter, true, false, false, false,
+            MainWindow.UseAgentShiftEnter(session, enter, true, false, false));
+        session.Write(sequence!);
+        await Task.Delay(800);
+        await InsertMarker("shift_probe_second");
+        var lines = Lines();
+        var first = Array.FindLastIndex(lines, l => l.Contains("shift_probe_first"));
+        var second = Array.FindLastIndex(lines, l => l.Contains("shift_probe_second"));
+        return first >= 0 && second == first + 1 && requests() == 0
+            ? "PASS" : $"No unsent multiline draft (first row={first}, second row={second}, requests={requests()})";
+    }
+
+    private static async Task CheckCodexShiftEnter()
+    {
+        var result = await ProbeCodexShiftEnter();
+        Console.WriteLine("Codex: " + result);
+        if (result != "PASS") throw new Exception(result);
+    }
+
+    private static async Task<string> ProbeCodexShiftEnter()
+    {
+        var npm = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+        var vendor = Path.Combine(npm, "npm/node_modules/@openai/codex/node_modules/@openai/codex-win32-x64/vendor");
+        var exe = Directory.Exists(vendor) ? Directory.EnumerateDirectories(vendor).Select(path => Path.Combine(path, "bin", "codex.exe")).FirstOrDefault(File.Exists) : null;
+        if (exe is null) return "Native CLI unavailable";
+        var workspace = Path.Combine(Path.GetTempPath(), "RtlTerminal", "codex-shift-enter-" + Guid.NewGuid().ToString("N"));
+        using var mock = new LocalCliServer("Local keyboard test");
+        var environment = CliLabSession.CreateEnvironment(workspace);
+        environment["CODEX_HOME"] = Path.Combine(workspace, "home");
+        File.WriteAllText(Path.Combine(environment["CODEX_HOME"], "config.toml"), $"""
+            model_provider = "rtl_local"
+            model = "rtl-local"
+            check_for_update_on_startup = false
+            [model_providers.rtl_local]
+            name = "RTL Local Test"
+            base_url = "{mock.Address}/v1"
+            wire_api = "responses"
+            requires_openai_auth = false
+            [projects.{JsonSerializer.Serialize(workspace)}]
+            trust_level = "trusted"
+            """);
+        using var session = new ConPtySession(110, 35);
+        var buffer = new TerminalBuffer(110, 35);
+        session.Start(ShellPath.WindowsArgument(exe) + " --no-daemon --no-alt-screen --sandbox read-only --ask-for-approval never -c check_for_update_on_startup=false", workspace, environment);
+        var reader = Task.Run(() =>
+        {
+            var bytes = new byte[8192]; var chars = new char[8192]; var decoder = Encoding.UTF8.GetDecoder();
+            try { int n; while ((n = session.Read(bytes)) > 0) { var frame = buffer.Process(new string(chars, 0, decoder.GetChars(bytes, 0, n, chars, 0))); foreach (var answer in frame.Responses) session.Write(answer); } }
+            catch (IOException) { } catch (ObjectDisposedException) { }
+        });
+        try
+        {
+            await Task.Delay(6000);
+            var result = await VerifyShiftEnter(session, buffer, () => mock.Requests);
+            Directory.CreateDirectory("artifacts/cli-lab-live");
+            File.WriteAllLines("artifacts/cli-lab-live/codex-shift-enter.txt", buffer.CaptureSnapshot().Lines.Select(l => l.Text));
+            return result;
+        }
+        finally { session.Dispose(); await reader.WaitAsync(TimeSpan.FromSeconds(5)); }
     }
 #endif
 }

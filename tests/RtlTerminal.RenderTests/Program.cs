@@ -21,6 +21,8 @@ internal static partial class Program
     {
         if (Environment.GetCommandLineArgs().Contains("--cli-lab-tests")) { CheckCliLab(); return; }
 #if CLI_TEST_LAB
+        if (Environment.GetCommandLineArgs().Contains("--shift-enter-live")) { ProbeCliLab(shiftEnter: true).GetAwaiter().GetResult(); return; }
+        if (Environment.GetCommandLineArgs().Contains("--codex-shift-enter-live")) { CheckCodexShiftEnter().GetAwaiter().GetResult(); return; }
         if (Environment.GetCommandLineArgs().Contains("--cli-lab-live")) { ProbeCliLab().GetAwaiter().GetResult(); return; }
 #endif
         if (Environment.GetCommandLineArgs().Contains("--claude-demo")) { RunClaudeDemo(); return; }

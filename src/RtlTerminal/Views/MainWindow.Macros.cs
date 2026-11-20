@@ -65,8 +65,11 @@ public partial class MainWindow
         var control = modifiers.HasFlag(ModifierKeys.Control);
         if (control && key >= Key.A && key <= Key.Z) return ((char)(key - Key.A + 1)).ToString();
         if (control && key == Key.Space) return "\0";
-        return GetTerminalKeySequence(key, modifiers.HasFlag(ModifierKeys.Shift), modifiers.HasFlag(ModifierKeys.Alt), control,
-            pane.Buffer?.CaptureSnapshot().Modes.ApplicationCursorKeys == true) ?? step.Input;
+        var shift = modifiers.HasFlag(ModifierKeys.Shift);
+        var alt = modifiers.HasFlag(ModifierKeys.Alt);
+        return GetTerminalKeySequence(key, shift, alt, control,
+            pane.Buffer?.CaptureSnapshot().Modes.ApplicationCursorKeys == true,
+            UseAgentShiftEnter(pane.Session, key, shift, alt, control)) ?? step.Input;
     }
 
     private void SetMacroStatus(string? text)

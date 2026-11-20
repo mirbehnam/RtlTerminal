@@ -41,8 +41,11 @@ internal static class TuiCompatibility
         name.Equals("opencode2.exe", StringComparison.OrdinalIgnoreCase) || name.Equals("mimo.exe", StringComparison.OrdinalIgnoreCase);
 
     internal static bool Read(int rootProcessId) => ReadProfile(rootProcessId) == TuiCompatibilityProfile.OpenTui;
-    internal static TuiCompatibilityProfile ReadProfile(int rootProcessId)
+    internal static TuiCompatibilityProfile ReadProfile(int rootProcessId) => ReadProfile(rootProcessId, out _);
+
+    internal static TuiCompatibilityProfile ReadProfile(int rootProcessId, out bool agentActive)
     {
+        agentActive = false;
         if (rootProcessId <= 0) return TuiCompatibilityProfile.Default;
         var snapshot = CreateToolhelp32Snapshot(2, 0);
         if (snapshot == new IntPtr(-1)) return TuiCompatibilityProfile.Default;
@@ -61,9 +64,18 @@ internal static class TuiCompatibility
             } while (added);
             // Never opt Codex/Claude into this app-specific compatibility profile,
             // even if another CLI remains in the shell's background process tree.
-            if (entries.Any(p => descendants.Contains(p.Id) && p.Exe.Equals("codex.exe", StringComparison.OrdinalIgnoreCase))) return TuiCompatibilityProfile.Default;
-            if (entries.Any(p => descendants.Contains(p.Id) && p.Exe.Equals("claude.exe", StringComparison.OrdinalIgnoreCase))) return TuiCompatibilityProfile.Claude;
-            return entries.Any(p => descendants.Contains(p.Id) && IsFixedGridApp(p.Exe)) ? TuiCompatibilityProfile.OpenTui : TuiCompatibilityProfile.Default;
+            if (entries.Any(p => descendants.Contains(p.Id) && p.Exe.Equals("codex.exe", StringComparison.OrdinalIgnoreCase)))
+            {
+                agentActive = true;
+                return TuiCompatibilityProfile.Default;
+            }
+            if (entries.Any(p => descendants.Contains(p.Id) && p.Exe.Equals("claude.exe", StringComparison.OrdinalIgnoreCase)))
+            {
+                agentActive = true;
+                return TuiCompatibilityProfile.Claude;
+            }
+            agentActive = entries.Any(p => descendants.Contains(p.Id) && IsFixedGridApp(p.Exe));
+            return agentActive ? TuiCompatibilityProfile.OpenTui : TuiCompatibilityProfile.Default;
         }
         finally { CloseHandle(snapshot); }
     }

@@ -22,6 +22,12 @@ public sealed partial class ConPtySession : IDisposable
     public string SessionId { get; } = Guid.NewGuid().ToString("N");
     internal bool RequiresFixedTuiGrid() => !_disposed && TuiCompatibility.Read(_processInfo.dwProcessId);
     internal TuiCompatibilityProfile ReadTuiCompatibility() => _disposed ? TuiCompatibilityProfile.Default : TuiCompatibility.ReadProfile(_processInfo.dwProcessId);
+    internal bool HasInteractiveAgent()
+    {
+        if (_disposed) return false;
+        TuiCompatibility.ReadProfile(_processInfo.dwProcessId, out var agentActive);
+        return agentActive;
+    }
     public string? ReadWorkingDirectory() => ProcessDirectory.Read(_processInfo.hProcess);
 
     static ConPtySession()

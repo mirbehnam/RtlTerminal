@@ -1992,7 +1992,7 @@ public partial class MainWindow : Window
             e.Handled = true;
             return;
         }
-        if (ActiveSession is null)
+        if (ActiveSession is not { } session)
             return;
 
         var controlPressed = (Keyboard.Modifiers & ModifierKeys.Control) != 0;
@@ -2070,7 +2070,8 @@ public partial class MainWindow : Window
             shiftPressed,
             altPressed,
             controlPressed,
-            ActiveSnapshot?.Modes.ApplicationCursorKeys == true);
+            ActiveSnapshot?.Modes.ApplicationCursorKeys == true,
+            UseAgentShiftEnter(session, key, shiftPressed, altPressed, controlPressed));
 
         if (sequence is null)
             return;
@@ -2102,12 +2103,16 @@ public partial class MainWindow : Window
         });
     }
 
-    private static string? GetTerminalKeySequence(
+    internal static bool UseAgentShiftEnter(ConPtySession? session, Key key, bool shift, bool alt, bool control) =>
+        key == Key.Enter && shift && !alt && !control && session?.HasInteractiveAgent() == true;
+
+    internal static string? GetTerminalKeySequence(
         Key key,
         bool shift,
         bool alt,
         bool control,
-        bool applicationCursorKeys)
+        bool applicationCursorKeys,
+        bool interactiveAgent = false)
     {
         if (key == Key.Tab)
             return shift ? "\x1b[Z" : "\t";
@@ -2174,6 +2179,8 @@ public partial class MainWindow : Window
 
         return key switch
         {
+            // These agents accept CSI-u Shift+Enter even without full keyboard protocol negotiation.
+            Key.Enter when shift && !alt && !control && interactiveAgent => "\x1b[13;2u",
             Key.Enter => alt ? "\x1b\r" : "\r",
             Key.Space => alt ? "\x1b " : " ",
             Key.Back => alt ? "\x1b\x7f" : "\x7f",
