@@ -85,6 +85,15 @@ General|عمومی|عام
 Automatically hide the menu bar|مخفی شدن خودکار منو|إخفاء شريط القوائم تلقائيًا
 Hide the tab bar with the menu|مخفی شدن نوار تب‌ها همراه منو|إخفاء شريط علامات التبويب مع القائمة
 Show menu bar|نمایش نوار منو|إظهار شريط القوائم
+Show menu bar (Left Alt)|نمایش نوار منو (Alt چپ)|إظهار شريط القوائم (Alt الأيسر)
+Startup directory|پوشهٔ شروع|مجلد بدء التشغيل
+User folder only|فقط پوشهٔ کاربر|مجلد المستخدم فقط
+Last visited directory|آخرین مسیر بازدیدشده|آخر مجلد تمت زيارته
+Choose a directory at startup|انتخاب مسیر هنگام شروع|اختر مجلدًا عند بدء التشغيل
+Applies when you launch Rtl Terminal without a specific folder.|برای اجرای RTL Terminal بدون تعیین پوشهٔ مشخص اعمال می‌شود.|يُطبّق عند تشغيل RTL Terminal دون تحديد مجلد.
+Which directory would you like to open?|کدام مسیر را می‌خواهید باز کنید؟|أي مجلد تريد فتحه؟
+Stay in the user folder|در پوشهٔ کاربر بمان|البقاء في مجلد المستخدم
+Close directory suggestions|بستن پیشنهادهای مسیر|إغلاق اقتراحات المجلدات
 Press Alt or hover at the top edge of the terminal to show the menu.|برای نمایش منو، Alt را بزنید یا نشانگر را روی لبهٔ بالای ترمینال نگه دارید.|اضغط على Alt أو مرّر المؤشر فوق الحافة العلوية للطرفية لعرض القائمة.
 Theme|تم|المظهر
 History|تاریخچه|السجل

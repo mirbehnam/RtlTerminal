@@ -16,6 +16,19 @@ public static class AppSettings
     private const string SettingsKey = @"Software\RtlTerminal";
     private static readonly int[] SupportedHistorySizes = [2000, 5000, 10000];
 
+    public static StartupDirectoryMode LoadStartupDirectoryMode()
+    {
+        using var key = Registry.CurrentUser.OpenSubKey(SettingsKey);
+        return Enum.TryParse<StartupDirectoryMode>(key?.GetValue(nameof(StartupDirectoryMode)) as string, out var mode) && Enum.IsDefined(mode)
+            ? mode : StartupDirectoryMode.ChooseDirectory;
+    }
+
+    public static void SaveStartupDirectoryMode(StartupDirectoryMode mode)
+    {
+        using var key = Registry.CurrentUser.CreateSubKey(SettingsKey);
+        key.SetValue(nameof(StartupDirectoryMode), mode.ToString());
+    }
+
     public static bool LoadAutoHideMenu()
     {
         using var key = Registry.CurrentUser.OpenSubKey(SettingsKey);

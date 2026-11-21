@@ -2,14 +2,23 @@ using System.IO;
 
 namespace RtlTerminal;
 
+public enum StartupDirectoryMode { Default, LastDirectory, ChooseDirectory }
+
 public static class StartupDirectories
 {
     public static string? Resolve(string? requested, string? argument, string? currentDirectory, string applicationDirectory, string userDirectory)
     {
         if (Existing(requested) is { } explicitDirectory) return explicitDirectory;
+        return ResolveLaunchDirectory(argument, currentDirectory, applicationDirectory) ?? Existing(userDirectory);
+    }
+
+    // The installer and Start menu can launch the app with the user's home as the working directory.
+    public static string? ResolveLaunchDirectory(string? argument, string? currentDirectory, string applicationDirectory, string? userDirectory = null)
+    {
         if (Existing(argument) is { } argumentDirectory) return argumentDirectory;
-        if (Existing(currentDirectory) is { } inherited && !InsideApplication(inherited, applicationDirectory)) return inherited;
-        return Existing(userDirectory);
+        if (Existing(currentDirectory) is not { } inherited || InsideApplication(inherited, applicationDirectory)) return null;
+        return string.Equals(Path.TrimEndingDirectorySeparator(inherited),
+            userDirectory is null ? null : Path.TrimEndingDirectorySeparator(userDirectory), StringComparison.OrdinalIgnoreCase) ? null : inherited;
     }
 
     private static bool InsideApplication(string directory, string applicationDirectory)

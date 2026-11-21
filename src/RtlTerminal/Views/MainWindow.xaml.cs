@@ -150,13 +150,7 @@ public partial class MainWindow : Window
         Dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(() =>
         {
             if (_windowClosed) return;
-            if (_tabs.Count == 0) CreateTerminalTabCore(_defaultProfile, null, null, backgroundStart: true);
-            RefreshContextMenuIntegrationState();
-            if (!App.PerformanceProbe)
-            {
-                PromptForContextMenuIntegration();
-                _ = CheckForUpdatesOnStartupAsync();
-            }
+            _ = OpenInitialDirectoryAsync();
         }));
     }
 
@@ -167,6 +161,7 @@ public partial class MainWindow : Window
 
     private void CreateTerminalTabCore(TerminalProfile profile, string? requestedStartupDirectory, string? wslDistribution, bool backgroundStart)
     {
+        DismissStartupDirectoryPicker(restoreFocus: false);
         using var timing = StartupPerformance.Measure("Terminal.CreateTab");
         var pane = CreatePane(profile);
         if (profile == TerminalProfile.Wsl) pane.WslDistribution = wslDistribution ?? _defaultWslDistribution;
@@ -361,13 +356,13 @@ public partial class MainWindow : Window
     {
         Width = Math.Min(Width, Math.Max(MinWidth, WindowWorkArea.GetAvailableWidth(this) - 32));
         WindowWorkArea.Attach(this, () => IsFullScreen);
+        WindowCaptionTheme.UseCompositedFrame(this);
     }
 
     private void Window_SizeChanged(object sender, SizeChangedEventArgs e)
     {
-        MaximizeGlyph.Data = Geometry.Parse(WindowState == WindowState.Maximized
-            ? "M2.5,0.5 L9.5,0.5 9.5,7.5 M0.5,2.5 L7.5,2.5 7.5,9.5 0.5,9.5 Z"
-            : "M0.5,0.5 L9.5,0.5 9.5,9.5 0.5,9.5 Z");
+        MaximizeGlyph.Data = (Geometry)FindResource(WindowState == WindowState.Maximized
+            ? "RestoreWindowGeometry" : "MaximizeWindowGeometry");
 
         QueueViewportResize();
     }
@@ -1003,6 +998,7 @@ public partial class MainWindow : Window
         _terminalBell.UpdateSettings(settingsWindow.SelectedBellSettings);
         _directoryHistory.SetEnabled(settingsWindow.SelectedDirectoryHistoryEnabled);
         AppSettings.SaveDirectoryOpenMode(settingsWindow.SelectedDirectoryOpenMode);
+        AppSettings.SaveStartupDirectoryMode(settingsWindow.SelectedStartupDirectoryMode);
         _macroSettings.Save();
         ApplyHistorySize(settingsWindow.SelectedHistorySize);
         ApplyFontSettings(settingsWindow.SelectedSettings);
@@ -1878,7 +1874,7 @@ public partial class MainWindow : Window
             var isActive = ReferenceEquals(tab, _activeTab);
             var chromeColor = ((SolidColorBrush)FindResource("TitleBarBrush")).Color;
             Color? displayColor = isActive && _autoHideMenu
-                ? ((SolidColorBrush)FindResource("TerminalBackgroundBrush")).Color
+                ? ((SolidColorBrush)FindResource(_hideTabsWithMenu ? "ToolbarBrush" : "TerminalBackgroundBrush")).Color
                 : tab.BackgroundColor is { } tabColor ? TabColors.DisplayColor(tabColor, isActive, chromeColor) : null;
             var customText = displayColor is { } background ? new SolidColorBrush(TabColors.TextColor(background)) : null;
             var panel = new DockPanel { Height = 28 };

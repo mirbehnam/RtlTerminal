@@ -308,6 +308,12 @@
             </Setter>
         </Style>
 
+        <Style x:Key="WindowControlButtonStyle" TargetType="Button" BasedOn="{StaticResource WindowCaptionButtonStyle}">
+            <Setter Property="Foreground" Value="{DynamicResource MutedForegroundBrush}" />
+        </Style>
+        <Geometry x:Key="MaximizeWindowGeometry">M1.5,0.5 H8.5 Q9.5,0.5 9.5,1.5 V8.5 Q9.5,9.5 8.5,9.5 H1.5 Q0.5,9.5 0.5,8.5 V1.5 Q0.5,0.5 1.5,0.5 Z</Geometry>
+        <Geometry x:Key="RestoreWindowGeometry">M2.5,0.5 H8.5 Q9.5,0.5 9.5,1.5 V7.5 M1.5,2.5 H6.5 Q7.5,2.5 7.5,3.5 V8.5 Q7.5,9.5 6.5,9.5 H1.5 Q0.5,9.5 0.5,8.5 V3.5 Q0.5,2.5 1.5,2.5 Z</Geometry>
+
         <Style x:Key="DarkTitleButtonStyle"
                TargetType="Button">
             <Setter Property="Foreground"
@@ -607,27 +613,29 @@
                         Orientation="Horizontal"
                         HorizontalAlignment="Right"
                         shell:WindowChrome.IsHitTestVisibleInChrome="True">
-                <Button Width="46"
-                        Style="{StaticResource WindowCaptionButtonStyle}"
+                <Button x:Name="MinimizeButton" Width="46"
+                        Style="{StaticResource WindowControlButtonStyle}"
                         ToolTip="{local:UiText Key='Minimize'}" AutomationProperties.Name="{local:UiText Key='Minimize'}"
                         Click="MinimizeButton_Click">
-                    <Path Width="10" Height="10" Data="M0,5 L10,5" StrokeThickness="1"
+                    <Path Width="10" Height="10" Data="M0.5,5 L9.5,5" StrokeThickness="1"
+                          StrokeStartLineCap="Round" StrokeEndLineCap="Round"
                           Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
                 </Button>
                 <Button x:Name="MaximizeButton"
                         Width="46"
-                        Style="{StaticResource WindowCaptionButtonStyle}"
+                        Style="{StaticResource WindowControlButtonStyle}"
                         ToolTip="{local:UiText Key='Maximize / Restore'}" AutomationProperties.Name="{local:UiText Key='Maximize or restore'}"
                         Click="MaximizeButton_Click">
-                    <Path x:Name="MaximizeGlyph" Width="10" Height="10" Data="M0.5,0.5 L9.5,0.5 9.5,9.5 0.5,9.5 Z" StrokeThickness="1"
+                    <Path x:Name="MaximizeGlyph" Width="10" Height="10" Data="{StaticResource MaximizeWindowGeometry}" StrokeThickness="1"
                           Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
                 </Button>
-                <Button Width="46"
-                        Style="{StaticResource WindowCaptionButtonStyle}"
+                <Button x:Name="CloseWindowButton" Width="46"
+                        Style="{StaticResource WindowControlButtonStyle}"
                         Tag="Close"
                         ToolTip="{local:UiText Key='Close window'}" AutomationProperties.Name="{local:UiText Key='Close window'}"
                         Click="CloseWindowButton_Click">
                     <Path Width="10" Height="10" Data="M0.5,0.5 L9.5,9.5 M9.5,0.5 L0.5,9.5" StrokeThickness="1"
+                          StrokeStartLineCap="Round" StrokeEndLineCap="Round"
                           Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
                 </Button>
             </StackPanel>
@@ -798,7 +806,7 @@
         </Border>
         </Grid>
 
-        <Grid x:Name="TerminalArea">
+        <Grid x:Name="TerminalArea" Background="Transparent" PreviewMouseDown="TerminalArea_PreviewMouseDown">
         <ScrollViewer x:Name="PaneScroller" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto"
                       CanContentScroll="False" Focusable="False" SizeChanged="PaneScroller_SizeChanged" ScrollChanged="PaneScroller_ScrollChanged">
         <Grid x:Name="PaneHost" HorizontalAlignment="Left">
@@ -891,11 +899,88 @@
                 </Button>
             </StackPanel>
         </Border>
+        <Grid x:Name="StartupDirectoryPicker" HorizontalAlignment="Right" Width="390" MaxHeight="550"
+              Margin="20,14,26,14" Visibility="Collapsed" PreviewKeyDown="StartupDirectoryPicker_KeyDown">
+            <Border Background="{DynamicResource MenuBackgroundBrush}" BorderBrush="{DynamicResource ToolbarBorderBrush}"
+                    BorderThickness="1" CornerRadius="14" Opacity="0.58" />
+            <Grid Margin="18">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+                <Grid.Resources>
+                    <Style TargetType="Button">
+                        <Setter Property="Background" Value="Transparent" />
+                        <Setter Property="Foreground" Value="{DynamicResource ChromeForegroundBrush}" />
+                        <Setter Property="Padding" Value="12,8" />
+                        <Setter Property="Margin" Value="0,0,0,5" />
+                        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                        <Setter Property="Template">
+                            <Setter.Value>
+                                <ControlTemplate TargetType="Button">
+                                    <Border x:Name="Tile" Padding="{TemplateBinding Padding}" CornerRadius="7"
+                                            BorderThickness="1" BorderBrush="Transparent" Background="{TemplateBinding Background}">
+                                        <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" />
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter TargetName="Tile" Property="Background" Value="{DynamicResource MenuHighlightBrush}" />
+                                        </Trigger>
+                                        <Trigger Property="IsKeyboardFocused" Value="True">
+                                            <Setter TargetName="Tile" Property="BorderBrush" Value="{DynamicResource FocusBrush}" />
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Setter.Value>
+                        </Setter>
+                    </Style>
+                </Grid.Resources>
+                <DockPanel Margin="0,0,0,14">
+                    <Button x:Name="StartupPickerCloseButton" DockPanel.Dock="Right" Width="28" Height="28"
+                            VerticalAlignment="Top" Margin="8,0,0,0" Click="StartupHomeDirectory_Click"
+                            Style="{StaticResource SearchIconButtonStyle}"
+                            ToolTip="{local:UiText Key='Close directory suggestions'}"
+                            AutomationProperties.Name="{local:UiText Key='Close directory suggestions'}">
+                        <Path Width="9" Height="9" Stretch="Fill" Data="M0,0 L9,9 M9,0 L0,9" StrokeThickness="1.2"
+                              Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
+                    </Button>
+                    <TextBlock Text="{local:UiText Key='Which directory would you like to open?'}"
+                               TextWrapping="Wrap" FontSize="22" FontWeight="SemiBold"
+                               Foreground="{DynamicResource ChromeStrongForegroundBrush}" />
+                </DockPanel>
+                <Button x:Name="StartupStayButton" Grid.Row="1" Click="StartupHomeDirectory_Click"
+                        Content="{local:UiText Key='Stay in the user folder'}" FontSize="17" FontWeight="SemiBold"
+                        Foreground="{DynamicResource AccentBrush}" />
+                <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Focusable="False">
+                    <ItemsControl x:Name="StartupRecentDirectories">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Button Tag="{Binding}" Click="StartupRecentDirectory_Click" ToolTip="{Binding Path}"
+                                        AutomationProperties.Name="{Binding Path}">
+                                    <StackPanel>
+                                        <TextBlock Text="{Binding Name}" FontSize="17" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                                        <TextBlock Text="{Binding Path}" FontSize="12" TextTrimming="CharacterEllipsis" FlowDirection="LeftToRight"
+                                                   Foreground="{DynamicResource MutedForegroundBrush}" />
+                                    </StackPanel>
+                                </Button>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+                <StackPanel Grid.Row="3" Margin="0,7,0,0">
+                    <TextBlock x:Name="StartupDirectoryStatus" TextWrapping="Wrap" Margin="0,0,0,6" Visibility="Collapsed"
+                               Foreground="{DynamicResource MutedForegroundBrush}" AutomationProperties.LiveSetting="Polite" />
+                </StackPanel>
+            </Grid>
+        </Grid>
+
         <StackPanel x:Name="CompactWindowControls" Orientation="Horizontal"
-                HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,0,13,0"
+                HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,0,4,0"
                 shell:WindowChrome.IsHitTestVisibleInChrome="True">
             <StackPanel.Resources>
-                <Style TargetType="Button">
+                <Style x:Key="CompactWindowButtonStyle" TargetType="Button">
                     <Setter Property="Height" Value="12" />
                     <Setter Property="Width" Value="24" />
                     <Setter Property="Margin" Value="2,0,0,0" />
@@ -905,10 +990,13 @@
                     <Setter Property="Template">
                         <Setter.Value>
                             <ControlTemplate TargetType="Button">
-                                <Border x:Name="Surface" Background="{TemplateBinding Background}" CornerRadius="0,0,4,4">
+                                <Border x:Name="Surface" Background="{TemplateBinding Background}">
                                     <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
                                 </Border>
                                 <ControlTemplate.Triggers>
+                                    <Trigger Property="Name" Value="RevealMenuButton">
+                                        <Setter TargetName="Surface" Property="CornerRadius" Value="0,0,4,4" />
+                                    </Trigger>
                                     <Trigger Property="IsMouseOver" Value="True">
                                         <Setter TargetName="Surface" Property="Background" Value="{DynamicResource MenuHighlightBrush}" />
                                         <Setter Property="Foreground" Value="{DynamicResource ChromeStrongForegroundBrush}" />
@@ -923,29 +1011,64 @@
                     </Setter>
                 </Style>
             </StackPanel.Resources>
-            <Button x:Name="RevealMenuButton" Width="38" Visibility="Collapsed" Click="RevealMenuButton_Click"
-                    AutomationProperties.Name="{local:UiText Key='Show menu bar'}" ToolTip="{local:UiText Key='Show menu bar'}">
+            <Button x:Name="RevealMenuButton" Style="{StaticResource CompactWindowButtonStyle}" Visibility="Collapsed" Click="RevealMenuButton_Click"
+                    AutomationProperties.Name="{local:UiText Key='Show menu bar'}" ToolTip="{local:UiText Key='Show menu bar (Left Alt)'}">
                 <Path Width="8" Height="4" Stretch="Fill" Data="M 0,0 L 4,3 L 8,0" StrokeThickness="1"
                       Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
             </Button>
-            <StackPanel x:Name="CompactCaptionButtons" Orientation="Horizontal" Visibility="Collapsed">
-                <Button x:Name="CompactMinimizeButton" Click="MinimizeButton_Click"
+            <Grid x:Name="CompactCaptionButtons" Margin="2,0,0,0" Visibility="Collapsed">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <Grid.Resources>
+                    <Style TargetType="Button" BasedOn="{StaticResource CompactWindowButtonStyle}">
+                        <Setter Property="Margin" Value="0" />
+                        <Setter Property="Background" Value="Transparent" />
+                    </Style>
+                    <Style TargetType="Path">
+                        <Setter Property="Opacity" Value="0.8" />
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType=Button}}" Value="True">
+                                <Setter Property="Opacity" Value="1" />
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding IsKeyboardFocused, RelativeSource={RelativeSource AncestorType=Button}}" Value="True">
+                                <Setter Property="Opacity" Value="1" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                    <Style x:Key="CompactCaptionSeparatorStyle" TargetType="Border">
+                        <Setter Property="Width" Value="1" />
+                        <Setter Property="Height" Value="6" />
+                        <Setter Property="HorizontalAlignment" Value="Left" />
+                        <Setter Property="VerticalAlignment" Value="Center" />
+                        <Setter Property="Background" Value="{DynamicResource ChromeForegroundBrush}" />
+                        <Setter Property="Opacity" Value="0.2" />
+                        <Setter Property="IsHitTestVisible" Value="False" />
+                    </Style>
+                </Grid.Resources>
+                <Border x:Name="CompactCaptionSurface" Grid.ColumnSpan="3" CornerRadius="0,0,4,4"
+                        Background="{DynamicResource ToolbarBrush}" Opacity="0.35" IsHitTestVisible="False" />
+                <Button x:Name="CompactMinimizeButton" Grid.Column="0" Click="MinimizeButton_Click"
                         AutomationProperties.Name="{local:UiText Key='Minimize'}" ToolTip="{local:UiText Key='Minimize'}">
                     <Path Width="7" Height="7" Data="M0,5 L7,5" StrokeThickness="1"
                           Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
                 </Button>
-                <Button x:Name="CompactMaximizeButton" Click="MaximizeButton_Click"
+                <Button x:Name="CompactMaximizeButton" Grid.Column="1" Click="MaximizeButton_Click"
                         AutomationProperties.Name="{local:UiText Key='Maximize or restore'}" ToolTip="{local:UiText Key='Maximize / Restore'}">
                     <Path Width="7" Height="7" Stretch="Uniform"
                           StrokeThickness="1" Data="{Binding Data, ElementName=MaximizeGlyph}"
                           Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
                 </Button>
-                <Button x:Name="CompactCloseButton" Click="CloseWindowButton_Click"
+                <Button x:Name="CompactCloseButton" Grid.Column="2" Click="CloseWindowButton_Click"
                         AutomationProperties.Name="{local:UiText Key='Close window'}" ToolTip="{local:UiText Key='Close window'}">
                     <Path Width="7" Height="7" Data="M0.5,0.5 L6.5,6.5 M6.5,0.5 L0.5,6.5" StrokeThickness="1"
                           Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
                 </Button>
-            </StackPanel>
+                <Border Grid.Column="1" Style="{StaticResource CompactCaptionSeparatorStyle}" />
+                <Border Grid.Column="2" Style="{StaticResource CompactCaptionSeparatorStyle}" />
+            </Grid>
         </StackPanel>
         <StackPanel x:Name="MenuBarOverlay" VerticalAlignment="Top" Visibility="Collapsed" />
         </Grid>

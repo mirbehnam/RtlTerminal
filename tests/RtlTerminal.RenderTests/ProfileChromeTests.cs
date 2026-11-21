@@ -97,7 +97,16 @@ internal static partial class Program
             autoHide.Invoke(main, [true, false]);
             var selectedShape = ((Grid)strip.Children[1]).Children.OfType<System.Windows.Shapes.Path>().Single();
             if (((SolidColorBrush)selectedShape.Fill).Color != ((SolidColorBrush)main.FindResource("TerminalBackgroundBrush")).Color)
-                throw new Exception("The selected tab must match the terminal background with auto-hide enabled.");
+                throw new Exception("The selected tab must match the terminal background when only the menu auto-hides.");
+            autoHide.Invoke(main, [true, true]);
+            selectedShape = ((Grid)strip.Children[1]).Children.OfType<System.Windows.Shapes.Path>().Single();
+            var menuBar = (Border)main.FindName("MenuBarArea");
+            if (((SolidColorBrush)selectedShape.Fill).Color != ((SolidColorBrush)menuBar.Background).Color)
+                throw new Exception("The selected tab must match the menu background when both bars auto-hide.");
+            var reveal = (Button)main.FindName("RevealMenuButton");
+            foreach (var name in new[] { "CompactMinimizeButton", "CompactMaximizeButton", "CompactCloseButton" })
+                if (reveal.Width != ((Button)main.FindName(name)).Width)
+                    throw new Exception("The menu reveal button must match the width of the compact caption buttons.");
             autoHide.Invoke(main, [false, false]);
             selectedShape = ((Grid)strip.Children[1]).Children.OfType<System.Windows.Shapes.Path>().Single();
             if (((SolidColorBrush)selectedShape.Fill).Color != Colors.Yellow)

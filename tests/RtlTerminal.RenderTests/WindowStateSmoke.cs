@@ -18,6 +18,7 @@ internal static class WindowStateSmoke
         try
         {
             window.Show(); Pump();
+            CheckCompositedFrame(window);
             CheckAutoHideMenu(window);
             var menu = (System.Windows.Controls.ContextMenu)typeof(MainWindow)
                 .GetMethod("CreateTerminalContextMenu", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(window, null)!;
@@ -154,6 +155,23 @@ internal static class WindowStateSmoke
         }
         Console.WriteLine("PASS real F11 monitor coverage, hidden headers, zero outer padding, activation, repeated toggles and exact normal/maximized restore bounds");
     }
+    private static void CheckCompositedFrame(MainWindow window)
+    {
+        if (!OperatingSystem.IsWindowsVersionAtLeast(10, 0, 22000)) return;
+
+        var handle = new WindowInteropHelper(window).Handle;
+        if (DwmGetWindowAttribute(handle, 33, out var corners, sizeof(int)) != 0 || corners != 2)
+            throw new Exception("The main window did not opt in to Windows 11 rounded corners.");
+
+        var region = CreateRectRgn(0, 0, 0, 0);
+        try
+        {
+            if (GetWindowRgn(handle, region) != 0)
+                throw new Exception("A window clipping region prevents DWM from drawing the frame.");
+        }
+        finally { DeleteObject(region); }
+    }
+
     private static void CheckAutoHideMenu(MainWindow window)
     {
         const BindingFlags flags = BindingFlags.Instance | BindingFlags.NonPublic;
@@ -180,6 +198,14 @@ internal static class WindowStateSmoke
             apply.Invoke(window, [false, false]); Pump();
             if (!ReferenceEquals(menu.Parent, dock) || dock.ActualHeight <= 0 || arrow.IsVisible)
                 throw new Exception("Standard menu did not reserve space above the terminal.");
+            foreach (var name in new[] { "MinimizeButton", "MaximizeButton", "CloseWindowButton" })
+            {
+                var button = (System.Windows.Controls.Button)window.FindName(name);
+                var background = (System.Windows.Controls.Border)button.Template.FindName("CaptionBackground", button);
+                if (background.CornerRadius != new CornerRadius(0) ||
+                    (!button.IsMouseOver && !Equals(button.Foreground, window.FindResource("MutedForegroundBrush"))))
+                    throw new Exception("Standard caption controls must use square hover surfaces and muted idle icons.");
+            }
             apply.Invoke(window, [true, false]); Pump();
             if (!ReferenceEquals(menu.Parent, overlay) || overlay.IsVisible || dock.ActualHeight > 0 || !arrow.IsVisible || compact.IsVisible)
                 throw new Exception("Auto-hidden menu still occupied terminal space.");
@@ -207,6 +233,11 @@ internal static class WindowStateSmoke
             if (!ReferenceEquals(overlay.Children[0], titleBar) || titleBar.IsVisible || titleDock.ActualHeight != 0 ||
                 !arrow.IsVisible || !compact.IsVisible || CaptionHeight() is <= 0 or >= 24)
                 throw new Exception("Tab-bar auto-hide did not reserve only the compact caption.");
+            var captionSurface = (FrameworkElement)window.FindName("CompactCaptionSurface");
+            if (minimize.TranslatePoint(new Point(minimize.ActualWidth, 0), compact).X != maximize.TranslatePoint(new Point(0, 0), compact).X ||
+                maximize.TranslatePoint(new Point(maximize.ActualWidth, 0), compact).X != close.TranslatePoint(new Point(0, 0), compact).X ||
+                captionSurface.Opacity >= 1 || captionSurface.IsHitTestVisible)
+                throw new Exception("Compact caption controls must touch over a translucent surface without blocking input.");
             var expandedViewport = terminal.RenderSize;
             int HitTest(FrameworkElement element, Point point)
             {
@@ -220,8 +251,13 @@ internal static class WindowStateSmoke
             foreach (var button in new[] { arrow, minimize, maximize, close })
                 if (!button.IsVisible || HitTest(button, new Point(button.ActualWidth / 2, button.ActualHeight / 2)) != 1)
                     throw new Exception("The compact caption button is not clickable in the native drag zone.");
+            foreach (var button in new[] { minimize, maximize, close })
+                if (((System.Windows.Controls.Border)button.Template.FindName("Surface", button)).CornerRadius != new CornerRadius(0))
+                    throw new Exception("Compact caption controls must use square hover surfaces.");
             maximize.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent)); Pump();
             if (window.WindowState != WindowState.Maximized) throw new Exception("Compact maximize failed.");
+            if (!ReferenceEquals(((System.Windows.Shapes.Path)maximize.Content).Data, window.FindResource("RestoreWindowGeometry")))
+                throw new Exception("Compact maximize did not switch to the restore icon.");
             maximize.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent)); Pump();
             if (window.WindowState != WindowState.Normal) throw new Exception("Compact restore failed.");
             minimize.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent)); Pump();
@@ -258,6 +294,9 @@ internal static class WindowStateSmoke
     [DllImport("user32.dll")] private static extern IntPtr MonitorFromWindow(IntPtr hwnd, uint flags);
     [DllImport("user32.dll")] private static extern IntPtr SendMessage(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam);
     [DllImport("dwmapi.dll")] private static extern int DwmGetWindowAttribute(IntPtr hwnd, int attribute, out int value, int size);
+    [DllImport("user32.dll")] private static extern int GetWindowRgn(IntPtr hwnd, IntPtr region);
+    [DllImport("gdi32.dll")] private static extern IntPtr CreateRectRgn(int left, int top, int right, int bottom);
+    [DllImport("gdi32.dll")] private static extern bool DeleteObject(IntPtr handle);
     [DllImport("user32.dll")] [return: MarshalAs(UnmanagedType.Bool)] private static extern bool IsWindowVisible(IntPtr hwnd);
     private delegate bool MonitorEnumProc(IntPtr monitor, IntPtr dc, ref RectI rect, IntPtr data);
     [DllImport("user32.dll")] [return: MarshalAs(UnmanagedType.Bool)]

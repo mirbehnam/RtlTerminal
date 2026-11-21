@@ -58,14 +58,7 @@ public partial class MainWindow
         try
         {
             if (!Directory.Exists(entry.Path)) { UiText.Show(this, "This directory is currently unavailable.", "Directory history"); return; }
-            var profile = entry.Profile switch
-            {
-                "Wsl" => TerminalProfile.Wsl,
-                "PowerShell7" or "PowerShellCore" => TerminalProfile.PowerShell7,
-                "GitBash" => TerminalProfile.GitBash,
-                "PowerShell" => TerminalProfile.PowerShell,
-                _ => TerminalProfile.CommandPrompt
-            };
+            var profile = GetHistoryProfile(entry);
             var tab = _activeTab;
             var pane = ActivePane;
             var action = pane is null || tab is null ? DirectoryOpenAction.NewTab :
@@ -82,20 +75,35 @@ public partial class MainWindow
             if (pane is null || tab is null) return;
             if (tab.Panes.Any(p => p == _macroPane) && (_macroRecorder != null || _macroCancellation != null || _macroPreparing))
             { UiText.Show(this, "Stop macro recording or playback before replacing this terminal.", "Directory history"); return; }
-            StorePaneSizes();
-            var replacement = CreatePane(profile);
-            replacement.WslDistribution = entry.Distribution;
-            tab.LayoutRoot = tab.LayoutRoot.Replace(pane, new PaneLayout(replacement));
-            tab.Panes[tab.Panes.IndexOf(pane)] = replacement;
-            tab.ActivePane = replacement;
-            pane.IsShown = false;
-            ShowTab(tab);
-            _ = pane.DisposeAsync();
-            StartPane(replacement, entry.Path);
-            replacement.View.Focus();
+            ReplaceDirectoryPane(tab, pane, profile, entry.Path, entry.Distribution);
         }
         catch (Exception ex) { UiText.Show(this, ex.Message, "Directory history"); }
     }
+
+    private void ReplaceDirectoryPane(TerminalTab tab, TerminalPane pane, TerminalProfile profile,
+        string path, string? distribution, bool backgroundStart = false)
+    {
+        StorePaneSizes();
+        var replacement = CreatePane(profile);
+        replacement.WslDistribution = profile == TerminalProfile.Wsl ? distribution ?? _defaultWslDistribution : null;
+        tab.LayoutRoot = tab.LayoutRoot.Replace(pane, new PaneLayout(replacement));
+        tab.Panes[tab.Panes.IndexOf(pane)] = replacement;
+        tab.ActivePane = replacement;
+        pane.IsShown = false;
+        ShowTab(tab);
+        _ = pane.DisposeAsync();
+        StartPaneCore(replacement, path, showIntroduction: true, backgroundStart);
+        replacement.View.Focus();
+    }
+
+    private static TerminalProfile GetHistoryProfile(DirectoryHistoryEntry entry) => entry.Profile switch
+    {
+        "Wsl" => TerminalProfile.Wsl,
+        "PowerShell7" or "PowerShellCore" => TerminalProfile.PowerShell7,
+        "GitBash" => TerminalProfile.GitBash,
+        "PowerShell" => TerminalProfile.PowerShell,
+        _ => TerminalProfile.CommandPrompt
+    };
 
     private void ShowDirectoryHistory()
     {

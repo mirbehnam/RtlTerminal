@@ -50,6 +50,8 @@ public partial class MainWindow
         DismissAutoHideMenu();
         MoveChrome(MenuBarArea, enabled ? MenuBarOverlay : MenuBarDock);
         MoveChrome(TitleBarArea, enabled && hideTabs ? MenuBarOverlay : TitleBarDock, index: 0);
+        MenuBarDock.Visibility = enabled ? Visibility.Collapsed : Visibility.Visible;
+        TitleBarDock.Visibility = enabled && hideTabs ? Visibility.Collapsed : Visibility.Visible;
         _autoHideMenu = enabled;
         _hideTabsWithMenu = hideTabs;
         UpdateMenuRevealButton();
